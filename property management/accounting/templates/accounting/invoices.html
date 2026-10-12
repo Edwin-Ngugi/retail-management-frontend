@@ -1,0 +1,379 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Invoices | PropertyPro</title>
+
+    <link rel="stylesheet"
+          href="{% static 'accounting/css/invoices.css' %}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">PM</div>
+
+            <div>
+                <h2>PropertyPro</h2>
+                <span>Management System</span>
+            </div>
+        </div>
+
+
+        <nav>
+
+            <a href="/accounting/" class="nav-item">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+            <a href="/accounting/invoices/" class="nav-item active">
+                <span>▤</span>
+                Invoices
+            </a>
+
+            <a href="/accounting/payments/" class="nav-item">
+                <span>₿</span>
+                Payments
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⌂</span>
+                Properties
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>♙</span>
+                Tenants
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>▥</span>
+                Reports
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="nav-item">
+                <span>⚙</span>
+                Settings
+            </a>
+
+            <a href="/logout/" class="nav-item logout">
+                <span>↪</span>
+                Logout
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- HEADER -->
+
+        <header class="topbar">
+
+            <div>
+
+                <h1>Invoices</h1>
+
+                <p>
+                    Manage rent invoices for all properties
+                </p>
+
+            </div>
+
+
+            <div class="user-section">
+
+                <div class="notification">
+                    🔔
+                </div>
+
+                <div class="user-info">
+
+                    <strong>
+                        {{ request.user.username }}
+                    </strong>
+
+                    <span>
+                        Accountant
+                    </span>
+
+                </div>
+
+
+                <div class="avatar">
+
+                    {{ request.user.username|first|upper }}
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- ACTION BAR -->
+
+        <section class="action-bar">
+
+            <div>
+
+                <h2>Invoice Management</h2>
+
+                <p>
+                    Generate and manage tenant rent invoices
+                </p>
+
+            </div>
+
+
+            <button
+                class="generate-button"
+                onclick="openGenerateModal()">
+
+                + Generate Invoices
+
+            </button>
+
+        </section>
+
+
+        <!-- FILTERS -->
+
+        <section class="filters">
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="invoice-search"
+                    placeholder="Search invoice, tenant or property...">
+
+            </div>
+
+
+            <select id="status-filter">
+
+                <option value="">
+                    All Statuses
+                </option>
+
+                <option value="PAID">
+                    Paid
+                </option>
+
+                <option value="PARTIAL">
+                    Partial
+                </option>
+
+                <option value="UNPAID">
+                    Unpaid
+                </option>
+
+                <option value="OVERDUE">
+                    Overdue
+                </option>
+
+            </select>
+
+
+            <select id="month-filter">
+
+                <option value="">
+                    All Months
+                </option>
+
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+
+            </select>
+
+        </section>
+
+
+        <!-- INVOICE TABLE -->
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Rent Invoices</h2>
+
+                    <p>
+                        All invoices generated for tenants
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Invoice</th>
+                            <th>Tenant</th>
+                            <th>Property</th>
+                            <th>Unit</th>
+                            <th>Billing Month</th>
+                            <th>Amount Due</th>
+                            <th>Amount Paid</th>
+                            <th>Outstanding Balance</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="invoice-table">
+
+                        <tr>
+
+                            <td
+                                colspan="11"
+                                class="empty-state">
+
+                                Loading invoices...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+<!-- GENERATE INVOICE MODAL -->
+
+<div id="generate-modal" class="modal-overlay">
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2>Generate Rent Invoices</h2>
+
+                <p>
+                    Generate invoices for all active leases
+                </p>
+            </div>
+
+            <button
+                class="modal-close"
+                onclick="closeGenerateModal()">
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="modal-body">
+
+            <label for="billing-month">
+                Billing Month
+            </label>
+
+            <input
+                type="month"
+                id="billing-month">
+
+
+            <div class="generate-info">
+
+                <span>Invoices will be generated for:</span>
+
+                <strong>
+                    All active leases
+                </strong>
+
+            </div>
+
+
+            <div
+                id="generate-message"
+                class="generate-message">
+            </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+            <button
+                class="cancel-button"
+                onclick="closeGenerateModal()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                id="confirm-generate-button"
+                class="confirm-generate-button"
+                onclick="confirmGenerateInvoices()">
+
+                Generate Invoices
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="{% static 'accounting/js/invoices.js' %}"></script>
+
+</body>
+</html>

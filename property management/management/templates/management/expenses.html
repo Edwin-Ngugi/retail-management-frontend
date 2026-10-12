@@ -1,0 +1,1455 @@
+{% extends 'management/base.html' %}
+{% load static %}
+
+{% block title %}
+Financial Analysis - {{ property.name }} | PropertyPro
+{% endblock %}
+
+{% block extra_css %}
+
+<style>
+    .analysis-dashboard {
+        padding: 1.5rem;
+        max-width: 1600px;
+        margin: auto;
+    }
+
+    .top-nav {
+        margin-bottom: 1rem;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: .875rem;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .header-title h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 .25rem;
+    }
+
+    .header-title p {
+        color: #64748b;
+        margin: 0;
+        font-size: .875rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        border: none;
+        border-radius: 7px;
+        padding: .55rem .9rem;
+        font-size: .875rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: #2563eb;
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: #1d4ed8;
+    }
+
+    .btn-success {
+        background: #16a34a;
+        color: #fff;
+    }
+
+    .btn-success:hover {
+        background: #15803d;
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .filter-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        padding: .75rem 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-card form {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .filter-card input[type="date"] {
+        padding: .45rem .55rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: .875rem;
+        color: #334155;
+    }
+
+    .btn-filter {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: .45rem .9rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: .875rem;
+        cursor: pointer;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 1.15rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .kpi-title {
+        font-size: .72rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: .05em;
+        margin-bottom: .5rem;
+    }
+
+    .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: .25rem;
+    }
+
+    .kpi-subtext {
+        font-size: .8rem;
+        color: #64748b;
+    }
+
+    .text-success {
+        color: #16a34a !important;
+    }
+
+    .text-warning {
+        color: #d97706 !important;
+    }
+
+    .text-danger {
+        color: #dc2626 !important;
+    }
+
+    .text-blue {
+        color: #2563eb !important;
+    }
+
+    .text-muted {
+        color: #64748b !important;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .analysis-grid.equal {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 1050px) {
+        .analysis-grid,
+        .analysis-grid.equal {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .content-block {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 1.25rem;
+    }
+
+    .block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .block-title {
+        font-size: 1.05rem;
+        font-weight: 650;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+
+    .progress-group {
+        margin-bottom: 1.2rem;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: .875rem;
+        font-weight: 600;
+        margin-bottom: .375rem;
+    }
+
+    .progress-bar-bg {
+        background: #e2e8f0;
+        height: 10px;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 5px;
+    }
+
+    .bg-blue {
+        background: #2563eb;
+    }
+
+    .bg-green {
+        background: #16a34a;
+    }
+
+    .bg-orange {
+        background: #f59e0b;
+    }
+
+    .bg-red {
+        background: #dc2626;
+    }
+
+    .summary-list {
+        display: flex;
+        flex-direction: column;
+        gap: .75rem;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: .65rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: .875rem;
+    }
+
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+
+    .summary-label {
+        color: #64748b;
+    }
+
+    .summary-value {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .profit-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .profit-card-title {
+        color: #64748b;
+        font-size: .75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: .35rem;
+    }
+
+    .profit-value {
+        font-size: 1.65rem;
+        font-weight: 800;
+    }
+
+    .data-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: .75rem .55rem;
+        text-align: left;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: .85rem;
+        white-space: nowrap;
+    }
+
+    .data-table th {
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .data-table td {
+        color: #0f172a;
+    }
+
+    .data-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: .25rem .55rem;
+        font-size: .7rem;
+        font-weight: 700;
+    }
+
+    .status-paid {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-overdue {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-expense {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: #64748b;
+    }
+
+    .expense-total {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #dc2626;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .55);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-card {
+        background: #fff;
+        border-radius: 12px;
+        width: min(600px, 100%);
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, .2);
+    }
+
+    .modal-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #0f172a;
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        font-size: 1.4rem;
+        cursor: pointer;
+        color: #64748b;
+    }
+
+    .modal-body {
+        padding: 1.25rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: .4rem;
+        color: #334155;
+        font-size: .82rem;
+        font-weight: 600;
+    }
+
+    .form-control {
+        width: 100%;
+        box-sizing: border-box;
+        padding: .6rem .7rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        font-size: .875rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, .1);
+    }
+
+    .modal-footer {
+        padding: 1rem 1.25rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: .75rem;
+    }
+
+    .notice {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+        padding: .75rem 1rem;
+        border-radius: 8px;
+        font-size: .8rem;
+        margin-bottom: 1rem;
+    }
+</style>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="analysis-dashboard">
+
+```
+<!-- Navigation -->
+<div class="top-nav">
+    <a href="{% url 'property-analysis-list' %}" class="back-link">
+        ← Back to Properties
+    </a>
+</div>
+
+<!-- Header -->
+<div class="header-bar">
+    <div class="header-title">
+        <h1>{{ property.name }}</h1>
+        <p>
+            📍 {{ property.address|default:"Nairobi, Kenya" }}
+            &bull;
+            Financial Performance Dashboard
+        </p>
+    </div>
+
+    <div class="header-actions">
+        <button type="button"
+                class="btn btn-primary"
+                onclick="openExpenseModal()">
+            ＋ Add Expense
+        </button>
+
+        <a href="{% url 'property-financial-report' property.id %}{% if start_date %}?start_date={{ start_date }}&end_date={{ end_date }}{% endif %}"
+           class="btn btn-success">
+            ↓ Download PDF Report
+        </a>
+    </div>
+</div>
+
+<!-- Date Filter -->
+<div class="filter-card">
+    <form id="date-filter-form" method="GET">
+
+        <label for="start_date">
+            From:
+        </label>
+
+        <input type="date"
+               id="start_date"
+               name="start_date"
+               value="{{ start_date|default:'' }}">
+
+        <label for="end_date">
+            To:
+        </label>
+
+        <input type="date"
+               id="end_date"
+               name="end_date"
+               value="{{ end_date|default:'' }}">
+
+        <button type="submit" class="btn-filter">
+            Apply Filter
+        </button>
+
+        {% if start_date or end_date %}
+            <a href="{% url 'property-financial-analysis' property.id %}"
+               class="btn btn-secondary">
+                Clear
+            </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Main KPIs -->
+<div class="kpi-grid">
+
+    <div class="kpi-card">
+        <span class="kpi-title">Expected Rent</span>
+        <span class="kpi-value">
+            KSh {{ total_expected|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Total rent billed
+        </span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Collected Rent</span>
+        <span class="kpi-value text-success">
+            KSh {{ total_collected|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Verified rent received
+        </span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Operating Expenses</span>
+        <span class="kpi-value text-danger">
+            KSh {{ total_expenses|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Property operating costs
+        </span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Net Operating Income</span>
+        <span class="kpi-value {% if net_operating_income >= 0 %}text-success{% else %}text-danger{% endif %}">
+            KSh {{ net_operating_income|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Rent collected less expenses
+        </span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Outstanding Rent</span>
+        <span class="kpi-value text-warning">
+            KSh {{ total_pending|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Uncollected rent
+        </span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Overdue Balance</span>
+        <span class="kpi-value text-danger">
+            KSh {{ total_overdue|floatformat:2 }}
+        </span>
+        <span class="kpi-subtext">
+            Requires collection action
+        </span>
+    </div>
+
+</div>
+
+<!-- Charts -->
+<div class="analysis-grid">
+
+    <div class="content-block">
+        <div class="block-header">
+            <h2 class="block-title">
+                Income vs Expenses
+            </h2>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="incomeExpenseChart"></canvas>
+        </div>
+    </div>
+
+    <div class="content-block">
+
+        <div class="block-header">
+            <h2 class="block-title">
+                Expense Distribution
+            </h2>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="expenseCategoryChart"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Financial Summary + Performance -->
+<div class="analysis-grid equal">
+
+    <div class="content-block">
+
+        <h2 class="block-title">
+            Financial Summary
+        </h2>
+
+        <div class="summary-list">
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Gross Rent Billed
+                </span>
+                <span class="summary-value">
+                    KSh {{ total_expected|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Rent Collected
+                </span>
+                <span class="summary-value text-success">
+                    KSh {{ total_collected|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Outstanding Rent
+                </span>
+                <span class="summary-value text-warning">
+                    KSh {{ total_pending|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Operating Expenses
+                </span>
+                <span class="summary-value text-danger">
+                    KSh {{ total_expenses|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Net Operating Income
+                </span>
+                <span class="summary-value text-success">
+                    KSh {{ net_operating_income|floatformat:2 }}
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Expense Ratio
+                </span>
+                <span class="summary-value">
+                    {{ expense_ratio }}%
+                </span>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Net Profit Margin
+                </span>
+                <span class="summary-value">
+                    {{ net_profit_margin }}%
+                </span>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="content-block">
+
+        <h2 class="block-title">
+            Property Performance
+        </h2>
+
+        <div class="progress-group">
+
+            <div class="progress-header">
+                <span>Rent Collection Rate</span>
+                <span class="text-success">
+                    {{ collection_rate }}%
+                </span>
+            </div>
+
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill bg-green"
+                     style="width: {{ collection_rate|default:0 }}%;">
+                </div>
+            </div>
+
+        </div>
+
+        <div class="progress-group">
+
+            <div class="progress-header">
+                <span>Occupancy Rate</span>
+                <span class="text-blue">
+                    {{ occupancy_rate }}%
+                </span>
+            </div>
+
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill bg-blue"
+                     style="width: {{ occupancy_rate|default:0 }}%;">
+                </div>
+            </div>
+
+        </div>
+
+        <div class="progress-group">
+
+            <div class="progress-header">
+                <span>Expense Ratio</span>
+                <span class="text-danger">
+                    {{ expense_ratio }}%
+                </span>
+            </div>
+
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill bg-red"
+                     style="width: {{ expense_ratio|default:0 }}%;">
+                </div>
+            </div>
+
+        </div>
+
+        <div class="summary-list">
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Total Units
+                </span>
+                <strong>
+                    {{ total_units }}
+                </strong>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Occupied Units
+                </span>
+                <strong class="text-success">
+                    {{ occupied_units }}
+                </strong>
+            </div>
+
+            <div class="summary-row">
+                <span class="summary-label">
+                    Vacant Units
+                </span>
+                <strong class="text-danger">
+                    {{ vacant_units }}
+                </strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Expenses -->
+<div class="content-block" style="margin-bottom:1.25rem;">
+
+    <div class="block-header">
+
+        <div>
+            <h2 class="block-title">
+                Property Expenses
+            </h2>
+
+            <span class="text-muted" style="font-size:.8rem;">
+                Expenses recorded by authorized management staff
+            </span>
+        </div>
+
+        <button type="button"
+                class="btn btn-primary"
+                onclick="openExpenseModal()">
+            ＋ Record Expense
+        </button>
+
+    </div>
+
+    <div class="notice">
+        Expenses are created and managed by authorized PropertyPro
+        management personnel. Each expense is attached to this property
+        for financial reporting and profitability analysis.
+    </div>
+
+    <div class="data-table-wrapper">
+
+        <table class="data-table">
+
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for expense in expenses %}
+
+                <tr>
+
+                    <td>
+                        {{ expense.expense_date|date:"d M Y" }}
+                    </td>
+
+                    <td>
+                        <span class="status-badge status-expense">
+                            {{ expense.category }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {{ expense.description|default:"—" }}
+                    </td>
+
+                    <td>
+                        {{ expense.vendor|default:"—" }}
+                    </td>
+
+                    <td class="expense-total">
+                        KSh {{ expense.amount|floatformat:2 }}
+                    </td>
+
+                    <td>
+                        {% if expense.created_by %}
+                            {{ expense.created_by.get_full_name|default:expense.created_by.username }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <strong>No expenses recorded</strong>
+                            <br>
+                            <span>
+                                Start by recording the first property expense.
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- Expense Categories -->
+<div class="content-block" style="margin-bottom:1.25rem;">
+
+    <div class="block-header">
+        <h2 class="block-title">
+            Expense Categories
+        </h2>
+
+        <span class="expense-total">
+            Total: KSh {{ total_expenses|floatformat:2 }}
+        </span>
+    </div>
+
+    <div class="data-table-wrapper">
+
+        <table class="data-table">
+
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Total</th>
+                    <th>% of Expenses</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for category in expense_categories %}
+
+                <tr>
+
+                    <td>
+                        <strong>
+                            {{ category.category }}
+                        </strong>
+                    </td>
+
+                    <td>
+                        KSh {{ category.total|floatformat:2 }}
+                    </td>
+
+                    <td>
+                        {{ category.percentage }}%
+                    </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr>
+                    <td colspan="3">
+                        <div class="empty-state">
+                            No expense category data available.
+                        </div>
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<!-- ========================================================= -->
+
+<!-- ADD EXPENSE MODAL -->
+
+<!-- ========================================================= -->
+
+<div id="expenseModal" class="modal">
+
+```
+<div class="modal-card">
+
+    <div class="modal-header">
+
+        <h3>
+            Record Property Expense
+        </h3>
+
+        <button type="button"
+                class="modal-close"
+                onclick="closeExpenseModal()">
+            ×
+        </button>
+
+    </div>
+
+    <form method="POST"
+          action="{% url 'management-add-expense' property.id %}">
+
+        {% csrf_token %}
+
+        <div class="modal-body">
+
+            <div class="notice">
+                Only authorized management users should record
+                property expenses. Ensure the amount and description
+                are accurate before saving.
+            </div>
+
+            <div class="form-group">
+
+                <label for="expense_date">
+                    Expense Date
+                </label>
+
+                <input type="date"
+                       id="expense_date"
+                       name="expense_date"
+                       class="form-control"
+                       required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="category">
+                    Expense Category
+                </label>
+
+                <select id="category"
+                        name="category"
+                        class="form-control"
+                        required>
+
+                    <option value="">
+                        Select category
+                    </option>
+
+                    <option value="MAINTENANCE">
+                        Maintenance & Repairs
+                    </option>
+
+                    <option value="UTILITIES">
+                        Utilities
+                    </option>
+
+                    <option value="SECURITY">
+                        Security
+                    </option>
+
+                    <option value="CLEANING">
+                        Cleaning
+                    </option>
+
+                    <option value="STAFF">
+                        Staff & Labour
+                    </option>
+
+                    <option value="INSURANCE">
+                        Insurance
+                    </option>
+
+                    <option value="TAXES">
+                        Taxes & Licenses
+                    </option>
+
+                    <option value="MARKETING">
+                        Marketing
+                    </option>
+
+                    <option value="LEGAL">
+                        Legal & Professional
+                    </option>
+
+                    <option value="MANAGEMENT">
+                        Property Management
+                    </option>
+
+                    <option value="OTHER">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="amount">
+                    Amount (KSh)
+                </label>
+
+                <input type="number"
+                       id="amount"
+                       name="amount"
+                       class="form-control"
+                       min="0.01"
+                       step="0.01"
+                       placeholder="0.00"
+                       required>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="vendor">
+                    Vendor / Supplier
+                </label>
+
+                <input type="text"
+                       id="vendor"
+                       name="vendor"
+                       class="form-control"
+                       placeholder="e.g. ABC Plumbing Services">
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="description">
+                    Description
+                </label>
+
+                <textarea id="description"
+                          name="description"
+                          class="form-control"
+                          rows="4"
+                          placeholder="Describe what the expense was for..."
+                          required></textarea>
+
+            </div>
+
+            <div class="form-group">
+
+                <label for="reference">
+                    Reference / Receipt Number
+                </label>
+
+                <input type="text"
+                       id="reference"
+                       name="reference"
+                       class="form-control"
+                       placeholder="Optional">
+
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    onclick="closeExpenseModal()">
+                Cancel
+            </button>
+
+            <button type="submit"
+                    class="btn btn-primary">
+                Save Expense
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+```
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<!-- Chart.js -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const startDateInput = document.getElementById("start_date");
+    const endDateInput = document.getElementById("end_date");
+
+    if (startDateInput && endDateInput) {
+
+        startDateInput.addEventListener("change", function () {
+
+            if (startDateInput.value) {
+                endDateInput.min = startDateInput.value;
+            }
+
+        });
+
+        endDateInput.addEventListener("change", function () {
+
+            if (endDateInput.value) {
+                startDateInput.max = endDateInput.value;
+            }
+
+        });
+
+    }
+
+
+    /* =========================================================
+       INCOME VS EXPENSE CHART
+       ========================================================= */
+
+    const incomeExpenseCanvas =
+        document.getElementById("incomeExpenseChart");
+
+    if (incomeExpenseCanvas) {
+
+        new Chart(incomeExpenseCanvas, {
+
+            type: "line",
+
+            data: {
+
+                labels: {{ chart_labels|safe }},
+
+                datasets: [
+
+                    {
+                        label: "Rent Collected",
+                        data: {{ chart_income|safe }},
+                        borderWidth: 3,
+                        tension: .35,
+                        fill: false
+                    },
+
+                    {
+                        label: "Expenses",
+                        data: {{ chart_expenses|safe }},
+                        borderWidth: 3,
+                        tension: .35,
+                        fill: false
+                    },
+
+                    {
+                        label: "Net Income",
+                        data: {{ chart_net_income|safe }},
+                        borderWidth: 3,
+                        tension: .35,
+                        fill: false
+                    }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        position: "bottom"
+                    }
+
+                },
+
+                scales: {
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            callback: function(value) {
+                                return "KSh " +
+                                    Number(value).toLocaleString();
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    }
+
+
+    /* =========================================================
+       EXPENSE CATEGORY CHART
+       ========================================================= */
+
+    const expenseCanvas =
+        document.getElementById("expenseCategoryChart");
+
+    if (expenseCanvas) {
+
+        new Chart(expenseCanvas, {
+
+            type: "doughnut",
+
+            data: {
+
+                labels: {{ expense_chart_labels|safe }},
+
+                datasets: [
+
+                    {
+                        data: {{ expense_chart_values|safe }},
+                        borderWidth: 1
+                    }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+                        position: "bottom"
+                    }
+
+                }
+
+            }
+
+        });
+
+    }
+
+});
+
+
+/* =========================================================
+   EXPENSE MODAL
+   ========================================================= */
+
+function openExpenseModal() {
+
+    const modal =
+        document.getElementById("expenseModal");
+
+    if (modal) {
+
+        modal.classList.add("active");
+
+        const dateInput =
+            document.getElementById("expense_date");
+
+        if (dateInput && !dateInput.value) {
+
+            const today =
+                new Date().toISOString().split("T")[0];
+
+            dateInput.value = today;
+
+        }
+
+    }
+
+}
+
+
+function closeExpenseModal() {
+
+    const modal =
+        document.getElementById("expenseModal");
+
+    if (modal) {
+        modal.classList.remove("active");
+    }
+
+}
+
+
+document.addEventListener("click", function(event) {
+
+    const modal =
+        document.getElementById("expenseModal");
+
+    if (event.target === modal) {
+        closeExpenseModal();
+    }
+
+});
+
+
+document.addEventListener("keydown", function(event) {
+
+    if (event.key === "Escape") {
+        closeExpenseModal();
+    }
+
+});
+
+</script>
+
+{% endblock %}

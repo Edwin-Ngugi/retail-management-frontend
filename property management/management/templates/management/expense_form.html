@@ -1,0 +1,227 @@
+{% extends "management/base.html" %}
+
+{% block title %}Record Operating Expense | PropertyPro{% endblock %}
+
+{% block content %}
+<!-- Standalone Custom Stylesheet -->
+<style>
+    .expense-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid #eef2f7;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-header-badge {
+        background-color: #eef4ff;
+        color: #2563eb;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 6px 14px;
+        border-radius: 20px;
+        display: inline-block;
+    }
+
+    .form-control-custom {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease-in-out;
+        width: 100%;
+        background-color: #f8fafc;
+    }
+
+    .form-control-custom:focus {
+        border-color: #2563eb;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.15);
+        outline: none;
+    }
+
+    .currency-prefix {
+        background-color: #f1f5f9;
+        border: 1.5px solid #e2e8f0;
+        border-right: none;
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+        font-weight: 700;
+        color: #475569;
+        padding: 0.65rem 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .currency-input {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+
+    .btn-submit-expense {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.7rem 1.6rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-submit-expense:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-cancel-expense {
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        padding: 0.7rem 1.4rem;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-block;
+        transition: background 0.2s ease;
+    }
+
+    .btn-cancel-expense:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+        text-decoration: none;
+    }
+
+    .required-star {
+        color: #ef4444;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Breadcrumb & Navigation -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <div class="form-header-badge mb-2">Finance Management</div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-0">Record Operating Expense</h2>
+        </div>
+        <a href="{% url 'management-expenses' %}" class="btn-cancel-expense">
+            &larr; Back to Expenses
+        </a>
+    </div>
+
+    <!-- Form Container -->
+    <div class="row">
+        <div class="col-lg-8 col-xl-7 mx-auto">
+            <div class="expense-card p-4 p-md-5">
+                <form id="expenseForm" method="POST" action="{% if selected_property %}{% url 'management-expense-create-property' selected_property.id %}{% else %}{% url 'management-expense-create' %}{% endif %}">
+                    {% csrf_token %}
+
+                    <!-- Property Field -->
+                    <div class="form-group mb-4">
+                        <label for="propertySelect" class="font-weight-bold text-dark mb-2">Target Property <span class="required-star">*</span></label>
+                        <select name="property" id="propertySelect" class="form-control-custom" required>
+                            <option value="" disabled {% if not selected_property %}selected{% endif %}>-- Select Accessible Property --</option>
+                            {% for prop in properties %}
+                                <option value="{{ prop.id }}" {% if selected_property and selected_property.id == prop.id %}selected{% endif %}>
+                                    {{ prop.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Title Field -->
+                    <div class="form-group mb-4">
+                        <label for="expenseTitle" class="font-weight-bold text-dark mb-2">Expense Title <span class="required-star">*</span></label>
+                        <input type="text" name="title" id="expenseTitle" class="form-control-custom" placeholder="e.g. Electrical Repair - Block B" required>
+                    </div>
+
+                    <div class="row mb-4">
+                        <!-- Amount Field -->
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="expenseAmount" class="font-weight-bold text-dark mb-2">Amount (KSh) <span class="required-star">*</span></label>
+                            <div class="d-flex">
+                                <span class="currency-prefix">KSh</span>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="expenseAmount" class="form-control-custom currency-input" placeholder="0.00" required>
+                            </div>
+                        </div>
+
+                        <!-- Category Field -->
+                        <div class="col-md-6">
+                            <label for="expenseCategory" class="font-weight-bold text-dark mb-2">Category <span class="required-star">*</span></label>
+                            <select name="category" id="expenseCategory" class="form-control-custom" required>
+                                <option value="MAINTENANCE">Maintenance & Repairs</option>
+                                <option value="UTILITIES">Utilities (Water, Electricity)</option>
+                                <option value="SECURITY">Security Services</option>
+                                <option value="SALARIES">Staff & Caretaker Salaries</option>
+                                <option value="TAXES">Taxes & Licenses</option>
+                                <option value="OTHER" selected>Other / Miscellaneous</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Date Field -->
+                    <div class="form-group mb-4">
+                        <label for="expenseDate" class="font-weight-bold text-dark mb-2">Expense Date <span class="required-star">*</span></label>
+                        <input type="date" name="expense_date" id="expenseDate" class="form-control-custom" required>
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="form-group mb-4">
+                        <label for="expenseDescription" class="font-weight-bold text-dark mb-2">Notes & Description</label>
+                        <textarea name="description" id="expenseDescription" rows="4" class="form-control-custom" placeholder="Add vendor name, receipt reference, or reason for expense..."></textarea>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-end align-items-center mt-4 pt-3 border-top">
+                        <a href="{% url 'management-expenses' %}" class="btn-cancel-expense me-2 mr-2">Cancel</a>
+                        <button type="submit" class="btn-submit-expense" id="submitBtn">
+                            Save Expense Entry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Standalone JavaScript Logic -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const expenseForm = document.getElementById("expenseForm");
+        const expenseDateInput = document.getElementById("expenseDate");
+        const submitBtn = document.getElementById("submitBtn");
+
+        // Set default date to today's date if empty
+        if (!expenseDateInput.value) {
+            const today = new Date().toISOString().split("T")[0];
+            expenseDateInput.value = today;
+        }
+
+        // Form submission feedback & double-submit prevention
+        expenseForm.addEventListener("submit", function (e) {
+            const amountInput = document.getElementById("expenseAmount");
+            const propertySelect = document.getElementById("propertySelect");
+
+            if (parseFloat(amountInput.value) <= 0) {
+                e.preventDefault();
+                alert("Please enter a valid expense amount greater than zero.");
+                amountInput.focus();
+                return;
+            }
+
+            if (!propertySelect.value) {
+                e.preventDefault();
+                alert("Please select a target property.");
+                propertySelect.focus();
+                return;
+            }
+
+            // Disable button on submit to prevent duplicate database entries
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Saving Expense...";
+            submitBtn.style.opacity = "0.75";
+        });
+    });
+</script>
+{% endblock %}

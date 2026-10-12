@@ -1,0 +1,113 @@
+{% extends 'portal_admin/base.html' %}
+{% load static %}
+
+{% block title %}Property Directory | Admin Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-1 text-dark fw-bold">Properties Directory</h2>
+            <p class="text-muted mb-0">Manage registered properties, review unit allocations, and view asset details.</p>
+        </div>
+        <div>
+            <a href="{% url 'admin_add_property' %}" class="btn btn-primary">
+                + Register New Property
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body py-3">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="text" name="q" class="form-control" placeholder="Search by name, city, or address..." value="{{ request.GET.q }}">
+                </div>
+                <div class="col-md-4">
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for code, label in categories %}
+                            <option value="{{ code }}" {% if request.GET.category == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+                    {% if request.GET.q or request.GET.category %}
+                        <a href="{% url 'admin_properties_list' %}" class="btn btn-light border" title="Reset Filters">&times;</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table Directory -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Property</th>
+                            <th>Company</th>
+                            <th>Category</th>
+                            <th>City</th>
+                            <th>Total Units</th>
+                            <th>Created Date</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for property in properties %}
+                            <tr>
+                                <td class="ps-3 fw-bold">
+                                    <a href="{% url 'admin_property_detail' pk=property.pk %}" class="text-decoration-none text-dark">
+                                        {{ property.name }}
+                                    </a>
+                                </td>
+                                <td>{{ property.company.name|default:"—" }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ property.get_category_display }}</span>
+                                </td>
+                                <td>{{ property.city }}</td>
+                                <td><span class="fw-semibold">{{ property.units.count }}</span> units</td>
+                                <td class="text-muted small">{{ property.created_at|date:"M d, Y" }}</td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'admin_property_detail' pk=property.pk %}" class="btn btn-sm btn-light border">
+                                        Manage
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    No properties found. <a href="{% url 'admin_add_property' %}">Add a property</a>.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav>
+            <ul class="pagination pagination-sm">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Maintenance | PropertyPro</title>
+    <link rel="stylesheet" href="{% static 'tenants/css/report_maintenance.css' %}">
+</head>
+<body>
+
+<div class="tenant-layout">
+
+    <!-- =================================================
+         SIDEBAR
+    ================================================== -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">pp</div>
+            <div class="logo-text">
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/tenant/dashboard/" class="nav-item">
+                Dashboard
+            </a>
+            <a href="/tenant/lease/" class="nav-item">
+                My Lease
+            </a>
+            
+            <a href="/tenant/maintenance/" class="nav-item active">
+                <span class="nav-icon">🔧</span>
+                Maintenance
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="/settings/" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                Settings
+            </a>
+            <a href="/logout/" class="nav-item logout">
+                <span class="nav-icon">↪</span>
+                Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- =================================================
+         MAIN CONTENT AREA
+    ================================================== -->
+    <div class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="top-header">
+            <div class="page-heading">
+                <h1>Report Maintenance</h1>
+                <p>Submit a new repair or service request for your unit.</p>
+            </div>
+
+            <div class="header-user">
+                <div class="user-avatar">
+                    {{ user.first_name|default:"J"|slice:":1" }}
+                </div>
+                <div class="user-details">
+                    <strong>{{ user.get_full_name|default:"John Kamau" }}</strong>
+                    <span>Tenant</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content">
+
+            <div class="form-wrapper">
+
+                <!-- TOP NAV CONTROL -->
+                <div class="form-top-bar">
+                    <a href="/tenant/maintenance/" class="btn-back">
+                        ← Back to Requests
+                    </a>
+                </div>
+
+                <!-- MESSAGES / ALERTS BLOCK -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }}" style="padding: 12px 16px; background-color: {% if message.tags == 'success' %}#d1fae5{% else %}#fee2e2{% endif %}; color: {% if message.tags == 'success' %}#065f46{% else %}#991b1b{% endif %}; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border: 1px solid {% if message.tags == 'success' %}#a7f3d0{% else %}#fca5a5{% endif %};">
+                            <span style="font-size: 1.2rem;">{% if message.tags == 'success' %}✅{% else %}⚠️{% endif %}</span>
+                            <div>
+                                <strong>{{ message }}</strong>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if error %}
+                    <div class="alert error-alert">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-body">
+                            <strong>Unable to process request</strong>
+                            <p>{{ error }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- PROPERTY BANNER -->
+                <section class="property-banner">
+                    <div class="property-icon">🏠</div>
+                    <div class="property-details">
+                        <span class="label">Reporting issue for</span>
+                        {% with active_item=lease|default:active_lease %}
+                            {% if active_item %}
+                                <h2>
+                                    {% if active_item.unit.property.name %}
+                                        {{ active_item.unit.property.name }}
+                                    {% elif active_item.unit.property_name %}
+                                        {{ active_item.unit.property_name }}
+                                    {% elif active_item.property.name %}
+                                        {{ active_item.property.name }}
+                                    {% else %}
+                                        Active Residence
+                                    {% endif %}
+                                </h2>
+                                <p>
+                                    {% if active_item.unit.unit_number %}
+                                        Unit {{ active_item.unit.unit_number }}
+                                    {% elif active_item.unit_number %}
+                                        Unit {{ active_item.unit_number }}
+                                    {% else %}
+                                        Assigned Unit
+                                    {% endif %}
+
+                                    {% if active_item.unit.property.city %}
+                                        · {{ active_item.unit.property.city }}
+                                    {% elif active_item.property.city %}
+                                        · {{ active_item.property.city }}
+                                    {% endif %}
+                                </p>
+                            {% else %}
+                                <h2>Active Residence</h2>
+                                <p>Assigned Unit · Main Property</p>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </section>
+
+                <!-- FORM CARD CONTAINER -->
+                <div class="form-card">
+                    <div class="form-header">
+                        <h2>Maintenance Details</h2>
+                        <p>Provide clear details so our management team can quickly dispatch service.</p>
+                    </div>
+
+                    <form id="maintenance-form" method="POST" action="/tenant/maintenance/report/">
+                        {% csrf_token %}
+
+                        <!-- TITLE -->
+                        <div class="form-group">
+                            <label for="title">Issue Title <span class="required">*</span></label>
+                            <input 
+                                type="text" 
+                                id="title" 
+                                name="title" 
+                                placeholder="e.g. Leaking kitchen sink pipe" 
+                                maxlength="200" 
+                                required
+                            >
+                        </div>
+
+                        <!-- CATEGORY & PRIORITY ROW -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="category">Category <span class="required">*</span></label>
+                                <select id="category" name="category" required>
+                                    <option value="" disabled selected>Select category...</option>
+                                    <option value="PLUMBING">Plumbing</option>
+                                    <option value="ELECTRICAL">Electrical</option>
+                                    <option value="APPLIANCE">Appliance</option>
+                                    <option value="STRUCTURAL">Structural</option>
+                                    <option value="SECURITY">Security</option>
+                                    <option value="CLEANING">Cleaning</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="priority">Priority Level <span class="required">*</span></label>
+                                <select id="priority" name="priority" required>
+                                    <option value="" disabled selected>Select priority...</option>
+                                    <option value="LOW">Low (Minor issue, non-urgent)</option>
+                                    <option value="MEDIUM" selected>Medium (Standard repair)</option>
+                                    <option value="HIGH">High (Impacting daily use)</option>
+                                    <option value="URGENT">Urgent (Emergency/Safety risk)</option>
+                                </select>
+                                <small class="help-text">Select <strong>Urgent</strong> only for active leaks, power loss, or safety risks.</small>
+                            </div>
+                        </div>
+
+                        <!-- DESCRIPTION -->
+                        <div class="form-group">
+                            <label for="description">Detailed Description <span class="required">*</span></label>
+                            <textarea 
+                                id="description" 
+                                name="description" 
+                                rows="6" 
+                                placeholder="Describe the problem in detail (e.g., exact location in unit, when it started, severity)..." 
+                                required
+                            ></textarea>
+                            <small class="help-text">Specific details help technicians bring the right tools on the first visit.</small>
+                        </div>
+
+                        <!-- ACTIONS -->
+                        <div class="form-actions">
+                            <a href="/tenant/maintenance/" class="btn-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" id="submit-btn" class="btn-primary">
+                                Submit Maintenance Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<script src="{% static 'tenants/js/report_maintenance.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.getElementById("maintenance-form");
+        if (form) {
+            form.addEventListener("submit", function() {
+                const btn = document.getElementById("submit-btn");
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerText = "Submitting...";
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>

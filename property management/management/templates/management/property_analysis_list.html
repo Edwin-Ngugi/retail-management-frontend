@@ -1,0 +1,178 @@
+{% extends 'management/base.html' %}
+{% load static %}
+
+{% block title %}
+    Property Analysis | PropertyPro
+{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .analysis-container {
+        padding: 1.5rem;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .page-header p {
+        color: #64748b;
+        margin: 0;
+    }
+
+    .properties-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .property-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .property-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .property-card-header {
+        margin-bottom: 1rem;
+    }
+
+    .property-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .property-location {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .property-stats {
+        display: flex;
+        justify-content: space-between;
+        background: #f8fafc;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.25rem;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .btn-analysis {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.625rem 1rem;
+        background-color: #2563eb;
+        color: #ffffff;
+        font-weight: 600;
+        font-size: 0.875rem;
+        border-radius: 6px;
+        text-decoration: none;
+        box-sizing: border-box;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-analysis:hover {
+        background-color: #1d4ed8;
+        color: #ffffff;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 3rem 1.5rem;
+        background: #ffffff;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+    }
+
+    .empty-state h3 {
+        color: #334155;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #64748b;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analysis-container">
+    <div class="page-header">
+        <h1>Financial Analysis & Reports</h1>
+        <p>Select a property to view detailed revenue, occupancy, and expense analytics.</p>
+    </div>
+
+    <div class="properties-grid">
+        {% for property in properties %}
+            <div class="property-card">
+                <div>
+                    <div class="property-card-header">
+                        <h2 class="property-title">{{ property.name }}</h2>
+                        <span class="property-location">📍 {{ property.address|default:"Kilimani" }}</span>
+                    </div>
+
+                    <div class="property-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Units</span>
+                            <span class="stat-value">{{ property.units.count|default:0 }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Occupancy</span>
+                            <span class="stat-value">{{ property.units.count|default:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="{% url 'property-analysis-detail' property_id=property.id %}" class="btn-analysis">
+                    📊 View Financial Analysis
+                </a>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                <h3>No Properties Found</h3>
+                <p>There are currently no properties available for financial analysis.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

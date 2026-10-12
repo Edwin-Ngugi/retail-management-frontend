@@ -1,0 +1,200 @@
+{% extends 'management/base.html' %}
+{% load static %}
+
+{% block title %}Tenants | PropertyPro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'management/css/tenants.css' %}">
+<style>
+    .btn-evacuation {
+        background-color: #dc3545;
+        color: #ffffff !important;
+        padding: 9px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .btn-evacuation:hover {
+        background-color: #bb2d3b;
+    }
+
+    .btn-action-vacate {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .btn-action-vacate:hover {
+        background-color: #ffe69c;
+    }
+
+    .filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .tenant-filter-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-grow: 1;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tenants-container">
+    
+    <!-- Page Header Metrics -->
+    <div class="page-header">
+        <div>
+            <h2>Tenants Directory</h2>
+            <p>Manage occupant details, lease statuses, and rent balances.</p>
+        </div>
+        <div class="summary-pills">
+            <span class="pill"><strong>{{ total_tenants }}</strong> Total Tenants</span>
+            <span class="pill alert-pill"><strong>{{ total_with_balance }}</strong> With Pending Balances</span>
+            <span class="pill highlight"><strong>KSh {{ total_balance_amount|floatformat:"0" }}</strong> Total Unpaid</span>
+        </div>
+    </div>
+
+    <!-- Filters & Actions -->
+    <div class="filter-bar">
+        <form method="GET" class="tenant-filter-form">
+            <input type="text" name="search" placeholder="Search tenant name, phone, or unit..." value="{{ search_query }}">
+            
+            <select name="property" onchange="this.form.submit()">
+                <option value="">All Properties</option>
+                {% for prop in properties %}
+                    <option value="{{ prop.id }}" {% if selected_property == prop.id|stringformat:"s" %}selected{% endif %}>
+                        {{ prop.name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <select name="balance_status" onchange="this.form.submit()">
+                <option value="">All Financial Statuses</option>
+                <option value="has_balance" {% if selected_balance == 'has_balance' %}selected{% endif %}>⚠️ Outstanding Balance Only</option>
+                <option value="clear" {% if selected_balance == 'clear' %}selected{% endif %}>✅ Clear / Paid Up</option>
+            </select>
+
+            <button type="submit" class="btn-search">Filter</button>
+        </form>
+
+        <a href="{% url 'management_vacation_requests' %}" class="btn-evacuation">
+            ⚠️ Evacuation Requests
+        </a>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Tenant Name</th>
+                    <th>Property & Unit</th>
+                    <th>Contact Info</th>
+                    <th>Balance Status</th>
+                    <th>Lease Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tenant in tenants %}
+                    <tr class="{% if tenant.calculated_balance > 0 %}row-has-balance{% endif %}">
+                        <td>
+                            <div class="tenant-identity">
+                                <strong>{{ tenant.user.get_full_name|default:tenant.user.username }}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="property-meta">
+                                {% with active_lease=tenant.leases.first %}
+                                    {% if active_lease %}
+                                        <span>🏢 {{ active_lease.unit.property.name }}</span>
+                                        <small>Unit {{ active_lease.unit.unit_number }}</small>
+                                    {% else %}
+                                        <span class="text-muted">No active lease</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-meta">
+                                <span>📞 {{ tenant.phone|default:"N/A" }}</span>
+                                <small>{{ tenant.user.email|default:"No email" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% if tenant.calculated_balance > 0 %}
+                                <div class="balance-badge balance-overdue">
+                                    <span>⚠️ KSh {{ tenant.calculated_balance|floatformat:"0" }}</span>
+                                    <small>Due</small>
+                                </div>
+                            {% else %}
+                                <div class="balance-badge balance-clear">
+                                    <span>KSh 0</span>
+                                    <small>Cleared</small>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with active_lease=tenant.leases.first %}
+                                {% if active_lease %}
+                                    <span class="status-badge status-{{ active_lease.status|lower }}">
+                                        {{ active_lease.get_status_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-terminated">
+                                        No Lease
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                {% if tenant.calculated_balance > 0 %}
+                                    <a href="{% url 'management-send-reminder' tenant.id %}" class="btn-action-warning" title="Send Rent Reminder">Remind</a>
+                                {% endif %}
+
+                                {% with active_lease=tenant.leases.first %}
+                                    {% if active_lease and active_lease.status == 'NOTICE_GIVEN' %}
+                                        <a href="{% url 'management_vacation_requests' %}" class="btn-action-vacate" title="Vacate Notice Pending">Vacate Notice</a>
+                                    {% elif tenant.calculated_balance <= 0 %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="no-results">No tenant records found matching the given filters.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'management/js/tenants.js' %}" defer></script>
+{% endblock %}

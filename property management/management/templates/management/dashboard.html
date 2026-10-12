@@ -1,0 +1,605 @@
+{% extends 'management/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="{% static 'management/css/dashboard.css' %}"
+>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="dashboard-wrapper">
+
+    <!-- =====================================================
+         PAGE INTRO
+    ====================================================== -->
+
+    <section class="dashboard-intro">
+
+        <div>
+            <h1>Management Dashboard</h1>
+
+            <p>
+                PropertyPro business performance overview
+            </p>
+        </div>
+
+        <div class="dashboard-date">
+            <span>Today</span>
+            <strong>
+                {% now "d M Y" %}
+            </strong>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         BUSINESS KPI CARDS
+    ====================================================== -->
+
+    <section class="kpi-grid">
+
+
+        <!-- RENTAL INCOME -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon income-icon">
+                KSh
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Rental Income
+                </span>
+
+                <strong class="kpi-value">
+                    KSh {{ rental_income|floatformat:2 }}
+                </strong>
+
+                <small>
+                    Total rent collected
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- OUTSTANDING RENT -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon outstanding-icon">
+                !
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Outstanding Rent
+                </span>
+
+                <strong class="kpi-value">
+                    KSh {{ outstanding_rent|floatformat:2 }}
+                </strong>
+
+                <small>
+                    Uncollected tenant balances
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- COLLECTION RATE -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon collection-icon">
+                %
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Collection Rate
+                </span>
+
+                <strong class="kpi-value">
+                    {{ collection_rate|floatformat:2 }}%
+                </strong>
+
+                <small>
+                    Rent collection performance
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- EXPECTED RENT -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon expected-icon">
+                →
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Expected Rent
+                </span>
+
+                <strong class="kpi-value">
+                    KSh {{ expected_rent|floatformat:2 }}
+                </strong>
+
+                <small>
+                    Active leases this period
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- OVERDUE -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon overdue-icon">
+                !
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Overdue Rent
+                </span>
+
+                <strong class="kpi-value danger">
+                    KSh {{ overdue_amount|floatformat:2 }}
+                </strong>
+
+                <small>
+                    Past-due balances
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- PENDING PAYMENTS -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-icon pending-icon">
+                ⏳
+            </div>
+
+            <div class="kpi-content">
+
+                <span class="kpi-label">
+                    Pending Payments
+                </span>
+
+                <strong class="kpi-value">
+                    {{ pending_payment_count }}
+                </strong>
+
+                <small>
+                    Awaiting confirmation
+                </small>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ANALYTICS
+    ====================================================== -->
+
+    <section class="analytics-grid">
+
+
+        <!-- REVENUE CHART -->
+
+        <div class="dashboard-card revenue-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Rental Income Over Time
+                    </h2>
+
+                    <p>
+                        Monthly rent collection performance
+                    </p>
+
+                </div>
+
+                <div class="collection-badge">
+
+                    Collection Rate
+
+                    <strong>
+                        {{ collection_rate|floatformat:2 }}%
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="chart-wrapper">
+
+                <canvas id="revenueChart"></canvas>
+
+            </div>
+
+        </div>
+
+
+        <!-- FINANCIAL OVERVIEW -->
+
+        <div class="dashboard-card financial-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Financial Overview
+                    </h2>
+
+                    <p>
+                        Current rental position
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="financial-summary">
+
+
+                <div class="financial-row">
+
+                    <div>
+                        <span>
+                            Expected Rent
+                        </span>
+
+                        <small>
+                            Active leases
+                        </small>
+                    </div>
+
+                    <strong>
+                        KSh {{ expected_rent|floatformat:2 }}
+                    </strong>
+
+                </div>
+
+
+                <div class="financial-row">
+
+                    <div>
+                        <span>
+                            Collected Rent
+                        </span>
+
+                        <small>
+                            Amount paid
+                        </small>
+                    </div>
+
+                    <strong class="success-value">
+                        KSh {{ rental_income|floatformat:2 }}
+                    </strong>
+
+                </div>
+
+
+                <div class="financial-row">
+
+                    <div>
+                        <span>
+                            Outstanding
+                        </span>
+
+                        <small>
+                            Remaining balances
+                        </small>
+                    </div>
+
+                    <strong class="danger-value">
+                        KSh {{ outstanding_rent|floatformat:2 }}
+                    </strong>
+
+                </div>
+
+
+                <div class="progress-section">
+
+                    <div class="progress-header">
+
+                        <span>
+                            Collection Progress
+                        </span>
+
+                        <strong>
+                            {{ collection_rate|floatformat:2 }}%
+                        </strong>
+
+                    </div>
+
+                    <div class="progress-bar">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ collection_rate }}%;"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ACTION REQUIRED + RECENT ACTIVITY
+    ====================================================== -->
+
+    <section class="bottom-grid">
+
+
+        <!-- ACTION REQUIRED -->
+
+        <div class="dashboard-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Action Required
+                    </h2>
+
+                    <p>
+                        Items that may require attention
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="action-list">
+
+
+                <!-- OVERDUE -->
+
+                <div class="action-item">
+
+                    <div class="action-icon danger">
+                        !
+                    </div>
+
+                    <div class="action-content">
+
+                        <strong>
+                            Overdue invoices
+                        </strong>
+
+                        <span>
+                            {{ overdue_invoice_count }}
+                            invoice{{ overdue_invoice_count|pluralize }}
+                            with overdue balances
+                        </span>
+
+                    </div>
+
+                    <a
+                        href="{% url 'management-invoices-list' %}"
+                        class="action-link"
+                    >
+                        View
+                    </a>
+
+                </div>
+
+
+                <!-- PARTIAL -->
+
+                <div class="action-item">
+
+                    <div class="action-icon warning">
+                        %
+                    </div>
+
+                    <div class="action-content">
+
+                        <strong>
+                            Partially paid invoices
+                        </strong>
+
+                        <span>
+                            {{ partial_invoice_count }}
+                            invoice{{ partial_invoice_count|pluralize }}
+                            partially paid
+                        </span>
+
+                    </div>
+
+                    <a
+                        href="{% url 'management-invoices-list' %}"
+                        class="action-link"
+                    >
+                        View
+                    </a>
+
+                </div>
+
+
+                <!-- PENDING -->
+
+                <div class="action-item">
+
+                    <div class="action-icon pending">
+                        ⏳
+                    </div>
+
+                    <div class="action-content">
+
+                        <strong>
+                            Pending payments
+                        </strong>
+
+                        <span>
+                            {{ pending_payment_count }}
+                            payment{{ pending_payment_count|pluralize }}
+                            awaiting confirmation
+                        </span>
+
+                    </div>
+
+                    <a
+                        href="{% url 'management-payments' %}"
+                        class="action-link"
+                    >
+                        View
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- RECENT ACTIVITY -->
+
+        <div class="dashboard-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Recent Activity
+                    </h2>
+
+                    <p>
+                        Latest rental payment activity
+                    </p>
+
+                </div>
+
+                <a
+                    href="{% url 'management-payments' %}"
+                    class="view-all"
+                >
+                    View All
+                </a>
+
+            </div>
+
+
+            <div class="activity-list">
+
+                {% for payment in recent_payments %}
+
+                    <div class="activity-item">
+
+                        <div class="activity-icon">
+                            KSh
+                        </div>
+
+                        <div class="activity-content">
+
+                            <strong>
+
+                                {% if payment.invoice.lease.tenant.user.get_full_name %}
+                                    {{ payment.invoice.lease.tenant.user.get_full_name }}
+                                {% else %}
+                                    {{ payment.invoice.lease.tenant.user.username }}
+                                {% endif %}
+
+                            </strong>
+
+                            <span>
+
+                                Payment for
+
+                                {{ payment.invoice.invoice_number }}
+
+                            </span>
+
+                        </div>
+
+                        <div class="activity-amount">
+
+                            <strong>
+                                KSh {{ payment.amount|floatformat:2 }}
+                            </strong>
+
+                            <span class="payment-status {{ payment.status|lower }}">
+                                {{ payment.status }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                {% empty %}
+
+                    <div class="empty-state">
+                        No recent payment activity.
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- =====================================================
+     DASHBOARD DATA
+====================================================== -->
+
+{{ monthly_labels|json_script:"monthly-labels" }}
+{{ monthly_income|json_script:"monthly-income" }}
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="{% static 'management/js/dashboard.js' %}"></script>
+
+{% endblock %}

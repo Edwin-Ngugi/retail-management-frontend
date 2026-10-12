@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rent Invoice #{{ invoice.id }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); width: 100%; max-width: 500px; padding: 32px; box-sizing: border-box; }
+        .invoice-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e9ecef; padding-bottom: 16px; margin-bottom: 20px; }
+        .title { font-size: 20px; font-weight: 700; color: #111; margin: 0; }
+        .badge-pending { background: #fff3cd; color: #664d03; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .details-group { margin-bottom: 20px; font-size: 14px; }
+        .row-item { display: flex; justify-content: space-between; margin-bottom: 10px; color: #495057; }
+        .row-item.total { font-size: 16px; font-weight: 700; color: #111; border-top: 1px solid #dee2e6; padding-top: 12px; margin-top: 12px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #333; }
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 14px; height: 40px; }
+        .btn-pay { width: 100%; padding: 12px; background: #198754; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-pay:hover { background: #157347; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="invoice-header">
+        <div>
+            <h1 class="title">Rent Invoice</h1>
+            <small style="color: #6c757d;">Invoice #INV-{{ invoice.id }}</small>
+        </div>
+        <span class="badge-pending">PAYMENT PENDING</span>
+    </div>
+
+    <div class="details-group">
+        <div class="row-item">
+            <span>Tenant Name:</span>
+            <span><strong>{{ invoice.tenant.get_full_name }}</strong></span>
+        </div>
+        <div class="row-item">
+            <span>Property:</span>
+            <span><strong>{{ invoice.lease.unit.property.name }}</strong></span>
+        </div>
+        <div class="row-item">
+            <span>Unit Allocated:</span>
+            <span><strong>{{ invoice.lease.unit.unit_number }}</strong></span>
+        </div>
+        <div class="row-item">
+            <span>Description:</span>
+            <span>{{ invoice.description }}</span>
+        </div>
+        <div class="row-item">
+            <span>Due Date:</span>
+            <span>{{ invoice.due_date|date:"M d, Y" }}</span>
+        </div>
+        <div class="row-item total">
+            <span>Total Payable Rent:</span>
+            <span>KES {{ invoice.amount }}</span>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="phone_number">M-Pesa Express Phone Number *</label>
+            <input type="text" name="phone_number" id="phone_number" class="form-control" value="{{ invoice.tenant.phone }}" placeholder="e.g. 2547XXXXXXXX" required>
+        </div>
+
+        <button type="submit" class="btn-pay">Pay KES {{ invoice.amount }} & Complete Registration</button>
+    </form>
+</div>
+
+</body>
+</html>

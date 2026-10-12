@@ -1,0 +1,958 @@
+```css
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+body {
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f5f7fb;
+
+    color: #1f2937;
+}
+
+
+a {
+    text-decoration: none;
+
+    color: inherit;
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.dashboard {
+    display: flex;
+
+    min-height: 100vh;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+    width: 250px;
+
+    min-height: 100vh;
+
+    background: #111827;
+
+    color: #ffffff;
+
+    display: flex;
+
+    flex-direction: column;
+
+    position: fixed;
+
+    left: 0;
+
+    top: 0;
+
+    bottom: 0;
+}
+
+
+.logo {
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    padding: 25px 20px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.08);
+}
+
+
+.logo-icon {
+    width: 42px;
+
+    height: 42px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background: #2563eb;
+
+    font-weight: 700;
+
+    font-size: 15px;
+}
+
+
+.logo h2 {
+    font-size: 18px;
+
+    margin-bottom: 3px;
+}
+
+
+.logo span {
+    font-size: 11px;
+
+    color: #9ca3af;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+.navigation {
+    padding: 20px 12px;
+}
+
+
+.nav-item {
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+
+    padding: 12px 15px;
+
+    margin-bottom: 5px;
+
+    border-radius: 8px;
+
+    color: #d1d5db;
+
+    font-size: 14px;
+
+    transition:
+        background 0.2s,
+        color 0.2s;
+}
+
+
+.nav-item:hover {
+    background: #1f2937;
+
+    color: #ffffff;
+}
+
+
+.nav-item.active {
+    background: #2563eb;
+
+    color: #ffffff;
+}
+
+
+.nav-item .icon {
+    width: 22px;
+
+    text-align: center;
+
+    font-size: 16px;
+}
+
+
+.sidebar-bottom {
+    margin-top: auto;
+
+    padding: 15px 12px;
+
+    border-top:
+        1px solid
+        rgba(255,255,255,0.08);
+}
+
+
+.logout {
+    color: #fca5a5;
+}
+
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+.main-content {
+    margin-left: 250px;
+
+    width: calc(100% - 250px);
+
+    padding: 0 30px 40px;
+}
+
+
+/* =========================================================
+   TOPBAR
+========================================================= */
+
+.topbar {
+    min-height: 90px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    border-bottom:
+        1px solid #e5e7eb;
+
+    margin-bottom: 30px;
+}
+
+
+.topbar h1 {
+    font-size: 25px;
+
+    margin-bottom: 5px;
+}
+
+
+.topbar p {
+    color: #6b7280;
+
+    font-size: 14px;
+}
+
+
+.user-section {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+}
+
+
+.notification-btn {
+    width: 40px;
+
+    height: 40px;
+
+    border: 1px solid #e5e7eb;
+
+    background: #ffffff;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-size: 17px;
+}
+
+
+.user-info {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-end;
+
+    gap: 3px;
+}
+
+
+.user-info strong {
+    font-size: 14px;
+}
+
+
+.user-info span {
+    color: #6b7280;
+
+    font-size: 12px;
+}
+
+
+.avatar {
+    width: 42px;
+
+    height: 42px;
+
+    border-radius: 50%;
+
+    background: #2563eb;
+
+    color: #ffffff;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   WELCOME
+========================================================= */
+
+.welcome-section {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 25px;
+}
+
+
+.welcome-section h2 {
+    font-size: 22px;
+
+    margin-bottom: 6px;
+}
+
+
+.welcome-section p {
+    color: #6b7280;
+
+    font-size: 14px;
+}
+
+
+.primary-button,
+.pay-button {
+    border: none;
+
+    background: #2563eb;
+
+    color: #ffffff;
+
+    padding: 11px 18px;
+
+    border-radius: 8px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: background 0.2s;
+}
+
+
+.primary-button:hover,
+.pay-button:hover {
+    background: #1d4ed8;
+}
+
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.summary-cards {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 18px;
+
+    margin-bottom: 25px;
+}
+
+
+.summary-card {
+    background: #ffffff;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 10px;
+
+    padding: 20px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+}
+
+
+.summary-icon {
+    width: 45px;
+
+    height: 45px;
+
+    border-radius: 10px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #eff6ff;
+
+    color: #2563eb;
+
+    font-weight: 700;
+
+    font-size: 14px;
+}
+
+
+.summary-card span {
+    display: block;
+
+    color: #6b7280;
+
+    font-size: 12px;
+
+    margin-bottom: 6px;
+}
+
+
+.summary-card strong {
+    font-size: 19px;
+
+    color: #111827;
+}
+
+
+/* =========================================================
+   PANELS
+========================================================= */
+
+.panel {
+    background: #ffffff;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 10px;
+
+    overflow: hidden;
+
+    margin-bottom: 25px;
+}
+
+
+.panel-header {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid #e5e7eb;
+}
+
+
+.panel-header h2 {
+    font-size: 17px;
+
+    margin-bottom: 4px;
+}
+
+
+.panel-header p {
+    color: #6b7280;
+
+    font-size: 12px;
+}
+
+
+.view-link {
+    color: #2563eb;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   DASHBOARD GRID
+========================================================= */
+
+.dashboard-grid {
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 20px;
+}
+
+
+/* =========================================================
+   PROPERTY DETAILS
+========================================================= */
+
+.property-details {
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 20px;
+
+    padding: 20px;
+}
+
+
+.detail-item {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 6px;
+}
+
+
+.detail-item span {
+    font-size: 12px;
+
+    color: #6b7280;
+}
+
+
+.detail-item strong {
+    font-size: 14px;
+
+    color: #111827;
+}
+
+
+/* =========================================================
+   INVOICE
+========================================================= */
+
+.invoice-content {
+    padding: 20px;
+}
+
+
+.invoice-number,
+.invoice-month,
+.invoice-amount,
+.invoice-paid,
+.invoice-balance,
+.invoice-status-container {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 12px 20px;
+
+    border-bottom:
+        1px solid #f0f0f0;
+}
+
+
+.invoice-number span,
+.invoice-month span,
+.invoice-amount span,
+.invoice-paid span,
+.invoice-balance span,
+.invoice-status-container span:first-child {
+    color: #6b7280;
+
+    font-size: 13px;
+}
+
+
+.invoice-number strong,
+.invoice-month strong,
+.invoice-amount strong,
+.invoice-paid strong,
+.invoice-balance strong {
+    font-size: 14px;
+}
+
+
+.invoice-balance strong {
+    color: #dc2626;
+
+    font-size: 17px;
+}
+
+
+.pay-button {
+    width: calc(100% - 40px);
+
+    margin: 20px;
+
+    text-align: center;
+}
+
+
+.no-invoice {
+    min-height: 250px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 30px;
+
+    text-align: center;
+}
+
+
+.no-invoice-icon {
+    width: 50px;
+
+    height: 50px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #dcfce7;
+
+    color: #16a34a;
+
+    font-size: 20px;
+
+    font-weight: 700;
+
+    margin-bottom: 12px;
+}
+
+
+.no-invoice strong {
+    margin-bottom: 6px;
+}
+
+
+.no-invoice p {
+    color: #6b7280;
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.status {
+    display: inline-flex;
+
+    align-items: center;
+
+    padding: 5px 10px;
+
+    border-radius: 20px;
+
+    font-size: 11px;
+
+    font-weight: 600;
+}
+
+
+.status.active,
+.status.paid,
+.status.completed {
+    background: #dcfce7;
+
+    color: #15803d;
+}
+
+
+.status.pending,
+.status.partial {
+    background: #fef3c7;
+
+    color: #a16207;
+}
+
+
+.status.unpaid,
+.status.overdue,
+.status.failed {
+    background: #fee2e2;
+
+    color: #b91c1c;
+}
+
+
+.status.reversed {
+    background: #ede9fe;
+
+    color: #6d28d9;
+}
+
+
+/* =========================================================
+   LEASE
+========================================================= */
+
+.lease-details {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    padding: 20px;
+
+    gap: 20px;
+}
+
+
+.lease-item {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+
+.lease-item span:first-child {
+    color: #6b7280;
+
+    font-size: 12px;
+}
+
+
+.lease-item strong {
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-container {
+    overflow-x: auto;
+}
+
+
+table {
+    width: 100%;
+
+    border-collapse: collapse;
+}
+
+
+thead {
+    background: #f9fafb;
+}
+
+
+th {
+    text-align: left;
+
+    padding: 13px 20px;
+
+    font-size: 11px;
+
+    color: #6b7280;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.03em;
+}
+
+
+td {
+    padding: 15px 20px;
+
+    border-top:
+        1px solid #f0f0f0;
+
+    font-size: 13px;
+}
+
+
+tbody tr:hover {
+    background: #fafafa;
+}
+
+
+.empty-state {
+    text-align: center;
+
+    color: #6b7280;
+
+    padding: 35px;
+}
+
+
+.error-state {
+    color: #dc2626;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+
+    .summary-cards {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+
+    .lease-details {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+}
+
+
+@media (max-width: 850px) {
+
+    .sidebar {
+        width: 210px;
+    }
+
+
+    .main-content {
+        margin-left: 210px;
+
+        width: calc(100% - 210px);
+
+        padding-left: 20px;
+
+        padding-right: 20px;
+    }
+
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+@media (max-width: 650px) {
+
+    .sidebar {
+        position: fixed;
+
+        width: 65px;
+    }
+
+
+    .logo {
+        justify-content: center;
+
+        padding: 18px 5px;
+    }
+
+
+    .logo > div:last-child {
+        display: none;
+    }
+
+
+    .nav-item {
+        justify-content: center;
+
+        padding: 12px 5px;
+    }
+
+
+    .nav-item .icon {
+        margin: 0;
+    }
+
+
+    .nav-item {
+        font-size: 0;
+    }
+
+
+    .nav-item .icon {
+        font-size: 17px;
+    }
+
+
+    .main-content {
+        margin-left: 65px;
+
+        width: calc(100% - 65px);
+
+        padding: 0 15px 30px;
+    }
+
+
+    .topbar {
+        min-height: 80px;
+    }
+
+
+    .topbar h1 {
+        font-size: 20px;
+    }
+
+
+    .user-info {
+        display: none;
+    }
+
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+
+    .welcome-section {
+        align-items: flex-start;
+
+        flex-direction: column;
+
+        gap: 15px;
+    }
+
+
+    .property-details {
+        grid-template-columns: 1fr;
+    }
+
+
+    .lease-details {
+        grid-template-columns: 1fr;
+    }
+
+
+    .primary-button {
+        width: 100%;
+    }
+
+}
+```

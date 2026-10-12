@@ -1,0 +1,42 @@
+{% extends "management/base.html" %}
+
+{% block title %}
+    Access Denied | PropertyPro
+{% endblock %}
+
+{% block page_title %}
+    Access Denied
+{% endblock %}
+
+{% block page_subtitle %}
+    You do not have permission to view this section
+{% endblock %}
+
+{% block content %}
+
+<section class="management-panel" style="text-align: center; padding: 60px 20px; max-width: 600px; margin: 40px auto;">
+    
+    <div style="font-size: 3.5rem; margin-bottom: 16px;">
+        🔒
+    </div>
+
+    <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 12px;">
+        Restricted Area
+    </h2>
+
+    <p style="color: #64748b; line-height: 1.6; margin-bottom: 28px;">
+        Your user account (<strong>{{ user.username }}</strong>) does not have the required administrative permissions to access this page. If you believe this is an error, please contact your PropertyPro system administrator.
+    </p>
+
+    <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="javascript:history.back()" class="btn-secondary" style="padding: 10px 20px; border-radius: 6px; text-decoration: none; border: 1px solid #cbd5e1; color: #334155; font-weight: 500;">
+            ← Go Back
+        </a>
+        <a href="/management/dashboard/" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; text-decoration: none; background-color: #2563eb; color: #ffffff; font-weight: 500;">
+            Return to Dashboard
+        </a>
+    </div>
+
+</section>
+
+{% endblock %} 

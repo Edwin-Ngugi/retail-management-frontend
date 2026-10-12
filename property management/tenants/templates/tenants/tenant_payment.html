@@ -1,0 +1,580 @@
+{% load static %}
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+```
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Make Payment | PropertyPro</title>
+
+<link rel="stylesheet"
+      href="{% static 'tenants/css/tenant_payment.css' %}">
+```
+
+</head>
+
+<body>
+
+<div class="portal">
+
+```
+<!-- =====================================================
+     SIDEBAR
+====================================================== -->
+
+<aside class="sidebar">
+
+    <div class="brand">
+
+        <div class="brand-icon">
+            PP
+        </div>
+
+        <div>
+
+            <h2>PropertyPro</h2>
+
+            <span>Tenant Portal</span>
+
+        </div>
+
+    </div>
+
+
+    <nav class="navigation">
+
+        <a href="/tenant/dashboard/"
+           class="nav-item">
+
+            <span class="nav-icon">▣</span>
+
+            Dashboard
+
+        </a>
+
+
+        <a href="/tenant/lease/"
+           class="nav-item">
+
+            <span class="nav-icon">▤</span>
+
+            My Lease
+
+        </a>
+
+
+        <a href="/tenant/payments/"
+           class="nav-item active">
+
+            <span class="nav-icon">₿</span>
+
+            Payments
+
+        </a>
+
+
+    </nav>
+
+
+    
+
+</aside>
+
+
+
+<!-- =====================================================
+     MAIN CONTENT
+====================================================== -->
+
+<main class="main-content">
+
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+        <div>
+
+            <h1>Make Payment</h1>
+
+            <p>
+                Pay your outstanding rent invoice
+            </p>
+
+        </div>
+
+
+        <div class="user-section">
+
+            <button
+                type="button"
+                class="notification-button">
+
+                🔔
+
+            </button>
+
+
+            <div class="user-info">
+
+                <strong id="username">
+                    {{ request.user.username }}
+                </strong>
+
+                <span>
+                    Tenant
+                </span>
+
+            </div>
+
+
+            <div class="avatar">
+
+                {{ request.user.username|first|upper }}
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- =================================================
+         PAYMENT CONTENT
+    ================================================== -->
+
+    <section class="payment-page">
+
+
+        <div class="payment-header">
+
+            <a href="/tenant/dashboard/"
+               class="back-link">
+
+                ← Back to Dashboard
+
+            </a>
+
+
+            <h2>
+                Rent Payment
+            </h2>
+
+            <p>
+                Complete your payment securely using M-Pesa.
+            </p>
+
+        </div>
+
+
+
+        <div class="payment-layout">
+
+
+            <!-- =========================================
+                 INVOICE SUMMARY
+            ========================================== -->
+
+            <section class="invoice-card">
+
+                <div class="card-header">
+
+                    <h3>
+                        Invoice Summary
+                    </h3>
+
+                    <span
+                        id="invoice-status"
+                        class="status-badge">
+
+                        Outstanding
+
+                    </span>
+
+                </div>
+
+
+                <div class="invoice-details">
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Invoice Number
+                        </span>
+
+                        <strong id="invoice-number">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Property
+                        </span>
+
+                        <strong id="property-name">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Unit
+                        </span>
+
+                        <strong id="unit-number">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Billing Month
+                        </span>
+
+                        <strong id="billing-month">
+                            Loading...
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Amount Due
+                        </span>
+
+                        <strong id="amount-due">
+                            KSh 0.00
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span>
+                            Amount Already Paid
+                        </span>
+
+                        <strong id="amount-paid">
+                            KSh 0.00
+                        </strong>
+
+                    </div>
+
+
+                    <div class="detail-row balance-row">
+
+                        <span>
+                            Outstanding Balance
+                        </span>
+
+                        <strong id="balance">
+                            KSh 0.00
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =========================================
+                 PAYMENT FORM
+            ========================================== -->
+
+            <section class="payment-card">
+
+
+                <div class="card-header">
+
+                    <div>
+
+                        <h3>
+                            Payment Details
+                        </h3>
+
+                        <p>
+                            Enter the details below to continue.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    id="payment-error"
+                    class="alert error"
+                    hidden>
+                </div>
+
+
+                <div
+                    id="payment-success"
+                    class="alert success"
+                    hidden>
+                </div>
+
+
+
+                <form id="payment-form">
+                    {% csrf_token %}
+
+
+
+                    <!-- PHONE NUMBER -->
+
+                    <div class="form-group">
+
+                        <label for="phone-number">
+
+                            M-Pesa Phone Number
+
+                        </label>
+
+
+                        <input
+                            type="tel"
+                            id="phone-number"
+                            name="phone_number"
+                            placeholder="0712345678"
+                            autocomplete="tel"
+                            required>
+
+
+                        <small>
+
+                            Enter the M-Pesa number that will
+                            receive the payment prompt.
+
+                        </small>
+
+                    </div>
+
+
+
+                    <!-- AMOUNT -->
+
+                    <div class="form-group">
+
+                        <label for="payment-amount">
+
+                            Payment Amount
+
+                        </label>
+
+
+                        <div class="amount-input">
+
+                            <span>
+                                KSh
+                            </span>
+
+
+                            <input
+                                type="number"
+                                id="payment-amount"
+                                name="amount"
+                                min="1"
+                                step="0.01"
+                                placeholder="0.00"
+                                required>
+
+                        </div>
+
+
+                        <small>
+
+                            You can pay the full balance or make
+                            a partial payment.
+
+                        </small>
+
+                    </div>
+
+
+
+                    <!-- PAYMENT METHOD -->
+
+                    <div class="form-group">
+
+                        <label>
+                            Payment Method
+                        </label>
+
+
+                        <div class="payment-method">
+
+                            <div class="method-icon">
+                                M
+                            </div>
+
+
+                            <div>
+
+                                <strong>
+                                    M-Pesa
+                                </strong>
+
+                                <span>
+                                    Secure mobile payment
+                                </span>
+
+                            </div>
+
+
+                            <div class="method-selected">
+                                ✓
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- TERMS -->
+
+                    <div class="payment-notice">
+
+                        <span class="notice-icon">
+                            🔒
+                        </span>
+
+
+                        <p>
+
+                            After clicking
+                            <strong>Make Payment</strong>,
+                            an M-Pesa payment prompt will be
+                            sent to the phone number provided.
+                            Enter your M-Pesa PIN on your phone
+                            to complete the transaction.
+
+                        </p>
+
+                    </div>
+
+
+
+                    <!-- SUBMIT -->
+
+                    <button
+                        type="submit"
+                        id="make-payment-button"
+                        class="make-payment-button">
+
+                        <span id="button-text">
+                            Make Payment
+                        </span>
+
+
+                        <span
+                            id="button-spinner"
+                            class="spinner"
+                            hidden>
+                        </span>
+
+                    </button>
+
+
+                </form>
+
+            </section>
+
+        </div>
+
+
+
+        <!-- =================================================
+             PAYMENT PROCESSING
+        ================================================== -->
+
+        <section
+            id="payment-processing"
+            class="processing-card"
+            hidden>
+
+
+            <div class="processing-icon">
+
+                ⏳
+
+            </div>
+
+
+            <h3>
+                Payment Request Sent
+            </h3>
+
+
+            <p>
+
+                Check your phone for the M-Pesa prompt.
+
+                Enter your M-Pesa PIN to complete the payment.
+
+            </p>
+
+
+            <div class="processing-reference">
+
+                <span>
+                    Transaction Reference
+                </span>
+
+                <strong id="transaction-reference">
+                    -
+                </strong>
+
+            </div>
+
+
+            <p class="processing-note">
+
+                Do not close this page while your payment
+                is being processed.
+
+            </p>
+
+        </section>
+
+
+    </section>
+
+</main>
+```
+
+</div>
+
+<script
+    src="{% static 'tenants/js/tenant_payment.js' %}">
+</script>
+
+</body>
+
+</html>

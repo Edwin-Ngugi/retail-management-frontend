@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 240" width="100%" height="100%">
+  <defs>
+    <!-- Metallic Red Gradient -->
+    <linearGradient id="favRedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF0B0B" />
+      <stop offset="50%" stop-color="#C80000" />
+      <stop offset="100%" stop-color="#7A0000" />
+    </linearGradient>
+    
+    <!-- Metallic Teal Gradient -->
+    <linearGradient id="favTealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5E5" />
+      <stop offset="50%" stop-color="#008080" />
+      <stop offset="100%" stop-color="#004A4A" />
+    </linearGradient>
+  </defs>
+
+  <!-- M Icon Base (Cropped to exact bounding limits) -->
+  <g transform="translate(-125, -10)">
+    <!-- Red Background Block 'M' -->
+    <path fill="url(#favRedGrad)" d="
+      M 125,250 
+      L 125,65 
+      L 250,155 
+      L 375,65 
+      L 375,250 
+      L 310,250 
+      L 310,145 
+      L 250,190 
+      L 190,145 
+      L 190,250 
+      Z" />
+
+    <!-- Swooshing Teal Overlay -->
+    <path fill="url(#favTealGrad)" d="
+      M 125,250 
+      C 220,160 330,15 425,15 
+      C 370,25 270,70 190,130 
+      C 205,90 250,20 345,10 
+      C 260,20 180,80 125,250 
+      Z" />
+  </g>
+</svg>

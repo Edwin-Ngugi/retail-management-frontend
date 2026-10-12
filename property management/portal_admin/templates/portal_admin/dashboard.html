@@ -1,0 +1,193 @@
+{% extends 'portal_admin/base.html' %}
+{% load static %}
+
+{% block title %}Admin Overview | Property Pro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-metric-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.25rem;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        transition: border-color 0.2s ease;
+    }
+    .admin-metric-card:hover {
+        border-color: #cbd5e1;
+    }
+    .admin-metric-card .label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .admin-metric-card .value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 6px;
+    }
+    .admin-metric-card .subtext {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 4px;
+    }
+    .quick-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1e293b;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    .quick-nav-btn:hover {
+        background: #f8fafc;
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+    .badge-user-registered {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    .badge-property-created {
+        background-color: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+    .badge-system-event {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-1 text-dark fw-bold">Admin Control Panel</h2>
+            <p class="text-muted mb-0">System-level administration, portfolio assets, and user access audit logs.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'admin_user_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-person-plus me-1"></i> Add User
+            </a>
+            <a href="{% url 'admin_add_property' %}" class="btn btn-primary">
+                + Register New Property
+            </a>
+        </div>
+    </div>
+
+    <!-- Tier 1: System & Portfolio High-Level Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="admin-metric-card">
+                <div class="label">Total Properties</div>
+                <div class="value">{{ total_properties|default:"0" }}</div>
+                <div class="subtext">Registered system assets</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-metric-card">
+                <div class="label">Total System Users</div>
+                <div class="value">{{ total_users|default:"0" }}</div>
+                <div class="subtext">Active user accounts</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-metric-card">
+                <div class="label">Occupancy Overview</div>
+                <div class="value">{{ occupancy_rate }}%</div>
+                <div class="subtext">{{ occupied_units }} / {{ total_units }} units occupied</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-metric-card">
+                <div class="label">Active Managers</div>
+                <div class="value">{{ active_managers_count|default:"0" }}</div>
+                <div class="subtext">Assigned staff accounts</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier 2: System Administration Shortcuts -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body py-3">
+            <span class="fw-bold fs-7 text-uppercase text-muted d-block mb-2">System Quick Actions</span>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'admin_properties_list' %}" class="quick-nav-btn">
+                    🏢 Manage Properties & Units
+                </a>
+                <a href="{% url 'admin_add_property' %}" class="quick-nav-btn">
+                    ➕ Register New Property
+                </a>
+                <a href="{% url 'admin_user_list' %}" class="quick-nav-btn">
+                    👥 Manage Users & Roles
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier 3: System Audit & Activity Logs -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+            <h6 class="mb-0 fw-bold">Recent System Logs</h6>
+            <span class="badge bg-light text-dark border">Audit Activity</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 150px;">Event Type</th>
+                            <th>Description</th>
+                            <th style="width: 200px;">Timestamp</th>
+                            <th class="text-end pe-3" style="width: 100px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in recent_activities %}
+                            <tr>
+                                <td class="ps-3">
+                                    <span class="badge {% if activity.type == 'User Registered' %}badge-user-registered{% elif activity.type == 'Property Created' %}badge-property-created{% else %}badge-system-event{% endif %}">
+                                        {{ activity.type }}
+                                    </span>
+                                </td>
+                                <td>{{ activity.description }}</td>
+                                <td class="text-muted small">{{ activity.timestamp|date:"M d, Y - H:i" }}</td>
+                                <td class="text-end pe-3">
+                                    {% if activity.link %}
+                                        <a href="{{ activity.link }}" class="btn btn-sm btn-light border">
+                                            View
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    No recent system logs recorded.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

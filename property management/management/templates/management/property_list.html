@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Properties | PropertyPro</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{% static 'management/css/management.css' %}">
+    <link rel="stylesheet" href="{% static 'management/css/properties.css' %}">
+</head>
+<body>
+
+<div class="management-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="management-sidebar">
+        <div class="management-logo">
+            <div class="management-logo-icon">PP</div>
+            <div>
+                <strong>PropertyPro</strong>
+                <span>Management Portal</span>
+            </div>
+        </div>
+
+        <nav class="management-navigation">
+            <a href="{% url 'management-dashboard' %}" class="management-nav-item">
+                <span>▣</span> Dashboard
+            </a>
+
+            <div class="nav-section-title">PROPERTY</div>
+            <a href="{% url 'management-properties' %}" class="management-nav-item active">
+                <span>⌂</span> Properties
+            </a>
+            <a href="{% url 'management-units' %}" class="management-nav-item">
+                <span>▦</span> Units
+            </a>
+
+            <div class="nav-section-title">TENANCY</div>
+            <a href="{% url 'management-tenants' %}" class="management-nav-item">
+                <span>♙</span> Tenants
+            </a>
+            <a href="{% url 'management-leases' %}" class="management-nav-item">
+                <span>▤</span> Leases
+            </a>
+
+            <div class="nav-section-title">FINANCE</div>
+            <a href="{% url 'management-invoices-list' %}" class="management-nav-item">
+                <span>▧</span> Invoices
+            </a>
+            <a href="{% url 'property-analysis-list' %}" class="management-nav-item">
+                <span>KSh</span> Analysis
+            </a>
+
+            <div class="nav-section-title">OPERATIONS</div>
+            <a href="{% url 'management-maintenance' %}" class="management-nav-item">
+                <span>🔧</span> Maintenance
+            </a>
+        </nav>
+
+        <div class="management-sidebar-bottom">
+            <a href="{% url 'management-logout' %}" class="management-nav-item logout">
+                <span>↪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="management-main">
+        <header class="management-topbar">
+            <div>
+                <h1>Properties</h1>
+                <p>Manage your properties and rental spaces.</p>
+            </div>
+
+            <div class="management-user">
+                <div class="management-user-details">
+                    <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                    <span>{{ request.user.role|default:"Manager" }}</span>
+                </div>
+                <div class="management-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+            </div>
+        </header>
+
+        <div class="management-content">
+            <div class="properties-container">
+                <div class="page-header">
+                    <div>
+                        <h2>Properties Overview</h2>
+                    </div>
+                    <div class="summary-pills">
+                        <span class="pill"><strong>{{ total_properties }}</strong> Properties</span>
+                        <span class="pill highlight"><strong>KSh {{ total_potential_income|floatformat:"0" }}</strong> Monthly Potential</span>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <form method="GET" class="search-form">
+                        <input type="text" name="search" placeholder="Search properties..." value="{{ search_query }}">
+                        <button type="submit">Search</button>
+                    </form>
+                </div>
+
+                <div class="properties-grid">
+                    {% for prop in properties %}
+                        <div class="property-card">
+                            <div class="card-header">
+                                <h3 class="property-title">🏢 {{ prop.name }}</h3>
+                                <span class="category-badge">{{ prop.get_category_display }}</span>
+                            </div>
+
+                            <p class="location-text">📍 {{ prop.city }}{% if prop.address %}, {{ prop.address }}{% endif %}</p>
+
+                            <div class="unit-types-section">
+                                <span class="section-label">Space Types</span>
+                                <ul class="type-list">
+                                    {% for t in prop.get_unit_types_summary %}
+                                        <li>
+                                            <span class="dot">●</span>
+                                            <span class="type-name">{{ t.label }}</span>
+                                            <span class="type-count">{{ t.count }}</span>
+                                        </li>
+                                    {% empty %}
+                                        <li class="empty-types">No units registered</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+
+                            <div class="card-footer">
+                                <div class="rent-info">
+                                    <span class="rent-label">Monthly Rent From</span>
+                                    <span class="rent-value">
+                                        {% if prop.min_rent %}
+                                            KSh {{ prop.min_rent|floatformat:"0" }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </span>
+                                </div>
+
+                                <div class="card-actions">
+                                    <a href="{% url 'property_detail' prop.id %}" class="btn-primary">View Property →</a>
+                                    <a href="{% url 'property_detail' prop.id %}#units" class="btn-secondary">Manage Units</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="no-results">No properties found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="{% static 'js/properties.js' %}"></script>
+</body>
+</html>

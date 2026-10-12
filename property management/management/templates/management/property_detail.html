@@ -1,0 +1,159 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ property.name }} | PropertyPro</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{% static 'management/css/management.css' %}">
+    <link rel="stylesheet" href="{% static 'management/css/properties.css' %}">
+</head>
+<body>
+
+<div class="management-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="management-sidebar">
+        <div class="management-logo">
+            <div class="management-logo-icon">PP</div>
+            <div>
+                <strong>PropertyPro</strong>
+                <span>Management Portal</span>
+            </div>
+        </div>
+
+        <nav class="management-navigation">
+            <a href="{% url 'management-dashboard' %}" class="management-nav-item">
+                <span>▣</span> Dashboard
+            </a>
+
+            <div class="nav-section-title">PROPERTY</div>
+            <a href="{% url 'management-properties' %}" class="management-nav-item active">
+                <span>⌂</span> Properties
+            </a>
+            
+
+            <div class="nav-section-title">TENANCY</div>
+            <a href="{% url 'management-tenants' %}" class="management-nav-item">
+                <span>♙</span> Tenants
+            </a>
+            <a href="{% url 'management-leases' %}" class="management-nav-item">
+                <span>▤</span> Leases
+            </a>
+
+            <div class="nav-section-title">FINANCE</div>
+            <a href="{% url 'management-invoices-list' %}" class="management-nav-item">
+                <span>▧</span> Invoices
+            </a>
+            <a href="{% url 'property-analysis-list' %}" class="management-nav-item">
+                <span>KSh</span> Analysis
+            </a>
+
+            <div class="nav-section-title">OPERATIONS</div>
+            <a href="{% url 'management-maintenance' %}" class="management-nav-item">
+                <span>🔧</span> Maintenance
+            </a>
+        </nav>
+
+        <div class="management-sidebar-bottom">
+            <a href="{% url 'management-logout' %}" class="management-nav-item logout">
+                <span>↪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="management-main">
+        <header class="management-topbar">
+            <div>
+                <h1>Property Details</h1>
+                <p>View unit availability and details.</p>
+            </div>
+
+            <div class="management-user">
+                <div class="management-user-details">
+                    <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                    <span>{{ request.user.role|default:"Manager" }}</span>
+                </div>
+                <div class="management-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+            </div>
+        </header>
+
+        <div class="management-content">
+            <div class="properties-container">
+                <div class="page-header">
+                    <div>
+                        <a href="{% url 'management-properties' %}" class="back-link">← Back to Properties</a>
+                        <h2>🏢 {{ property.name }}</h2>
+                        <p class="subtitle">📍 {{ property.city }}{% if property.address %}, {{ property.address }}{% endif %} | <span class="category-badge">{{ property.get_category_display }}</span></p>
+                    </div>
+                    <div class="summary-pills">
+                        <span class="pill"><strong>{{ units.count }}</strong> Total Units</span>
+                    </div>
+                </div>
+
+                <!-- Unit Types Overview Grid -->
+                <div class="unit-summary-box">
+                    <span class="section-label">Unit Types Overview</span>
+                    <div class="summary-cards-grid">
+                        {% for t in type_summary %}
+                            <div class="summary-card">
+                                <span class="type-name">{{ t.label }}</span>
+                                <span class="type-count-large">{{ t.count }}</span>
+                            </div>
+                        {% empty %}
+                            <p class="empty-types">No unit type breakdown available.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Units Table Section -->
+                <div id="units" class="units-list-section">
+                    <div class="section-header">
+                        <h3>Registered Units</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Unit No</th>
+                                    <th>Floor</th>
+                                    <th>Type</th>
+                                    <th>Monthly Rent</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for unit in units %}
+                                <tr>
+                                    <td><strong>{{ unit.unit_number }}</strong></td>
+                                    <td>{{ unit.floor|default:"-" }}</td>
+                                    <td>{{ unit.get_unit_type_display }}</td>
+                                    <td class="rent-amount">KSh {{ unit.monthly_rent|floatformat:"0" }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ unit.status|lower }}">
+                                            {{ unit.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="no-results">No units added yet for this property.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="{% static 'js/properties.js' %}"></script>
+</body>
+</html>

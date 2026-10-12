@@ -1,0 +1,66 @@
+from django.urls import path
+from api.views import GenerateInvoicesAPIView
+from .views import (
+    AdminPasswordResetView,
+    AdminPasswordResetDoneView,
+    AdminPasswordResetConfirmView,
+    AdminPasswordResetCompleteView,
+    dashboard,
+    invoice_list,
+    payment_list,
+    AccountantLoginView,
+    accountant_logout,
+)
+
+urlpatterns = [
+    path(
+        '',
+        dashboard,
+        name='accounting-dashboard'
+    ),
+    path(
+        'invoices/',
+        invoice_list,
+        name='accounting-invoices'
+    ),
+    path(
+        'api/invoices/generate/',
+        GenerateInvoicesAPIView.as_view(),
+        name='generate-invoices'
+    ),
+    path(
+        'payments/',
+        payment_list,
+        name='accounting-payments'
+    ),
+    path(
+        'login/',
+        AccountantLoginView.as_view(),
+        name='accountant-login'
+    ),
+    path(
+        'password-reset/',
+        AdminPasswordResetView.as_view(),
+        name='admin_password_reset'
+    ),
+    path(
+        'password-reset/done/',
+        AdminPasswordResetDoneView.as_view(),
+        name='admin_password_reset_done'
+    ),
+    path(
+        'password-reset/confirm/<uidb64>/<token>/',
+        AdminPasswordResetConfirmView.as_view(),
+        name='password_reset_confirm'
+    ),
+    path(
+        'password-reset/complete/',
+        AdminPasswordResetCompleteView.as_view(),
+        name='admin_password_reset_complete'
+    ),
+    path(
+        "logout/",
+        accountant_logout,
+        name="accountant-logout",
+    ),
+]

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tenant Account</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f4f6f9; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px;
+        }
+        .card { 
+            background: #fff; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+            width: 100%; 
+            max-width: 540px; 
+            padding: 32px; 
+            box-sizing: border-box;
+        }
+        .title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; color: #111; }
+        .subtitle { font-size: 13px; color: #6c757d; text-align: center; margin-bottom: 24px; }
+        .row { display: flex; gap: 12px; }
+        .col { flex: 1; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333; }
+        .form-control { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ced4da; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-size: 14px; 
+            background-color: #fff;
+            height: 40px;
+        }
+        select.form-control { height: 40px; }
+        .btn-primary { 
+            width: 100%; 
+            padding: 12px; 
+            background: #0d6efd; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 15px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            margin-top: 10px; 
+        }
+        .btn-primary:hover { background: #0b5ed7; }
+        .footer { text-align: center; margin-top: 16px; font-size: 13px; color: #6c757d; }
+        .footer a { color: #0d6efd; text-decoration: none; font-weight: 600; }
+        .error { color: #dc3545; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="title">Create Tenant Account</div>
+    <div class="subtitle">Register your account and tenancy information</div>
+
+    <form method="post" id="tenantRegisterForm">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="error" style="margin-bottom: 12px;">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <!-- First & Last Name -->
+        <div class="row">
+            <div class="col form-group">
+                <label for="{{ form.first_name.id_for_label }}">First Name *</label>
+                {{ form.first_name }}
+                {% for err in form.first_name.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col form-group">
+                <label for="{{ form.last_name.id_for_label }}">Last Name *</label>
+                {{ form.last_name }}
+                {% for err in form.last_name.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <!-- Email & Phone -->
+        <div class="row">
+            <div class="col form-group">
+                <label for="{{ form.email.id_for_label }}">Email Address *</label>
+                {{ form.email }}
+                {% for err in form.email.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col form-group">
+                <label for="{{ form.phone.id_for_label }}">Phone Number *</label>
+                {{ form.phone }}
+                {% for err in form.phone.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <!-- National ID -->
+        <div class="form-group">
+            <label for="{{ form.national_id.id_for_label }}">National ID / Passport Number *</label>
+            {{ form.national_id }}
+            {% for err in form.national_id.errors %}<div class="error">{{ err }}</div>{% endfor %}
+        </div>
+
+        <!-- Property Select -->
+        <div class="form-group">
+            <label for="{{ form.property_obj.id_for_label }}">Property / Building *</label>
+            {{ form.property_obj }}
+            {% for err in form.property_obj.errors %}<div class="error">{{ err }}</div>{% endfor %}
+        </div>
+
+        <!-- Unit & Unit Type -->
+        <div class="row">
+            <div class="col form-group">
+                <label for="{{ form.unit.id_for_label }}">Unit Number *</label>
+                {{ form.unit }}
+                {% for err in form.unit.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col form-group">
+                <label for="{{ form.unit_type.id_for_label }}">Unit Type *</label>
+                {{ form.unit_type }}
+                {% for err in form.unit_type.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <!-- Emergency Contacts -->
+        <div class="row">
+            <div class="col form-group">
+                <label for="{{ form.emergency_contact_name.id_for_label }}">Emergency Contact Name</label>
+                {{ form.emergency_contact_name }}
+                {% for err in form.emergency_contact_name.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col form-group">
+                <label for="{{ form.emergency_contact_phone.id_for_label }}">Emergency Contact Phone</label>
+                {{ form.emergency_contact_phone }}
+                {% for err in form.emergency_contact_phone.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <!-- Passwords -->
+        <div class="row">
+            <div class="col form-group">
+                <label for="{{ form.password.id_for_label }}">Password *</label>
+                {{ form.password }}
+                {% for err in form.password.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col form-group">
+                <label for="{{ form.confirm_password.id_for_label }}">Confirm Password *</label>
+                {{ form.confirm_password }}
+                {% for err in form.confirm_password.errors %}<div class="error">{{ err }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Create Tenant Account</button>
+
+        <div class="footer">
+            Already have an account? <a href="{% url 'tenant-login' %}">Log In</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const propertySelect = document.getElementById("{{ form.property_obj.id_for_label }}");
+    const unitSelect = document.getElementById("{{ form.unit.id_for_label }}");
+    const unitTypeSelect = document.getElementById("{{ form.unit_type.id_for_label }}");
+
+    propertySelect.addEventListener("change", function () {
+        const propertyId = this.value;
+
+        // Reset dropdowns
+        unitSelect.innerHTML = '<option value="">Select Unit</option>';
+        unitTypeSelect.innerHTML = '<option value="">- Select an option -</option>';
+
+        if (!propertyId) return;
+
+        fetch(`{% url 'ajax_load_units' %}?property_id=${propertyId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Populate Unit Numbers dropdown
+                data.units.forEach(unit => {
+                    const option = document.createElement("option");
+                    option.value = unit.id;
+                    option.textContent = unit.unit_number;
+                    if (unit.unit_type) {
+                        option.dataset.unitType = unit.unit_type;
+                    }
+                    unitSelect.appendChild(option);
+                });
+
+                // Populate Unit Types dropdown filtered by property choices
+                data.unit_types.forEach(ut => {
+                    const option = document.createElement("option");
+                    option.value = ut.id;
+                    option.textContent = ut.name;
+                    unitTypeSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error("Error loading property details:", error));
+    });
+
+    // Auto-select Unit Type when a specific room/unit is chosen
+    unitSelect.addEventListener("change", function () {
+        const selectedOption = this.options[this.selectedIndex];
+        const unitTypeId = selectedOption.dataset.unitType;
+        if (unitTypeId && unitTypeSelect) {
+            unitTypeSelect.value = unitTypeId;
+        }
+    });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,666 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Payments | PropertyPro</title>
+
+    <link rel="stylesheet"
+          href="{% static 'accounting/css/payments.css' %}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                PM
+            </div>
+
+            <div>
+                <h2>PropertyPro</h2>
+                <span>Management System</span>
+            </div>
+
+        </div>
+
+
+        <nav>
+
+            <a href="/accounting/" class="nav-item">
+                <span class="icon">▣</span>
+                Dashboard
+            </a>
+
+            <a href="/accounting/invoices/" class="nav-item">
+                <span class="icon">▤</span>
+                Invoices
+            </a>
+
+            <a href="/accounting/payments/"
+               class="nav-item active">
+
+                <span class="icon">₿</span>
+                Payments
+
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="icon">⌂</span>
+                Properties
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="icon">♙</span>
+                Tenants
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="icon">▥</span>
+                Reports
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="nav-item">
+                <span class="icon">⚙</span>
+                Settings
+            </a>
+
+            <a href="/logout/" class="nav-item logout">
+                <span class="icon">↪</span>
+                Logout
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main class="main-content">
+
+
+        <!-- =================================================
+             TOP BAR
+        ================================================== -->
+
+        <header class="topbar">
+
+            <div>
+
+                <h1>Payments</h1>
+
+                <p>
+                    View and monitor tenant rent payments
+                </p>
+
+            </div>
+
+
+            <div class="user-section">
+
+                <button
+                    aria-label="Notifications"
+                    class="notification-btn">
+                    🔔
+                </button>
+
+
+                <div class="user-info">
+
+                    <strong>
+                        {{ request.user.username }}
+                    </strong>
+
+                    <span>
+                        Accountant
+                    </span>
+
+                </div>
+
+
+                <div class="avatar">
+
+                    {{ request.user.username|first|upper }}
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+
+        <!-- =================================================
+             PAGE HEADER
+        ================================================== -->
+
+        <section class="action-bar">
+
+            <div>
+
+                <h2>
+                    Payment Management
+                </h2>
+
+                <p>
+                    Monitor rent payments made by tenants
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             SUMMARY CARDS
+        ================================================== -->
+
+        <section class="summary-cards">
+
+
+            <!-- TOTAL PAYMENTS -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    💰
+                </div>
+
+                <div>
+
+                    <span>
+                        Total Payments
+                    </span>
+
+                    <strong id="total-payments-count">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- COMPLETED -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    ✓
+                </div>
+
+                <div>
+
+                    <span>
+                        Completed
+                    </span>
+
+                    <strong id="completed-payments-count">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- PENDING -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    ⏳
+                </div>
+
+                <div>
+
+                    <span>
+                        Pending
+                    </span>
+
+                    <strong id="pending-payments-count">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- AMOUNT COLLECTED -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    KSh
+                </div>
+
+                <div>
+
+                    <span>
+                        Amount Collected
+                    </span>
+
+                    <strong id="total-payments-amount">
+                        KSh 0.00
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             FILTERS
+        ================================================== -->
+
+        <section class="filters">
+
+
+            <!-- SEARCH -->
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="payment-search"
+                    placeholder="Search payment, tenant or invoice..."
+                >
+
+            </div>
+
+
+
+            <!-- STATUS -->
+
+            <select id="payment-status-filter">
+
+                <option value="">
+                    All Statuses
+                </option>
+
+                <option value="PENDING">
+                    Pending
+                </option>
+
+                <option value="COMPLETED">
+                    Completed
+                </option>
+
+                <option value="FAILED">
+                    Failed
+                </option>
+
+                <option value="REVERSED">
+                    Reversed
+                </option>
+
+            </select>
+
+
+
+            <!-- PAYMENT METHOD -->
+
+            <select id="payment-method-filter">
+
+                <option value="">
+                    All Methods
+                </option>
+
+                <option value="MPESA">
+                    M-Pesa
+                </option>
+
+                <option value="CASH">
+                    Cash
+                </option>
+
+                <option value="BANK">
+                    Bank Transfer
+                </option>
+
+                <option value="OTHER">
+                    Other
+                </option>
+
+            </select>
+
+        </section>
+
+
+
+        <!-- =================================================
+             PAYMENT TABLE
+        ================================================== -->
+
+        <section class="panel">
+
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        Rent Payments
+                    </h2>
+
+                    <p>
+                        Payments made by tenants
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="table-container">
+
+                <table id="payment-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Payment
+                            </th>
+
+                            <th>
+                                Tenant
+                            </th>
+
+                            <th>
+                                Invoice
+                            </th>
+
+                            <th>
+                                Amount
+                            </th>
+
+                            <th>
+                                Method
+                            </th>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <tr>
+
+                            <td
+                                colspan="8"
+                                class="empty-state">
+
+                                Loading payments...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+
+<!-- =========================================================
+     PAYMENT DETAILS MODAL
+========================================================== -->
+
+<div
+    id="payment-details-modal"
+    class="modal-overlay">
+
+
+    <div class="modal">
+
+
+        <!-- HEADER -->
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Payment Details
+                </h2>
+
+                <p>
+                    Payment transaction information
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closePaymentDetailsModal()">
+
+                &times;
+
+            </button>
+
+        </div>
+
+
+
+        <!-- BODY -->
+
+        <div class="modal-body">
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Payment Reference
+                </span>
+
+                <strong id="details-payment-reference">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Invoice
+                </span>
+
+                <strong id="details-payment-invoice">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Tenant
+                </span>
+
+                <strong id="details-payment-tenant">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Amount
+                </span>
+
+                <strong
+                    id="details-payment-amount"
+                    class="payment-detail-amount">
+
+                    -
+
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Payment Method
+                </span>
+
+                <strong id="details-payment-method">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Payment Date
+                </span>
+
+                <strong id="details-payment-date">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Phone Number
+                </span>
+
+                <strong id="details-payment-phone">
+                    -
+                </strong>
+
+            </div>
+
+
+
+            <div class="payment-detail-row notes-row">
+
+                <span class="detail-label">
+                    Notes
+                </span>
+
+                <span id="details-payment-notes">
+                    -
+                </span>
+
+            </div>
+
+
+
+            <div class="payment-detail-row">
+
+                <span class="detail-label">
+                    Status
+                </span>
+
+                <span
+                    id="details-payment-status"
+                    class="status pending">
+
+                    PENDING
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- FOOTER -->
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="cancel-button"
+                onclick="closePaymentDetailsModal()">
+
+                Close
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+
+<script src="{% static 'accounting/js/payments.js' %}"></script>
+
+</body>
+</html>

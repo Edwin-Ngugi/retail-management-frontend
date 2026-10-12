@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        {% block title %}
+            Management | PropertyPro
+        {% endblock %}
+    </title>
+
+    <!-- Global Base Management Styling -->
+    <link rel="stylesheet" href="{% static 'management/css/management.css' %}">
+
+    <style>
+        /* Global Print Rules */
+        @media print {
+            /* Reset body and hide layout margins/paddings */
+            body, html {
+                background: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Hide topbar, sidebar, and non-printable elements */
+            .management-sidebar,
+            .management-topbar,
+            .no-print {
+                display: none !important;
+            }
+
+            /* Unset flex layouts and force content area full width */
+            .management-layout,
+            .management-main,
+            .management-content {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+
+    <!-- Page-Specific CSS & Head Blocks -->
+    {% block stylesheets %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+<div class="management-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="management-sidebar">
+
+        <div class="management-logo">
+            <div class="management-logo-icon">PP</div>
+            <div>
+                <strong>PropertyPro</strong>
+                <span>Management Portal</span>
+            </div>
+        </div>
+
+        <nav class="management-navigation">
+            <a href="{% url 'management-dashboard' %}" class="management-nav-item {% if request.resolver_match.url_name == 'management-dashboard' %}active{% endif %}">
+                <span>▣</span> Dashboard
+            </a>
+
+            <div class="nav-section-title">PROPERTY</div>
+            <a href="{% url 'management-properties' %}" class="management-nav-item {% if 'properties' in request.path %}active{% endif %}">
+                <span>⌂</span> Properties
+            </a>
+
+            <div class="nav-section-title">TENANCY</div>
+            <a href="{% url 'management-tenants' %}" class="management-nav-item {% if 'tenants' in request.path %}active{% endif %}">
+                <span>♙</span> Tenants
+            </a>
+
+            <div class="nav-section-title">FINANCE</div>
+            <a href="{% url 'management-invoices-list' %}" class="management-nav-item {% if 'invoices' in request.path %}active{% endif %}">
+                <span>▧</span> Invoices
+            </a>
+            <a href="{% url 'property-analysis-list' %}" class="management-nav-item {% if 'analysis' in request.path %}active{% endif %}">
+                <span>KSh</span> Analysis
+            </a>
+
+            <div class="nav-section-title">OPERATIONS</div>
+            <a href="{% url 'management-maintenance' %}" class="management-nav-item {% if 'maintenance' in request.path %}active{% endif %}">
+                <span>🔧</span> Maintenance
+            </a>
+        </nav>
+
+        <div class="management-sidebar-bottom">
+            <a href="{% url 'management-logout' %}" class="management-nav-item logout">
+                <span>↪</span> Logout
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="management-main">
+
+        <header class="management-topbar">
+            <div class="management-user">
+                <div class="management-user-details">
+                    <strong>
+                        {{ request.user.get_full_name|default:request.user.username }}
+                    </strong>
+                    <span>
+                        {{ request.user.role|default:"Manager" }}
+                    </span>
+                </div>
+
+                <div class="management-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+            </div>
+        </header>
+
+        <div class="management-content">
+            {% block content %}{% endblock %}
+        </div>
+
+    </main>
+
+</div>
+
+<!-- Page-Specific JavaScript Block -->
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,504 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenant Dashboard | PropertyPro</title>
+    <link rel="stylesheet" href="{% static 'tenants/css/dashboard.css' %}">
+    <style>
+        /* Notification Wrapper & Dropdown Styling */
+        .notification-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .notification-btn {
+            position: relative;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            padding: 8px;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: none;
+        }
+
+        .notification-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 40px;
+            width: 320px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            z-index: 1000;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+
+        .notification-dropdown.active {
+            display: block;
+        }
+
+        .notification-header {
+            padding: 12px 16px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notification-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item.urgent {
+            background-color: #fff5f5;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .notification-item.warning {
+            background-color: #fffdf0;
+            border-left: 4px solid #f39c12;
+        }
+
+        .notification-item.info {
+            background-color: #f0f8ff;
+            border-left: 4px solid #3498db;
+        }
+
+        .notification-item .title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .notification-item .message {
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .notification-item .time {
+            font-size: 0.75rem;
+            color: #999;
+        }
+
+        .no-notifications {
+            padding: 16px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">PP</div>
+            <div>
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <a href="{% url 'tenant-dashboard-page' %}" class="nav-item active">
+                <span class="icon">▣</span> Dashboard
+            </a>
+            <a href="/tenant/lease/" class="nav-item">
+                <span class="icon">▤</span> My Lease
+            </a>
+            <a href="/tenant/payments/" class="nav-item">
+                <span class="icon">₿</span> Payment History
+            </a>
+            <a href="/tenant/maintenance/" class="nav-item">
+                <span class="icon">🔧</span> Maintenance
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="#" class="nav-item">
+                <span class="icon">⚙</span> Settings
+            </a>
+            <a href="/logout/" class="nav-item logout">
+                <span class="icon">↪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div>
+                <h1>Tenant Dashboard</h1>
+                <p>Manage your tenancy and rent payments</p>
+            </div>
+
+            <div class="user-section">
+                <!-- NOTIFICATION WRAPPER -->
+                <div class="notification-wrapper">
+                    <button type="button" class="notification-btn" id="notification-bell" aria-label="Notifications">
+                        🔔
+                        <span class="notification-badge" id="notification-badge">0</span>
+                    </button>
+                    
+                    <div class="notification-dropdown" id="notification-dropdown">
+                        <div class="notification-header">
+                            <span>Notifications</span>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            <div class="no-notifications">Loading reminders...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-info">
+                    <strong id="topbar-username">{{ request.user.username }}</strong>
+                    <span>Tenant</span>
+                </div>
+
+                <div class="avatar" id="user-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+            </div>
+        </header>
+
+        <!-- WELCOME SECTION -->
+        <section class="welcome-section">
+            <div>
+                <h2>
+                    Welcome back,
+                    <span id="tenant-name">
+                        {{ request.user.first_name|default:request.user.username }}
+                    </span>
+                </h2>
+                <p>Here's an overview of your tenancy.</p>
+            </div>
+
+            <button type="button" id="btn-pay-now" class="primary-button">
+                Make Payment
+            </button>
+        </section>
+
+        <!-- SUMMARY CARDS -->
+        <section class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon rent-icon">KSh</div>
+                <div>
+                    <span>Monthly Rent</span>
+                    <strong id="monthly-rent">KSh 0.00</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon balance-icon">!</div>
+                <div>
+                    <span>Outstanding Balance</span>
+                    <strong id="outstanding-balance">KSh 0.00</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon paid-icon">✓</div>
+                <div>
+                    <span>Total Paid</span>
+                    <strong id="total-paid">KSh 0.00</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon invoice-icon">#</div>
+                <div>
+                    <span>Invoices</span>
+                    <strong id="invoice-count">0</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAIN GRID -->
+        <section class="dashboard-grid">
+
+            <!-- PROPERTY INFORMATION -->
+            <div class="panel property-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>My Property</h2>
+                        <p>Your current rental information</p>
+                    </div>
+                </div>
+
+                <div class="property-details">
+                    <div class="detail-item">
+                        <span>Property</span>
+                        <strong id="property-name">-</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Address</span>
+                        <strong id="property-address">-</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>City</span>
+                        <strong id="property-city">-</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Unit</span>
+                        <strong id="unit-number">-</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Unit Type</span>
+                        <strong id="unit-type">-</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Floor</span>
+                        <strong id="unit-floor">-</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CURRENT INVOICE -->
+            <div class="panel invoice-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>Current Invoice</h2>
+                        <p>Your latest outstanding invoice</p>
+                    </div>
+                </div>
+
+                <div id="invoice-content">
+                    <div class="invoice-number">
+                        <span>Invoice</span>
+                        <strong id="invoice-number">-</strong>
+                    </div>
+                    <div class="invoice-month">
+                        <span>Billing Month</span>
+                        <strong id="billing-month">-</strong>
+                    </div>
+                    <div class="invoice-amount">
+                        <span>Amount Due</span>
+                        <strong id="invoice-amount">KSh 0.00</strong>
+                    </div>
+                    <div class="invoice-paid">
+                        <span>Amount Paid</span>
+                        <strong id="invoice-paid">KSh 0.00</strong>
+                    </div>
+                    <div class="invoice-balance">
+                        <span>Balance</span>
+                        <strong id="invoice-balance">KSh 0.00</strong>
+                    </div>
+                    <div class="invoice-status-container">
+                        <span>Status</span>
+                        <span id="invoice-status" class="status unpaid">Unpaid</span>
+                    </div>
+
+                    <button type="button" id="pay-invoice-btn" class="pay-button">
+                        Pay Invoice
+                    </button>
+                </div>
+
+                <div id="no-invoice" class="no-invoice" style="display: none;">
+                    <div class="no-invoice-icon">✓</div>
+                    <strong>You're all caught up</strong>
+                    <p>You currently have no outstanding invoices.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- LEASE INFORMATION -->
+        <section class="panel lease-panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Lease Information</h2>
+                    <p>Details of your current lease</p>
+                </div>
+                <a href="/tenant/lease/" class="view-link">View Lease</a>
+            </div>
+
+            <div class="lease-details">
+                <div class="lease-item">
+                    <span>Lease Start</span>
+                    <strong id="lease-start">-</strong>
+                </div>
+                <div class="lease-item">
+                    <span>Lease End</span>
+                    <strong id="lease-end">-</strong>
+                </div>
+                <div class="lease-item">
+                    <span>Monthly Rent</span>
+                    <strong id="lease-rent">KSh 0.00</strong>
+                </div>
+                <div class="lease-item">
+                    <span>Status</span>
+                    <span id="lease-status" class="status active">Active</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- RECENT PAYMENTS -->
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Recent Payments</h2>
+                    <p>Your latest rent payments</p>
+                </div>
+                <a href="{% url 'tenant-payments-page' %}" class="view-link">View All</a>
+            </div>
+
+            <div class="table-container">
+                <table id="payments-table">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading payments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+</div>
+
+<script src="{% static 'tenants/js/dashboard.js' %}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const bell = document.getElementById("notification-bell");
+    const dropdown = document.getElementById("notification-dropdown");
+    const badge = document.getElementById("notification-badge");
+    const list = document.getElementById("notification-list");
+
+    // Toggle Notification Dropdown and clear badge
+    bell.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.toggle("active");
+
+        // Hide and reset badge when opening notifications
+        if (isOpen && badge.style.display !== "none") {
+            badge.style.display = "none";
+            badge.textContent = "0";
+        }
+    });
+
+    // Close Dropdown when clicking outside
+    document.addEventListener("click", function (e) {
+        if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+
+    // Fetch Dashboard API Data to build dynamic reminders
+    fetch("/api/tenant/dashboard/")
+        .then(response => response.json())
+        .then(data => {
+            list.innerHTML = "";
+            let notifications = [];
+
+            if (data.current_invoice) {
+                const invoice = data.current_invoice;
+                const balance = parseFloat(invoice.balance || 0);
+
+                if (balance > 0) {
+                    let level = "warning";
+                    let title = "Rent Payment Reminder";
+                    let msg = `You have an unpaid balance of KSh ${balance.toLocaleString()} for invoice #${invoice.invoice_number}.`;
+
+                    if (invoice.due_date) {
+                        const dueDate = new Date(invoice.due_date);
+                        const today = new Date();
+                        const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays < 0) {
+                            level = "urgent";
+                            title = "Payment Overdue!";
+                            msg = `Your rent payment of KSh ${balance.toLocaleString()} was due on ${invoice.due_date}. Please clear it immediately.`;
+                        } else if (diffDays <= 3) {
+                            level = "urgent";
+                            title = "Payment Due Soon";
+                            msg = `Your rent payment of KSh ${balance.toLocaleString()} is due in ${diffDays} day(s) (${invoice.due_date}).`;
+                        }
+                    }
+
+                    notifications.push({ title, message: msg, type: level });
+                }
+            }
+
+            if (data.summary && parseFloat(data.summary.outstanding) === 0) {
+                notifications.push({
+                    title: "Rent Status",
+                    message: "You have no outstanding payments. Thank you!",
+                    type: "info"
+                });
+            }
+
+            if (notifications.length > 0) {
+                badge.textContent = notifications.length;
+                badge.style.display = "inline-block";
+
+                notifications.forEach(n => {
+                    const item = document.createElement("div");
+                    item.className = `notification-item ${n.type}`;
+                    item.innerHTML = `
+                        <div class="title">${n.title}</div>
+                        <div class="message">${n.message}</div>
+                        <div class="time">Just now</div>
+                    `;
+                    list.appendChild(item);
+                });
+            } else {
+                badge.style.display = "none";
+                list.innerHTML = '<div class="no-notifications">No active notifications</div>';
+            }
+        })
+        .catch(err => {
+            console.error("Failed to load notifications:", err);
+            list.innerHTML = '<div class="no-notifications">Unable to load notifications</div>';
+        });
+});
+</script>
+
+</body>
+</html>

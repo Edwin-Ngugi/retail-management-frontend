@@ -1,0 +1,166 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Lease Vacation | PropertyPro</title>
+    <link rel="stylesheet" href="{% static 'tenants/css/lease.css' %}">
+    <style>
+        .form-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 650px;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-cancel {
+            padding: 10px 18px;
+            background-color: #f3f4f6;
+            color: #374151;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .btn-submit-danger {
+            padding: 10px 18px;
+            background-color: #dc3545;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .btn-submit-danger:hover {
+            background-color: #bb2d3b;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="tenant-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">PM</div>
+            <div class="logo-text">
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <a href="/tenant/dashboard/" class="nav-item">
+                <span class="icon">▣</span> Dashboard
+            </a>
+            <a href="/tenant/lease/" class="nav-item active">
+                <span class="icon">▤</span> My Lease
+            </a>
+            <a href="{% url 'tenant-payments-page' %}" class="nav-item">
+                <span class="icon">₿</span> Payment History
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="/logout/" class="nav-item logout">
+                <span class="nav-icon">↪</span>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="top-header">
+            <div class="mobile-menu">☰</div>
+            <div class="page-heading">
+                <h1>Request Lease Vacation</h1>
+                <p>Submit a formal notice to vacate your rental unit.</p>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content">
+
+            <div class="form-card">
+                <form method="POST" action="{% url 'tenant-request-vacate-submit' %}">
+                    {% csrf_token %}
+
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 24px;">
+                        Please provide your planned move-out date and reason. Once submitted, management will review your request.
+                    </p>
+
+                    <div class="form-group">
+                        <label for="vacate_date">Intended Move-out Date</label>
+                        <input type="date" id="vacate_date" name="vacate_date" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reason">Reason for Vacating</label>
+                        <textarea id="reason" name="reason" rows="5" class="form-control" placeholder="Specify your reason for leaving..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="/tenant/lease/" class="btn-cancel">Cancel</a>
+                        <button type="submit" class="btn-submit-danger">Submit Vacation Notice</button>
+                    </div>
+                </form>
+            </div>
+
+        </main>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

@@ -1,0 +1,396 @@
+```html
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Payments | PropertyPro</title>
+
+    <link rel="stylesheet"
+          href="{% static 'tenants/css/payments.css' %}">
+</head>
+
+<body>
+
+<div class="tenant-dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">PM</div>
+
+            <div>
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav>
+
+            <a href="/tenant/dashboard/" class="nav-item">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+
+            <a href="/tenant/payments/" class="nav-item active">
+                <span>₿</span>
+                My Payments
+            </a>
+
+            <a href="/tenant/invoices/" class="nav-item">
+                <span>▤</span>
+                My Invoices
+            </a>
+
+            
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+
+            <div>
+                <h1>My Payments</h1>
+
+                <p>
+                    View your rent payment history
+                </p>
+            </div>
+
+            <div class="user-section">
+
+                <button class="notification-btn">
+                    🔔
+                </button>
+
+                <div class="user-info">
+
+                    <strong>
+                        {{ request.user.username }}
+                    </strong>
+
+                    <span>
+                        Tenant
+                    </span>
+
+                </div>
+
+                <div class="avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- SUMMARY -->
+        <section class="summary-cards">
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    💰
+                </div>
+
+                <div>
+                    <span>Total Paid</span>
+
+                    <strong id="total-paid">
+                        KSh 0.00
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    ✓
+                </div>
+
+                <div>
+                    <span>Completed</span>
+
+                    <strong id="completed-count">
+                        0
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    ⏳
+                </div>
+
+                <div>
+                    <span>Pending</span>
+
+                    <strong id="pending-count">
+                        0
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    📄
+                </div>
+
+                <div>
+                    <span>Total Transactions</span>
+
+                    <strong id="transaction-count">
+                        0
+                    </strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- FILTERS -->
+        <section class="filters">
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="payment-search"
+                    placeholder="Search payment or invoice..."
+                >
+
+            </div>
+
+
+            <select id="status-filter">
+
+                <option value="">
+                    All Statuses
+                </option>
+
+                <option value="COMPLETED">
+                    Completed
+                </option>
+
+                <option value="PENDING">
+                    Pending
+                </option>
+
+                <option value="FAILED">
+                    Failed
+                </option>
+
+                <option value="REVERSED">
+                    Reversed
+                </option>
+
+            </select>
+
+        </section>
+
+
+        <!-- PAYMENTS TABLE -->
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        Payment History
+                    </h2>
+
+                    <p>
+                        Your rent payment transactions
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table id="payments-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Reference
+                            </th>
+
+                            <th>
+                                Invoice
+                            </th>
+
+                            <th>
+                                Amount
+                            </th>
+
+                            <th>
+                                Method
+                            </th>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+
+                            <td colspan="7"
+                                class="empty-state">
+
+                                Loading payments...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- PAYMENT DETAILS MODAL -->
+
+<div id="payment-modal"
+     class="modal-overlay">
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Payment Details
+                </h2>
+
+                <p>
+                    Transaction information
+                </p>
+
+            </div>
+
+            <button
+                class="modal-close"
+                onclick="closePaymentModal()">
+
+                &times;
+
+            </button>
+
+        </div>
+
+
+        <div class="modal-body">
+
+            <div class="detail-row">
+                <span>Reference</span>
+                <strong id="modal-reference">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Invoice</span>
+                <strong id="modal-invoice">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Amount</span>
+                <strong id="modal-amount">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Payment Method</span>
+                <strong id="modal-method">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Payment Date</span>
+                <strong id="modal-date">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Phone Number</span>
+                <strong id="modal-phone">-</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Status</span>
+                <span id="modal-status"
+                      class="status pending">
+                    Pending
+                </span>
+            </div>
+
+            <div class="detail-row notes">
+                <span>Notes</span>
+                <p id="modal-notes">-</p>
+            </div>
+
+        </div>
+
+
+        <div class="modal-footer">
+
+            <button
+                class="close-button"
+                onclick="closePaymentModal()">
+
+                Close
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="{% static 'tenants/js/payments.js' %}"></script>
+
+</body>
+</html>
+```

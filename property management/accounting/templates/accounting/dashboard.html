@@ -1,0 +1,365 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Accounting Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{% static 'accounting/css/dashboard.css' %}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">PM</div>
+            <div>
+                <h2>PropertyPro</h2>
+                <span>Management System</span>
+            </div>
+        </div>
+
+        <nav>
+
+            <a href="#" class="nav-item active">
+                <span>▣</span>
+                Dashboard
+            </a>
+
+            <a href="{% url 'accounting-invoices' %}" class="nav-item">
+                <span>▤</span>
+                Invoices
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>₿</span>
+                Payments
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>⌂</span>
+                Properties
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>♙</span>
+                Tenants
+            </a>
+
+            <a href="#" class="nav-item">
+                <span>▥</span>
+                Reports
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="nav-item">
+                <span>⚙</span>
+                Settings
+            </a>
+
+            <a href="{% url 'accountant-login' %}" class="nav-item logout">
+                <span>↪</span>
+                Logout
+            </a>
+
+        </div>
+
+    </aside>
+
+    
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- HEADER -->
+
+        <header class="topbar">
+
+            <div>
+                <h1>Accounting Dashboard</h1>
+                <p>Financial overview of your properties</p>
+            </div>
+
+            <div class="user-section">
+
+                <div class="notification">
+                    🔔
+                </div>
+
+                <div class="user-info">
+                    <strong>{{ request.user.username }}</strong>
+                    <span>Accountant</span>
+                </div>
+
+                <div class="avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- SUMMARY CARDS -->
+
+        <section class="summary-grid">
+
+            <div class="summary-card">
+
+                <div class="card-icon billed">
+                    KSh
+                </div>
+
+                <div>
+                    <p>Total Billed</p>
+                    <h2 id="total-billed">KSh 0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-icon collected">
+                    ✓
+                </div>
+
+                <div>
+                    <p>Total Collected</p>
+                    <h2 id="total-collected">KSh 0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-icon outstanding">
+                    !
+                </div>
+
+                <div>
+                    <p>Outstanding</p>
+                    <h2 id="outstanding">KSh 0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="card-icon overdue">
+                    ⚠
+                </div>
+
+                <div>
+                    <p>Overdue Invoices</p>
+                    <h2 id="overdue-invoices">0</h2>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- SECOND ROW -->
+
+        <section class="content-grid">
+
+            <!-- INVOICE STATUS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h2>Invoice Status</h2>
+                        <p>Current invoice overview</p>
+                    </div>
+
+                    <a href="{% url 'accounting-invoices' %}" class="view-link">
+                        View invoices
+                    </a>
+
+                </div>
+
+
+                <div class="invoice-status">
+
+                    <div class="status-item">
+
+                        <div class="status-circle paid">
+                            ✓
+                        </div>
+
+                        <div>
+                            <strong id="paid-invoices">0</strong>
+                            <span>Paid invoices</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="status-item">
+
+                        <div class="status-circle partial">
+                            %
+                        </div>
+
+                        <div>
+                            <strong id="partial-invoices">0</strong>
+                            <span>Partial invoices</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="status-item">
+
+                        <div class="status-circle overdue-status">
+                            !
+                        </div>
+
+                        <div>
+                            <strong id="overdue-count">0</strong>
+                            <span>Overdue invoices</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- QUICK ACTIONS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h2>Quick Actions</h2>
+                        <p>Common accounting tasks</p>
+                    </div>
+
+                </div>
+
+
+                <div class="quick-actions">
+
+                    <button class="action-button">
+                        <span>＋</span>
+                        Generate Invoices
+                    </button>
+
+                    <button class="action-button">
+                        <span>▤</span>
+                        View Invoices
+                    </button>
+
+                    <button class="action-button">
+                        <span>↓</span>
+                        Payment Records
+                    </button>
+
+                    <button class="action-button">
+                        <span>▥</span>
+                        Generate Report
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- PAYMENT SECTION -->
+
+        <section class="panel payment-panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <h2>Recent Payments</h2>
+                    <p>Latest electronic payments</p>
+                </div>
+
+                <a href="#" class="view-link">
+                    View all
+                </a>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Transaction</th>
+                            <th>Tenant</th>
+                            <th>Invoice</th>
+                            <th>Amount</th>
+                            <th>Payment Method</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="payments-table">
+
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                No payments recorded yet.
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+
+        <footer>
+
+            <span>
+                PropertyPro Management System
+            </span>
+
+            <span>
+                Accounting Module
+            </span>
+
+        </footer>
+
+    </main>
+
+</div>
+
+
+<script src="{% static 'accounting/js/dashboard.js' %}"></script>
+
+</body>
+</html>

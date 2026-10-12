@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance | PropertyPro</title>
+    <link rel="stylesheet" href="{% static 'tenants/css/maintenance.css' %}">
+</head>
+<body>
+
+<div class="tenant-layout">
+
+    <!-- =================================================
+         SIDEBAR
+    ================================================== -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">PP</div>
+            <div class="logo-text">
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/tenant/dashboard/" class="nav-item">
+                Dashboard
+            </a>
+            <a href="/tenant/lease/" class="nav-item">
+                My Lease
+            </a>
+            <a href="/tenant/payments/" class="nav-item">
+                Payment History
+            </a>
+            <a href="/tenant/maintenance/" class="nav-item active">
+                <span class="nav-icon">🔧</span>
+                Maintenance
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="/settings/" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                Settings
+            </a>
+            <a href="/logout/" class="nav-item logout">
+                <span class="nav-icon">↪</span>
+                Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- =================================================
+         MAIN CONTENT AREA
+    ================================================== -->
+    <div class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="top-header">
+            <div class="page-heading">
+                <h1>Maintenance</h1>
+                <p>Report and track maintenance issues in your unit.</p>
+            </div>
+
+            <div class="header-user">
+                <div class="user-avatar">
+                    {{ user.first_name|default:"T"|slice:":1" }}
+                </div>
+                <div class="user-details">
+                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                    <span>Tenant</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content">
+
+            <!-- ACTION BAR / TOP CONTROLS -->
+            <div class="page-actions-bar">
+                <div class="actions-meta">
+                    <h2>Maintenance Requests</h2>
+                    <span>Track status or report new repairs</span>
+                </div>
+                
+                <!-- NEW MAINTENANCE REQUEST BUTTON -->
+                <div class="actions-buttons">
+                    <a href="/tenant/maintenance/report/" class="btn-primary">
+                        <span class="btn-icon">+</span> Report Maintenance Issue
+                    </a>
+                </div>
+            </div>
+
+            <!-- MESSAGES / ALERTS -->
+            {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- REQUESTS LIST -->
+            {% if maintenance_requests %}
+                <div class="maintenance-grid">
+                    {% for request in maintenance_requests %}
+                        <article class="request-card">
+                            
+                            <div class="card-header">
+                                <div class="header-title">
+                                    <h3>{{ request.title }}</h3>
+                                    <span class="category-badge">{{ request.get_category_display }}</span>
+                                </div>
+                                <span class="status-badge status-{{ request.status|lower }}">
+                                    {{ request.get_status_display }}
+                                </span>
+                            </div>
+
+                            <div class="card-body">
+                                <p class="description">{{ request.description }}</p>
+                            </div>
+
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label">Unit</span>
+                                    <strong>{{ request.unit.unit_number }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Priority</span>
+                                    <strong class="priority-tag priority-{{ request.priority|lower }}">
+                                        {{ request.get_priority_display }}
+                                    </strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Reported</span>
+                                    <strong>{{ request.reported_at|date:"d M Y, H:i" }}</strong>
+                                </div>
+                            </div>
+
+                            {% if request.manager_notes %}
+                                <div class="manager-notes">
+                                    <strong>Property Management Response</strong>
+                                    <p>{{ request.manager_notes }}</p>
+                                </div>
+                            {% endif %}
+
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state-card">
+                    <div class="empty-icon">🔧</div>
+                    <h3>No Maintenance Requests</h3>
+                    <p>You haven't reported any maintenance issues yet.</p>
+                    <a href="/tenant/maintenance/report/" class="btn-primary">
+                        Report an Issue
+                    </a>
+                </div>
+            {% endif %}
+
+        </main>
+    </div>
+</div>
+
+</body>
+</html>

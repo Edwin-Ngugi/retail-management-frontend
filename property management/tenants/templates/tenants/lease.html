@@ -1,0 +1,217 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Lease | PropertyPro</title>
+    <link rel="stylesheet" href="{% static 'tenants/css/lease.css' %}">
+</head>
+
+<body>
+
+<div class="tenant-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">PM</div>
+            <div class="logo-text">
+                <h2>PropertyPro</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <a href="/tenant/dashboard/" class="nav-item">
+                <span class="icon">▣</span> Dashboard
+            </a>
+            <a href="/tenant/lease/" class="nav-item active">
+                <span class="icon">▤</span> My Lease
+            </a>
+            <a href="{% url 'tenant-payments-page' %}" class="nav-item">
+                <span class="icon">₿</span> Payment History
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="/logout/" class="nav-item logout">
+                <span class="nav-icon">↪</span>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="top-header">
+            <div class="mobile-menu">☰</div>
+            <div class="page-heading">
+                <h1>My Lease</h1>
+                <p>View your current tenancy information and manage move-out notices.</p>
+            </div>
+
+            <div class="header-user">
+                <div class="user-avatar" id="user-avatar">T</div>
+                <div class="user-details">
+                    <strong id="topbar-username">Tenant</strong>
+                    <span>Tenant</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT -->
+        <main class="page-content">
+
+            <!-- LOADING STATE -->
+            <div id="lease-loading" class="state-card">
+                <div class="spinner"></div>
+                <p>Loading your lease information...</p>
+            </div>
+
+            <!-- ERROR STATE -->
+            <div id="lease-error" class="state-card error-state" style="display:none;">
+                <h3>Unable to load lease</h3>
+                <p id="lease-error-message">Something went wrong while loading your lease.</p>
+                <button onclick="loadLease()">Try Again</button>
+            </div>
+
+            <!-- NO LEASE STATE -->
+            <div id="no-lease" class="state-card" style="display:none;">
+                <div class="empty-icon">📄</div>
+                <h3>No Active Lease</h3>
+                <p>You currently do not have an active lease attached to this profile.</p>
+            </div>
+
+            <!-- LEASE CONTENT -->
+            <section id="lease-content" style="display:none;">
+
+                <!-- STATUS & REDIRECT ACTION BUTTON -->
+                <section class="lease-status-card">
+                    <div class="status-info">
+                        <span class="label">Lease Status</span>
+                        <h2 id="lease-status">-</h2>
+                    </div>
+
+                    <div class="status-actions" style="display: flex; align-items: center; gap: 12px;">
+                        <span id="lease-status-badge" class="status-badge">-</span>
+                        <a href="{% url 'tenant-request-vacate-page' %}" id="btn-request-vacation" class="btn-vacate" style="text-decoration: none; display: inline-block; padding: 10px 16px; background-color: #dc3545; color: #fff; border-radius: 6px; font-weight: 600;">
+                            Request Vacation
+                        </a>
+                    </div>
+                </section>
+
+                <!-- PROPERTY INFORMATION -->
+                <section class="section-card">
+                    <div class="section-title">
+                        <div>
+                            <h2>Property Information</h2>
+                            <p>Details about your current property.</p>
+                        </div>
+                    </div>
+
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Property</span>
+                            <strong id="property-name">-</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Address</span>
+                            <strong id="property-address">-</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">City</span>
+                            <strong id="property-city">-</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- UNIT INFORMATION -->
+                <section class="section-card">
+                    <div class="section-title">
+                        <div>
+                            <h2>Unit Information</h2>
+                            <p>Details about your rented unit.</p>
+                        </div>
+                    </div>
+
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Unit Number</span>
+                            <strong id="unit-number">-</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unit Type</span>
+                            <strong id="unit-type">-</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Floor</span>
+                            <strong id="unit-floor">-</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- RENT INFORMATION -->
+                <section class="section-card">
+                    <div class="section-title">
+                        <div>
+                            <h2>Rent Information</h2>
+                            <p>Your current rental payment information.</p>
+                        </div>
+                    </div>
+
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Monthly Rent</span>
+                            <strong id="monthly-rent">KSh 0.00</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Security Deposit</span>
+                            <strong id="deposit-amount">KSh 0.00</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VACATION / EVACUATION NOTICES HISTORY -->
+                <section class="section-card" id="vacation-history-section">
+                    <div class="section-title">
+                        <div>
+                            <h2>Submitted Vacation Requests</h2>
+                            <p>Track the status of your move-out notices sent to management.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; padding: 8px;">Vacate Date</th>
+                                    <th style="text-align: left; padding: 8px;">Reason</th>
+                                    <th style="text-align: left; padding: 8px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vacation-requests-list">
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: #6b7280; padding: 12px;">No requests submitted yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </section>
+
+        </main>
+
+    </div>
+
+</div>
+
+<script src="{% static 'tenants/js/lease.js' %}"></script>
+</body>
+
+</html>
