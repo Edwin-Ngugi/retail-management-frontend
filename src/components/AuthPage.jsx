@@ -38,7 +38,7 @@ export default function AuthPage({ onLoginSuccess }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -49,18 +49,18 @@ export default function AuthPage({ onLoginSuccess }) {
 
     const endpoint = isLogin ? 'auth/user-login/' : 'auth/register/';
 
-    // Convert multi-word username (e.g. "Lilian Jackson") to valid Django username ("lilian_jackson")
+    
     const cleanUsername = formData.username.trim().replace(/\s+/g, '_').toLowerCase();
     
-    // Split input into first_name and last_name if multiple names are entered
+    // Split input into first_name and last_name for registration
     const nameParts = formData.username.trim().split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Format registration payload including confirm_password
+    // Format payload for both Login and Registration
     const payload = isLogin
       ? { 
-          username: formData.username.trim(), 
+          username: cleanUsername, 
           password: formData.password 
         }
       : {
@@ -86,7 +86,7 @@ export default function AuthPage({ onLoginSuccess }) {
         localStorage.setItem('token', data.access);
 
         const userObj = data.user || {
-          username: data.username || formData.username,
+          username: data.username || cleanUsername,
           role: 'User',
           is_staff: false,
           is_superuser: false,
@@ -101,8 +101,16 @@ export default function AuthPage({ onLoginSuccess }) {
 
         navigate('/');
       } else {
-        setIsLogin(true);
-        alert('Registration successful! Please log in with your credentials.');
+        // Automatically pre-fill username and switch view to Sign In
+        setFormData({
+          username: cleanUsername,
+          email: '',
+          password: '',
+          confirmPassword: '',
+          branch: 'all',
+        });
+        setError('');
+        setIsLogin(true); // Automatically redirects view to User Portal Sign In
       }
     } catch (err) {
       if (err.response?.data) {
@@ -168,7 +176,7 @@ export default function AuthPage({ onLoginSuccess }) {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder={isLogin ? "e.g. johndoe" : "e.g. Lilian Jackson"}
+              placeholder={isLogin ? "e.g. johndoe" : "e.g. John Doe"}
               required
               className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
             />
