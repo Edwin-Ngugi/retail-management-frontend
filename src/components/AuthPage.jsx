@@ -13,7 +13,7 @@ export default function AuthPage({ onLoginSuccess }) {
     email: '',
     password: '',
     confirmPassword: '',
-    branch: '',
+    branch: 'all', // Default to "All Branches"
   });
   const [error, setError] = useState('');
 
@@ -24,9 +24,6 @@ export default function AuthPage({ onLoginSuccess }) {
         const response = await API.get('branches/');
         const data = response.data;
         setBranches(data);
-        if (data.length > 0) {
-          setFormData((prev) => ({ ...prev, branch: data[0].id }));
-        }
       } catch (err) {
         console.error('Failed to load branches:', err);
       } finally {
@@ -50,11 +47,35 @@ export default function AuthPage({ onLoginSuccess }) {
       return;
     }
 
-    // Endpoint paths relative to baseURL in api.js
     const endpoint = isLogin ? 'auth/user-login/' : 'auth/register/';
 
+    // Convert multi-word username (e.g. "Lilian Jackson") to valid Django username ("lilian_jackson")
+    const cleanUsername = formData.username.trim().replace(/\s+/g, '_').toLowerCase();
+    
+    // Split input into first_name and last_name if multiple names are entered
+    const nameParts = formData.username.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Format registration payload
+    const payload = isLogin
+      ? { 
+          username: formData.username.trim(), 
+          password: formData.password 
+        }
+      : {
+          username: cleanUsername,
+          first_name: firstName,
+          last_name: lastName,
+          email: formData.email.trim(),
+          password: formData.password,
+          branch: formData.branch === 'all' ? null : parseInt(formData.branch, 10),
+          branch_id: formData.branch === 'all' ? null : parseInt(formData.branch, 10),
+          assigned_all_branches: formData.branch === 'all',
+        };
+
     try {
-      const response = await API.post(endpoint, formData);
+      const response = await API.post(endpoint, payload);
       const data = response.data;
 
       if (isLogin) {
@@ -82,12 +103,18 @@ export default function AuthPage({ onLoginSuccess }) {
         alert('Registration successful! Please log in with your credentials.');
       }
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
-        err.message ||
-        'Authentication failed';
-      setError(errorMessage);
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'object') {
+          const firstKey = Object.keys(data)[0];
+          const firstErr = Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey];
+          setError(`${firstKey.toUpperCase()}: ${firstErr}`);
+        } else {
+          setError(data.error || data.detail || 'Registration failed');
+        }
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     }
   };
 
@@ -132,14 +159,14 @@ export default function AuthPage({ onLoginSuccess }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
-              USERNAME
+              {isLogin ? 'USERNAME' : 'FULL NAME / USERNAME'}
             </label>
             <input
               type="text"
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder="e.g. johndoe"
+              placeholder={isLogin ? "e.g. johndoe" : "e.g. Lilian Jackson"}
               required
               className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
             />
@@ -157,11 +184,14 @@ export default function AuthPage({ onLoginSuccess }) {
                 disabled={loadingBranches}
                 className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition cursor-pointer appearance-none"
               >
+                <option value="all" className="bg-[#111827] text-indigo-400 font-semibold">
+                  🌐 All Branches (Full Access)
+                </option>
                 {loadingBranches ? (
                   <option value="" className="bg-[#1F2937] text-gray-300">
                     Loading branches...
                   </option>
-                ) : branches.length > 0 ? (
+                ) : (
                   branches.map((b) => (
                     <option
                       key={b.id}
@@ -171,10 +201,6 @@ export default function AuthPage({ onLoginSuccess }) {
                       {b.name}
                     </option>
                   ))
-                ) : (
-                  <option value="" className="bg-[#111827] text-gray-400">
-                    No branches available
-                  </option>
                 )}
               </select>
             </div>
