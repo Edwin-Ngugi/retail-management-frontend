@@ -1,3 +1,4 @@
+// src/components/AdminDashboard.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import API from '../api';
 import { useBranch } from '../components/BranchContext';
@@ -409,26 +410,20 @@ export default function AdminDashboard({
   const activeBranchObject = getActiveBranchObject();
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed relative w-full"
-      style={{
-        backgroundImage: `url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop')`,
-      }}
-    >
-      {/* LIGHTENED OVERLAY FOR BETTER VISIBILITY */}
-      <div className="flex flex-col lg:flex-row min-h-screen w-full max-w-none bg-gradient-to-br from-slate-900/40 via-slate-900/30 to-indigo-900/40 backdrop-blur-[1px] text-slate-100 font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-slate-200/80 w-full font-sans text-slate-900">
+      <div className="flex flex-col lg:flex-row min-h-screen w-full max-w-none overflow-x-hidden">
         
         {/* SIDEBAR NAVIGATION */}
-        <aside className="w-full lg:w-64 bg-slate-900/80 backdrop-blur-md border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col shrink-0">
-          <div className="p-4 border-b border-slate-800/80 space-y-2">
+        <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-300 flex flex-col shrink-0 shadow-sm">
+          <div className="p-4 border-b border-slate-200 space-y-2">
             <div className="flex items-center">
               <img
                 src="/logo.svg"
                 alt="Melvex Business Solutions"
-                className="h-10 sm:h-12 w-auto object-contain cursor-pointer transition-transform duration-200 hover:scale-105 drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]"
+                className="h-10 sm:h-12 w-auto object-contain cursor-pointer transition-transform duration-200 hover:scale-105"
               />
             </div>
-            <p className="text-[11px] text-slate-400 font-semibold tracking-wide">
+            <p className="text-[11px] text-slate-500 font-semibold tracking-wide">
               Branch & Stock Operations
             </p>
           </div>
@@ -439,12 +434,12 @@ export default function AdminDashboard({
               onClick={() => setAdminTab('inventory')}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 adminTab === 'inventory'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               <span>Inventory & Items</span>
-              <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700/50">
+              <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold">
                 {items.length}
               </span>
             </button>
@@ -454,8 +449,8 @@ export default function AdminDashboard({
               onClick={() => setAdminTab('approvals')}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 adminTab === 'approvals'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               <span>Approvals & Progress</span>
@@ -466,8 +461,8 @@ export default function AdminDashboard({
               onClick={() => setAdminTab('stock-ops')}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 adminTab === 'stock-ops'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               <span>Stock Operations</span>
@@ -478,21 +473,21 @@ export default function AdminDashboard({
               onClick={() => setAdminTab('branches')}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 adminTab === 'branches'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               <span>Branch Setup</span>
-              <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+              <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300 font-bold">
                 {branches.length}
               </span>
             </button>
           </nav>
 
           {activeBranchObject && (
-            <div className="hidden lg:block p-4 border-t border-slate-800/80 text-xs text-slate-400 bg-slate-900/40 mt-auto">
+            <div className="hidden lg:block p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50 mt-auto">
               <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Active Workspace</p>
-              <p className="text-slate-200 font-medium truncate mt-0.5">{activeBranchObject.name}</p>
+              <p className="text-slate-900 font-bold truncate mt-0.5">{activeBranchObject.name}</p>
             </div>
           )}
         </aside>
@@ -501,9 +496,9 @@ export default function AdminDashboard({
         <div className="flex-1 flex flex-col w-full min-w-0">
           
           {/* HEADER BAR */}
-          <header className="min-h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between shrink-0 w-full gap-3">
+          <header className="min-h-16 bg-white border-b border-slate-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between shrink-0 w-full gap-3 shadow-sm">
             <div>
-              <h2 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
                 {adminTab === 'inventory' && 'Inventory Management'}
                 {adminTab === 'approvals' && 'Approval Status & Progress'}
                 {adminTab === 'stock-ops' && 'Stock Operations & Logs'}
@@ -514,56 +509,56 @@ export default function AdminDashboard({
             <div className="flex items-center gap-3 flex-wrap">
               {/* ACTIVE BRANCH SELECTOR */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 hidden sm:inline">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 hidden sm:inline">
                   Active Branch:
                 </span>
                 <select
                   value={activeBranch !== null ? String(getNumericBranchId(activeBranch) ?? '') : ''}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   disabled={loadingBranches || branches.length === 0}
-                  className="p-1.5 sm:p-2 bg-slate-800/90 border border-slate-700 text-white font-semibold rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  className="p-1.5 sm:p-2 bg-slate-50 border border-slate-300 text-slate-900 font-semibold rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
                   {loadingBranches ? (
-                    <option value="" className="bg-slate-900 text-white">Loading branches...</option>
+                    <option value="" className="bg-white text-slate-900">Loading branches...</option>
                   ) : branches.length > 0 ? (
                     branches.map((b) => (
-                      <option key={b.id} value={b.id} className="bg-slate-900 text-white">
+                      <option key={b.id} value={b.id} className="bg-white text-slate-900">
                         {b.name}
                       </option>
                     ))
                   ) : (
-                    <option value="" className="bg-slate-900 text-white">No Branches Available</option>
+                    <option value="" className="bg-white text-slate-900">No Branches Available</option>
                   )}
                 </select>
               </div>
 
               {/* PROFILE & LOGOUT CONTROLS */}
-              <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 p-1 rounded-xl">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setShowProfileModal(true)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-700/60 transition-all text-left cursor-pointer"
+                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-200 transition-all text-left cursor-pointer"
                   title="Account Settings"
                 >
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-100 border border-indigo-300 flex items-center justify-center text-xs font-bold text-indigo-700">
                     {profileData.username.charAt(0).toUpperCase()}
                   </div>
                   <div className="hidden sm:block">
-                    <div className="text-xs font-bold text-slate-200 leading-none">
+                    <div className="text-xs font-bold text-slate-900 leading-none">
                       {profileData.username}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-medium capitalize mt-0.5">
+                    <div className="text-[10px] text-slate-500 font-medium capitalize mt-0.5">
                       {profileData.role}
                     </div>
                   </div>
                 </button>
 
-                <div className="h-4 w-px bg-slate-700/80" />
+                <div className="h-4 w-px bg-slate-300" />
 
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer"
+                  className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-300 transition-all cursor-pointer"
                   title="Log Out"
                 >
                   Logout
@@ -576,7 +571,7 @@ export default function AdminDashboard({
           <main className="flex-1 p-3 sm:p-6 space-y-6 w-full max-w-[1600px] mx-auto">
             {status && (
               <div className={`p-3 sm:p-4 rounded-xl border text-xs font-medium flex items-center justify-between ${
-                status.type === 'success' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80' : 'bg-rose-950/60 text-rose-300 border-rose-800/80'
+                status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'
               }`}>
                 <span>{status.text}</span>
                 <button type="button" onClick={() => setStatus(null)} className="text-xs font-bold underline ml-4 cursor-pointer">
@@ -588,56 +583,56 @@ export default function AdminDashboard({
             {adminTab === 'inventory' && (
               <div className="space-y-6 w-full">
                 {/* REGISTER ITEM FORM */}
-                <div className="bg-slate-900/70 backdrop-blur-md p-4 sm:p-6 rounded-2xl border border-slate-700/60 shadow-xl w-full">
-                  <h3 className="text-xs font-bold text-slate-300 mb-4 tracking-wider uppercase">
+                <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-300 shadow-sm w-full">
+                  <h3 className="text-xs font-bold text-slate-700 mb-4 tracking-wider uppercase">
                     Add New Item & Pricing
                   </h3>
                   <form onSubmit={handleSingleSubmit} className="space-y-4 w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Item Name</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Item Name</label>
                         <input
                           type="text"
                           placeholder="e.g. Foam sheet 2STD"
                           value={singleItem.name}
                           onChange={(e) => setSingleItem({ ...singleItem, name: e.target.value })}
-                          className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 outline-none"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Cost Price (KSh)</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Cost Price (KSh)</label>
                         <input
                           type="number"
                           step="0.01"
                           placeholder="Buying price"
                           value={singleItem.unit_cost_price}
                           onChange={(e) => setSingleItem({ ...singleItem, unit_cost_price: e.target.value })}
-                          className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 outline-none"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Retail Price (KSh)</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Retail Price (KSh)</label>
                         <input
                           type="number"
                           step="0.01"
                           placeholder="Selling price"
                           value={singleItem.unit_retail_price}
                           onChange={(e) => setSingleItem({ ...singleItem, unit_retail_price: e.target.value })}
-                          className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 outline-none"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Opening Stock</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Opening Stock</label>
                         <input
                           type="number"
                           step="1"
                           placeholder="0"
                           value={singleItem.opening_stock}
                           onChange={(e) => setSingleItem({ ...singleItem, opening_stock: e.target.value })}
-                          className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 outline-none"
                         />
                       </div>
                     </div>
@@ -645,7 +640,7 @@ export default function AdminDashboard({
                       <button
                         type="submit"
                         disabled={loading || !activeBranch}
-                        className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition shadow-sm disabled:opacity-50 cursor-pointer"
+                        className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition shadow-sm disabled:opacity-50 cursor-pointer"
                       >
                         {loading ? 'Saving...' : 'Save Item to Database'}
                       </button>
@@ -654,9 +649,9 @@ export default function AdminDashboard({
                 </div>
 
                 {/* REGISTERED ITEMS TABLE WITH RESTOCKS COLUMN */}
-                <div className="bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-700/60 shadow-xl overflow-hidden w-full">
-                  <div className="p-4 sm:p-5 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h3 className="text-sm font-bold text-white">
+                <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden w-full">
+                  <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50">
+                    <h3 className="text-sm font-bold text-slate-900">
                       Active Items ({filteredItems.length})
                     </h3>
 
@@ -665,7 +660,7 @@ export default function AdminDashboard({
                         <button
                           type="button"
                           onClick={() => setIsCopyModalOpen(true)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                         >
                           Select Items from Existing Branch
                         </button>
@@ -674,7 +669,7 @@ export default function AdminDashboard({
                           type="button"
                           onClick={handleRolloverStock}
                           disabled={loading}
-                          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition cursor-pointer shadow-sm"
                         >
                           Copy Remaining to Opening
                         </button>
@@ -685,7 +680,7 @@ export default function AdminDashboard({
                         placeholder="Search items..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="p-2.5 bg-slate-950/70 border border-slate-700 text-white placeholder-slate-400 rounded-lg text-xs w-full sm:w-64 focus:border-indigo-500 outline-none"
+                        className="p-2.5 bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg text-xs w-full sm:w-64 focus:border-indigo-500 outline-none"
                       />
                     </div>
                   </div>
@@ -693,7 +688,7 @@ export default function AdminDashboard({
                   <div className="overflow-x-auto w-full">
                     <table className="w-full min-w-[720px] text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-800/80 text-[10px] sm:text-[11px] font-semibold text-slate-300 uppercase tracking-wider bg-slate-950/80">
+                        <tr className="border-b border-slate-200 text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100">
                           <th className="py-3.5 px-4">Item Name</th>
                           <th className="py-3.5 px-4">Cost Price</th>
                           <th className="py-3.5 px-4">Retail Price</th>
@@ -703,7 +698,7 @@ export default function AdminDashboard({
                           <th className="py-3.5 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 text-xs">
+                      <tbody className="divide-y divide-slate-200 text-xs text-slate-800">
                         {filteredItems.map((item) => {
                           const activeBranchId = getNumericBranchId(activeBranch);
                           const costPrice = formatCurrency(extractCostPrice(item, activeBranchId));
@@ -715,13 +710,13 @@ export default function AdminDashboard({
 
                           if (isEditing) {
                             return (
-                              <tr key={item.id} className="bg-slate-800/50">
+                              <tr key={item.id} className="bg-slate-50">
                                 <td className="py-2.5 px-4">
                                   <input
                                     type="text"
                                     value={editFormData.name}
                                     onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                    className="w-full p-2 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-indigo-500"
+                                    className="w-full p-2 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                                   />
                                 </td>
                                 <td className="py-2.5 px-4">
@@ -730,7 +725,7 @@ export default function AdminDashboard({
                                     step="0.01"
                                     value={editFormData.unit_cost_price}
                                     onChange={(e) => setEditFormData({ ...editFormData, unit_cost_price: e.target.value })}
-                                    className="w-full p-2 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-indigo-500"
+                                    className="w-full p-2 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                                   />
                                 </td>
                                 <td className="py-2.5 px-4">
@@ -739,7 +734,7 @@ export default function AdminDashboard({
                                     step="0.01"
                                     value={editFormData.unit_retail_price}
                                     onChange={(e) => setEditFormData({ ...editFormData, unit_retail_price: e.target.value })}
-                                    className="w-full p-2 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-indigo-500"
+                                    className="w-full p-2 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                                   />
                                 </td>
                                 <td className="py-2.5 px-4">
@@ -747,13 +742,13 @@ export default function AdminDashboard({
                                     type="number"
                                     value={editFormData.opening_stock}
                                     onChange={(e) => setEditFormData({ ...editFormData, opening_stock: e.target.value })}
-                                    className="w-20 p-2 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-indigo-500 font-semibold"
+                                    className="w-20 p-2 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500 font-semibold"
                                   />
                                 </td>
-                                <td className="py-2.5 px-4 font-mono text-emerald-400">
+                                <td className="py-2.5 px-4 font-mono font-bold text-emerald-700">
                                   {restockedStock}
                                 </td>
-                                <td className="py-2.5 px-4 font-medium text-slate-400">
+                                <td className="py-2.5 px-4 font-medium text-slate-500">
                                   {currentStock}
                                 </td>
                                 <td className="py-2.5 px-4 text-right space-x-2">
@@ -761,14 +756,14 @@ export default function AdminDashboard({
                                     type="button"
                                     onClick={() => handleSaveEdit(item.id)}
                                     disabled={loading}
-                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold rounded-md transition cursor-pointer"
+                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold rounded-md transition cursor-pointer"
                                   >
                                     Save
                                   </button>
                                   <button
                                     type="button"
                                     onClick={handleCancelEdit}
-                                    className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px] font-semibold rounded-md transition cursor-pointer"
+                                    className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-semibold rounded-md transition cursor-pointer"
                                   >
                                     Cancel
                                   </button>
@@ -778,13 +773,13 @@ export default function AdminDashboard({
                           }
 
                           return (
-                            <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                              <td className="py-3.5 px-4 font-medium text-slate-200">{item.name}</td>
-                              <td className="py-3.5 px-4 text-slate-400 font-mono font-semibold">KSh {costPrice}</td>
-                              <td className="py-3.5 px-4 text-slate-200 font-mono font-semibold">KSh {retailPrice}</td>
-                              <td className="py-3.5 px-4 font-mono font-semibold text-slate-200">{openingStock}</td>
-                              <td className="py-3.5 px-4 font-mono font-semibold text-emerald-400">{restockedStock}</td>
-                              <td className="py-3.5 px-4 font-mono font-bold text-indigo-300">{currentStock}</td>
+                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-3.5 px-4 font-medium text-slate-900">{item.name}</td>
+                              <td className="py-3.5 px-4 text-slate-600 font-mono font-semibold">KSh {costPrice}</td>
+                              <td className="py-3.5 px-4 text-slate-900 font-mono font-semibold">KSh {retailPrice}</td>
+                              <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">{openingStock}</td>
+                              <td className="py-3.5 px-4 font-mono font-semibold text-emerald-700">{restockedStock}</td>
+                              <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{currentStock}</td>
                               <td className="py-3.5 px-4 text-right space-x-2">
                                 <button
                                   type="button"
@@ -792,7 +787,7 @@ export default function AdminDashboard({
                                     setStockModalItem(item);
                                     setStockInput(currentStock.toString());
                                   }}
-                                  className="px-3 py-1 bg-emerald-950/50 text-emerald-400 border border-emerald-800/50 text-[11px] font-semibold rounded-md hover:bg-emerald-900/50 transition cursor-pointer"
+                                  className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-semibold rounded-md hover:bg-emerald-200 transition cursor-pointer"
                                 >
                                   + Add Stock
                                 </button>
@@ -800,7 +795,7 @@ export default function AdminDashboard({
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(item)}
-                                  className="px-3 py-1 bg-indigo-950/50 text-indigo-300 border border-indigo-800/50 text-[11px] font-semibold rounded-md hover:bg-indigo-900/50 transition cursor-pointer"
+                                  className="px-3 py-1 bg-indigo-100 text-indigo-800 border border-indigo-300 text-[11px] font-semibold rounded-md hover:bg-indigo-200 transition cursor-pointer"
                                 >
                                   Edit
                                 </button>
@@ -808,7 +803,7 @@ export default function AdminDashboard({
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteItem(item)}
-                                  className="px-3 py-1 bg-rose-950/50 text-rose-300 border border-rose-800/50 text-[11px] font-semibold rounded-md hover:bg-rose-900/50 transition cursor-pointer"
+                                  className="px-3 py-1 bg-rose-100 text-rose-800 border border-rose-300 text-[11px] font-semibold rounded-md hover:bg-rose-200 transition cursor-pointer"
                                 >
                                   Delete
                                 </button>
@@ -818,7 +813,7 @@ export default function AdminDashboard({
                         })}
                         {filteredItems.length === 0 && (
                           <tr>
-                            <td colSpan="7" className="py-12 text-center text-slate-400 text-xs">
+                            <td colSpan="7" className="py-12 text-center text-slate-500 text-xs font-medium">
                               No items found matching "{searchQuery}".
                             </td>
                           </tr>
@@ -831,13 +826,13 @@ export default function AdminDashboard({
             )}
 
             {adminTab === 'approvals' && (
-              <div className="bg-slate-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-slate-700/60 overflow-hidden w-full">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-300 overflow-hidden w-full">
                 <ApprovalsDashboard />
               </div>
             )}
 
             {adminTab === 'stock-ops' && (
-              <div className="bg-slate-900/70 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-xl border border-slate-700/60 w-full">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-300 w-full">
                 <StockActivityLog
                   items={items}
                   branches={branches}
@@ -848,21 +843,21 @@ export default function AdminDashboard({
             )}
 
             {adminTab === 'branches' && (
-              <div className="max-w-2xl bg-slate-900/70 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-slate-700/60 space-y-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Add New Retail Branch</h3>
+              <div className="max-w-2xl bg-white p-6 rounded-2xl shadow-sm border border-slate-300 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Add New Retail Branch</h3>
                 <form onSubmit={handleAddBranch} className="space-y-4 pt-2">
                   <input
                     type="text"
                     placeholder="e.g. Meru Branch"
                     value={newBranchName}
                     onChange={(e) => setNewBranchName(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-white focus:border-indigo-500 outline-none"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:border-indigo-500 outline-none"
                     required
                   />
                   <button
                     type="submit"
                     disabled={loading || !newBranchName.trim()}
-                    className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-semibold text-xs disabled:opacity-50 cursor-pointer"
+                    className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-semibold text-xs disabled:opacity-50 cursor-pointer shadow-sm"
                   >
                     {loading ? 'Creating...' : 'Register Branch'}
                   </button>
@@ -874,24 +869,24 @@ export default function AdminDashboard({
 
         {/* STOCK MODAL */}
         {stockModalItem && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-300 rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl text-slate-900">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Add Initial / Opening Stock
               </h3>
-              <p className="text-xs text-slate-400">
-                Item: <span className="text-white font-semibold">{stockModalItem.name}</span>
+              <p className="text-xs text-slate-600">
+                Item: <span className="text-slate-900 font-bold">{stockModalItem.name}</span>
               </p>
               <form onSubmit={handleAddStock} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Quantity
                   </label>
                   <input
                     type="number"
                     value={stockInput}
                     onChange={(e) => setStockInput(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700 text-white rounded-lg text-xs outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs outline-none focus:border-indigo-500"
                     required
                   />
                 </div>
@@ -899,14 +894,14 @@ export default function AdminDashboard({
                   <button
                     type="button"
                     onClick={() => setStockModalItem(null)}
-                    className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-700 transition cursor-pointer"
+                    className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100 transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 transition cursor-pointer"
+                    className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition cursor-pointer shadow-sm"
                   >
                     Save Stock
                   </button>
@@ -918,14 +913,14 @@ export default function AdminDashboard({
 
         {/* PROFILE DRAWER / MODAL */}
         {showProfileModal && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end">
-            <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full p-6 space-y-6 overflow-y-auto shadow-2xl">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Admin Profile & Security</h3>
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
+            <div className="w-full max-w-md bg-white border-l border-slate-300 h-full p-6 space-y-6 overflow-y-auto shadow-2xl text-slate-900">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Admin Profile & Security</h3>
                 <button
                   type="button"
                   onClick={() => setShowProfileModal(false)}
-                  className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -933,80 +928,80 @@ export default function AdminDashboard({
 
               {/* Profile Info Form */}
               <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Account Details</h4>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Account Details</h4>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Username</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Username</label>
                   <input
                     type="text"
                     value={profileData.username}
                     onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={profileData.email}
                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-500 transition cursor-pointer"
+                  className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition cursor-pointer shadow-sm"
                 >
                   Save Details
                 </button>
               </form>
 
-              <div className="border-t border-slate-800 pt-4" />
+              <div className="border-t border-slate-200 pt-4" />
 
               {/* Password Form */}
               <form onSubmit={handleChangePassword} className="space-y-4">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Change Password</h4>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Change Password</h4>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Current Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Current Password</label>
                   <input
                     type="password"
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">New Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
                   <input
                     type="password"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Confirm New Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm New Password</label>
                   <input
                     type="password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2 bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-700 transition cursor-pointer"
+                  className="w-full py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-100 transition cursor-pointer shadow-sm"
                 >
                   Update Password
                 </button>
               </form>
 
-              <div className="border-t border-slate-800 pt-4 flex justify-between items-center">
+              <div className="border-t border-slate-200 pt-4 flex justify-between items-center">
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full py-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg text-xs font-semibold transition cursor-pointer"
+                  className="w-full py-2 bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-300 rounded-lg text-xs font-semibold transition cursor-pointer"
                 >
                   Log Out of Admin Account
                 </button>
@@ -1230,16 +1225,16 @@ function SelectBranchItemsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full p-6 text-white shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-300 rounded-xl max-w-3xl w-full p-6 text-slate-900 shadow-xl space-y-4">
         
         {/* MODAL HEADER */}
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
               {step === 1 ? 'Step 1: Select Items from Branch' : 'Step 2: Review & Save Items to Database'}
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               {step === 1
                 ? 'Choose items to copy into this branch'
                 : 'Modify item names, prices, and opening stock quantities before saving to the database'}
@@ -1248,14 +1243,14 @@ function SelectBranchItemsModal({
           <button
             type="button"
             onClick={handleModalClose}
-            className="text-slate-400 hover:text-white text-xs font-bold cursor-pointer"
+            className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
           >
             ✕
           </button>
         </div>
 
         {modalError && (
-          <div className="p-3 bg-rose-950/60 text-rose-300 border border-rose-800/80 rounded-lg text-xs">
+          <div className="p-3 bg-rose-50 text-rose-800 border border-rose-300 rounded-lg text-xs">
             {modalError}
           </div>
         )}
@@ -1264,19 +1259,19 @@ function SelectBranchItemsModal({
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Source Branch
               </label>
               <select
                 value={selectedSourceBranch}
                 onChange={(e) => setSelectedSourceBranch(e.target.value)}
-                className="w-full p-2.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="" className="bg-slate-900 text-slate-300">
+                <option value="" className="bg-white text-slate-500">
                   -- Select Source Branch --
                 </option>
                 {availableBranches.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-slate-900 text-white">
+                  <option key={b.id} value={b.id} className="bg-white text-slate-900">
                     {b.name}
                   </option>
                 ))}
@@ -1291,46 +1286,46 @@ function SelectBranchItemsModal({
                     placeholder="Search items in branch..."
                     value={modalSearchQuery}
                     onChange={(e) => setModalSearchQuery(e.target.value)}
-                    className="w-full p-2 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500"
+                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500"
                   />
                 </div>
 
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">
+                  <span className="text-slate-600">
                     Available Items ({filteredSourceItems.length} / {sourceItems.length})
                   </span>
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                    className="text-indigo-600 hover:underline font-semibold cursor-pointer"
                   >
                     {selectedItemIds.length === sourceItems.length ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
 
                 {loading ? (
-                  <div className="py-8 text-center text-xs text-slate-400">Loading items...</div>
+                  <div className="py-8 text-center text-xs text-slate-500">Loading items...</div>
                 ) : filteredSourceItems.length === 0 ? (
                   <div className="py-8 text-center text-xs text-slate-500">
                     No items match your search.
                   </div>
                 ) : (
-                  <div className="max-h-56 overflow-y-auto border border-slate-800 rounded-lg divide-y divide-slate-800/60 bg-slate-950">
+                  <div className="max-h-56 overflow-y-auto border border-slate-300 rounded-lg divide-y divide-slate-200 bg-slate-50">
                     {filteredSourceItems.map((item) => (
                       <label
                         key={item.id}
-                        className="flex items-center justify-between p-3 hover:bg-slate-800/40 cursor-pointer text-xs transition"
+                        className="flex items-center justify-between p-3 hover:bg-slate-100 cursor-pointer text-xs transition"
                       >
                         <div className="flex items-center gap-3">
                           <input
                             type="checkbox"
                             checked={selectedItemIds.includes(item.id)}
                             onChange={() => toggleSelectItem(item.id)}
-                            className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                           />
-                          <span className="font-medium text-slate-200">{item.name}</span>
+                          <span className="font-medium text-slate-900">{item.name}</span>
                         </div>
-                        <span className="text-slate-400 font-semibold">
+                        <span className="text-slate-600 font-mono font-bold">
                           KSh {item.unit_selling_price || item.unit_retail_price || item.retail_price || 0}
                         </span>
                       </label>
@@ -1346,7 +1341,7 @@ function SelectBranchItemsModal({
         {step === 2 && (
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-300 font-semibold">
+              <span className="text-slate-700 font-semibold">
                 Items Selected for Import ({editableItems.length})
               </span>
               <span className="text-slate-500 italic">
@@ -1354,9 +1349,9 @@ function SelectBranchItemsModal({
               </span>
             </div>
 
-            <div className="max-h-64 overflow-y-auto border border-slate-800 rounded-lg divide-y divide-slate-800/60 bg-slate-950">
+            <div className="max-h-64 overflow-y-auto border border-slate-300 rounded-lg divide-y divide-slate-200 bg-slate-50">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-900 sticky top-0 text-[11px] font-semibold text-slate-400 uppercase">
+                <thead className="bg-slate-100 sticky top-0 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
                   <tr>
                     <th className="p-3">Item Name</th>
                     <th className="p-3 w-28">Cost Price (KSh)</th>
@@ -1365,15 +1360,15 @@ function SelectBranchItemsModal({
                     <th className="p-3 w-10 text-center"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50 text-xs">
+                <tbody className="divide-y divide-slate-200 text-xs text-slate-800">
                   {editableItems.map((item, index) => (
-                    <tr key={item.id || index} className="hover:bg-slate-800/20">
+                    <tr key={item.id || index} className="hover:bg-slate-100">
                       <td className="p-2">
                         <input
                           type="text"
                           value={item.name}
                           onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700/80 rounded text-xs text-white outline-none focus:border-indigo-500 font-medium"
+                          className="w-full p-1.5 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500 font-medium"
                           placeholder="Item name"
                           required
                         />
@@ -1384,7 +1379,7 @@ function SelectBranchItemsModal({
                           step="0.01"
                           value={item.unit_cost_price}
                           onChange={(e) => handleItemChange(index, 'unit_cost_price', e.target.value)}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700/80 rounded text-xs text-white outline-none focus:border-indigo-500"
+                          className="w-full p-1.5 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                         />
                       </td>
                       <td className="p-2">
@@ -1393,7 +1388,7 @@ function SelectBranchItemsModal({
                           step="0.01"
                           value={item.unit_retail_price}
                           onChange={(e) => handleItemChange(index, 'unit_retail_price', e.target.value)}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700/80 rounded text-xs text-white outline-none focus:border-indigo-500"
+                          className="w-full p-1.5 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                         />
                       </td>
                       <td className="p-2">
@@ -1402,14 +1397,14 @@ function SelectBranchItemsModal({
                           min="0"
                           value={item.opening_stock}
                           onChange={(e) => handleItemChange(index, 'opening_stock', e.target.value)}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700/80 rounded text-xs text-white outline-none focus:border-indigo-500"
+                          className="w-full p-1.5 bg-white border border-slate-300 rounded text-xs text-slate-900 outline-none focus:border-indigo-500"
                         />
                       </td>
                       <td className="p-2 text-center">
                         <button
                           type="button"
                           onClick={() => handleRemoveItemFromImport(index)}
-                          className="text-slate-500 hover:text-rose-400 font-bold cursor-pointer"
+                          className="text-slate-400 hover:text-rose-600 font-bold cursor-pointer"
                           title="Remove item"
                         >
                           ✕
@@ -1431,13 +1426,13 @@ function SelectBranchItemsModal({
         )}
 
         {/* MODAL FOOTER ACTIONS */}
-        <div className="flex justify-between items-center pt-3 border-t border-slate-800">
+        <div className="flex justify-between items-center pt-3 border-t border-slate-200">
           <div>
             {step === 2 && (
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-700 transition cursor-pointer"
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100 transition cursor-pointer"
               >
                 ← Back to Selection
               </button>
@@ -1448,7 +1443,7 @@ function SelectBranchItemsModal({
             <button
               type="button"
               onClick={handleModalClose}
-              className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-700 transition cursor-pointer"
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100 transition cursor-pointer"
             >
               Cancel
             </button>
@@ -1458,7 +1453,7 @@ function SelectBranchItemsModal({
                 type="button"
                 onClick={handleNextToEditPrices}
                 disabled={selectedItemIds.length === 0 || !selectedSourceBranch}
-                className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 transition disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 Next: Review & Edit Items ({selectedItemIds.length}) →
               </button>
@@ -1467,7 +1462,7 @@ function SelectBranchItemsModal({
                 type="button"
                 onClick={handleFinalSubmit}
                 disabled={submitting || editableItems.length === 0}
-                className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-500 transition disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 {submitting ? 'Saving...' : `Save ${editableItems.length} Item(s) to Database`}
               </button>

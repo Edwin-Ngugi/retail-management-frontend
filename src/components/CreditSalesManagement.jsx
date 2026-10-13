@@ -1,3 +1,4 @@
+// src/components/CreditSalesManagement.jsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import API from "../api";
 
@@ -267,8 +268,8 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Credit Sales & Repayments</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Track credit accounts by receipt numbers and record repayments.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Credit Sales & Repayments</h1>
+          <p className="text-xs text-slate-600 mt-0.5">Track credit accounts by receipt numbers and record repayments.</p>
         </div>
 
         <button
@@ -277,9 +278,9 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
             fetchCreditSales();
             fetchCreditRepayments();
           }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all cursor-pointer w-fit"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-300 transition-all cursor-pointer shadow-sm w-fit"
         >
-          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.64 9A7 7 0 0117.9 6.1L20 9M4 15l2.1 2.9A7 7 0 0018.36 15" />
           </svg>
           Refresh Data
@@ -288,34 +289,34 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
 
       {/* Credit Overview KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Credit Value</span>
-          <div className="text-xl font-black text-white mt-1">
+        <div className="bg-white border border-slate-300 p-4 rounded-2xl shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Credit Value</span>
+          <div className="text-xl font-black text-slate-900 mt-1">
             KSh {creditTotals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[10px] text-slate-500 mt-0.5 block">{creditTotals.count} Active Accounts</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Total Outstanding Balance</span>
-          <div className="text-xl font-black text-rose-400 mt-1">
+        <div className="bg-white border border-slate-300 p-4 rounded-2xl shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Total Outstanding Balance</span>
+          <div className="text-xl font-black text-rose-600 mt-1">
             KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[10px] text-slate-500 mt-0.5 block">Pending Collection</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl shadow-xl">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Total Recovered</span>
-          <div className="text-xl font-black text-emerald-400 mt-1">
+        <div className="bg-white border border-slate-300 p-4 rounded-2xl shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Total Recovered</span>
+          <div className="text-xl font-black text-emerald-700 mt-1">
             KSh {creditTotals.totalRecovered.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[10px] text-slate-500 mt-0.5 block">Repaid Amount</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between bg-slate-900 p-4 rounded-2xl border border-slate-800/80 shadow-xl no-print">
+      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-300 shadow-sm no-print">
         <div className="relative w-full sm:w-80">
-          <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -323,23 +324,23 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
             placeholder="Search customer, receipt #, or sale ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 w-full text-xs bg-slate-800 border border-slate-700 text-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-500 transition-all"
+            className="pl-9 pr-4 py-2 w-full text-xs bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 transition-all"
           />
         </div>
       </div>
 
       {/* Credit Sales Table */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800/80 shadow-xl overflow-hidden no-print">
-        <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex justify-between items-center">
-          <h2 className="text-sm font-semibold text-slate-200">Active Credit Accounts</h2>
-          <span className="text-xs font-mono font-bold text-slate-400">
+      <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden no-print">
+        <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+          <h2 className="text-sm font-semibold text-slate-800">Active Credit Accounts</h2>
+          <span className="text-xs font-mono font-bold text-slate-600">
             Total Balance: KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
-              <tr className="bg-slate-950/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+              <tr className="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
                 <th className="p-4">Transaction ID</th>
                 <th className="p-4">Receipt No.</th>
                 <th className="p-4">Customer</th>
@@ -350,12 +351,12 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-xs">
+            <tbody className="divide-y divide-slate-200 text-xs text-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-400">
+                  <td colSpan="8" className="p-8 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <svg className="w-6 h-6 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                       </svg>
@@ -373,28 +374,28 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
                 filteredSales.map((sale) => {
                   const receiptNo = getReceiptNumber(sale);
                   return (
-                    <tr key={sale.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="p-4 font-mono font-bold text-slate-100">#TXN-{sale.id}</td>
-                      <td className="p-4 font-mono font-bold text-indigo-400">
+                    <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-mono font-bold text-slate-900">#TXN-{sale.id}</td>
+                      <td className="p-4 font-mono font-bold text-indigo-600">
                         {receiptNo || "N/A"}
                       </td>
-                      <td className="p-4 font-medium text-slate-200">{sale.customer_name || "Walk-in Customer"}</td>
-                      <td className="p-4 text-slate-400">{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : "N/A"}</td>
-                      <td className="p-4 font-bold text-white">KSh {Number(sale.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                      <td className="p-4 font-bold text-rose-400">
+                      <td className="p-4 font-medium text-slate-800">{sale.customer_name || "Walk-in Customer"}</td>
+                      <td className="p-4 text-slate-600">{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : "N/A"}</td>
+                      <td className="p-4 font-bold text-slate-900">KSh {Number(sale.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className="p-4 font-bold text-rose-600">
                         KSh {Number(sale.balance_due ?? sale.due_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-4">
                         {sale.payment_status === "PAID" ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                             Paid
                           </span>
                         ) : sale.payment_status === "PARTIAL" ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
                             Partial
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                             Pending
                           </span>
                         )}
@@ -404,7 +405,7 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
                           <button
                             type="button"
                             onClick={() => handleOpenPaymentModal(sale)}
-                            className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-500 shadow-md transition-all cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-sm transition-all cursor-pointer"
                           >
                             Record Repayment
                           </button>
@@ -417,14 +418,14 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
             </tbody>
             {filteredSales.length > 0 && (
               <tfoot>
-                <tr className="bg-slate-950/80 font-bold border-t border-slate-800 text-xs">
-                  <td colSpan="4" className="p-4 text-right text-slate-400 uppercase tracking-wider">
+                <tr className="bg-slate-100 font-bold border-t border-slate-300 text-xs">
+                  <td colSpan="4" className="p-4 text-right text-slate-600 uppercase tracking-wider">
                     Total:
                   </td>
-                  <td className="p-4 font-bold text-white">
+                  <td className="p-4 font-bold text-slate-900">
                     KSh {creditTotals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="p-4 font-bold text-rose-400">
+                  <td className="p-4 font-bold text-rose-600">
                     KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td colSpan="2"></td>
@@ -437,63 +438,63 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
 
       {/* Record Repayment Modal */}
       {isPaymentModalOpen && selectedSale && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 no-print">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <h2 className="text-lg font-bold text-white">Record Credit Repayment</h2>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 no-print">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-xl">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+              <h2 className="text-lg font-bold text-slate-900">Record Credit Repayment</h2>
               <button 
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)} 
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-4 text-xs">
-              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Receipt Number:</span>
-                  <span className="font-mono font-medium text-indigo-400">
+                  <span className="text-slate-500">Receipt Number:</span>
+                  <span className="font-mono font-medium text-indigo-600">
                     {getReceiptNumber(selectedSale) || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Transaction Ref:</span>
-                  <span className="font-mono font-medium text-slate-200">#TXN-{selectedSale.id}</span>
+                  <span className="text-slate-500">Transaction Ref:</span>
+                  <span className="font-mono font-medium text-slate-800">#TXN-{selectedSale.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Outstanding Balance:</span>
-                  <span className="font-bold text-rose-400">
+                  <span className="text-slate-500">Outstanding Balance:</span>
+                  <span className="font-bold text-rose-600">
                     KSh {Number(selectedSale.balance_due ?? selectedSale.due_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Receipt Number</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Number</label>
                 <input
                   type="text"
                   value={receiptNumberInput}
                   onChange={(e) => setReceiptNumberInput(e.target.value)}
                   placeholder="Enter receipt number..."
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Repayment Date</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Repayment Date</label>
                 <input
                   type="date"
                   value={repaymentDate}
                   onChange={(e) => setRepaymentDate(e.target.value)}
                   required
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Repayment Amount (KSh)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Repayment Amount (KSh)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -508,63 +509,63 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
                   }}
                   placeholder="Enter amount..."
                   required
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Payment Method</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Method</label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => handleMethodChange(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
-                  <option value="CASH" className="bg-slate-900 text-slate-200">Cash</option>
-                  <option value="PAYBILL" className="bg-slate-900 text-slate-200">Paybill</option>
-                  <option value="SEND_MONEY" className="bg-slate-900 text-slate-200">Send Money</option>
-                  <option value="SPLIT" className="bg-slate-900 text-slate-200">Split Payment (Cash + Paybill + Send Money)</option>
+                  <option value="CASH">Cash</option>
+                  <option value="PAYBILL">Paybill</option>
+                  <option value="SEND_MONEY">Send Money</option>
+                  <option value="SPLIT">Split Payment (Cash + Paybill + Send Money)</option>
                 </select>
               </div>
 
               {/* Conditional Split Payment Fields */}
               {paymentMethod === "SPLIT" && (
-                <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-3">
-                  <div className="flex justify-between items-center text-[11px] text-slate-400 border-b border-slate-800 pb-2">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-200 pb-2">
                     <span>Split Allocation</span>
-                    <span className="font-mono text-indigo-400">
+                    <span className="font-mono text-indigo-600 font-bold">
                       Total: KSh {(splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money).toLocaleString()} / {Number(paymentAmount || 0).toLocaleString()}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <label className="block text-[10px] text-slate-400 mb-1">Cash (KSh)</label>
+                      <label className="block text-[10px] text-slate-500 mb-1">Cash (KSh)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={splitBreakdown.cash}
                         onChange={(e) => handleSplitChange("cash", e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
+                        className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-slate-400 mb-1">Paybill (KSh)</label>
+                      <label className="block text-[10px] text-slate-500 mb-1">Paybill (KSh)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={splitBreakdown.paybill}
                         onChange={(e) => handleSplitChange("paybill", e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
+                        className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-slate-400 mb-1">Send Money (KSh)</label>
+                      <label className="block text-[10px] text-slate-500 mb-1">Send Money (KSh)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={splitBreakdown.send_money}
                         onChange={(e) => handleSplitChange("send_money", e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
+                        className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -572,39 +573,39 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Reference Number / Txn Code (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Reference Number / Txn Code (Optional)</label>
                 <input
                   type="text"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="e.g. M-Pesa Receipt Ref"
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Notes (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Notes (Optional)</label>
                 <textarea
                   rows="2"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Additional payment notes..."
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsPaymentModalOpen(false)}
-                  className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-700 transition-all cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPayment}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-500 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {submittingPayment ? "Recording..." : "Record Repayment"}
                 </button>

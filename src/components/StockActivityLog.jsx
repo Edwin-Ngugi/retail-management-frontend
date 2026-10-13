@@ -1,3 +1,4 @@
+// src/components/StockActivityLog_2.jsx
 import React, {
   useState,
   useEffect,
@@ -540,10 +541,10 @@ export default function StockActivityLog({
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="space-y-6 text-slate-900 font-sans">
       {/* FORM CONTAINER */}
-      <div className="bg-[#0d1322] border border-slate-800/80 p-5 rounded-xl shadow-sm">
-        <h3 className="text-xs font-bold text-slate-300 mb-4 uppercase tracking-wider">
+      <div className="bg-white border border-slate-300 p-5 rounded-xl shadow-sm">
+        <h3 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">
           Record Stock Activity & Cost Adjustment
         </h3>
 
@@ -552,15 +553,15 @@ export default function StockActivityLog({
           <div
             className={`p-3 rounded-lg text-xs font-semibold mb-4 flex justify-between items-center ${
               status.type === 'success'
-                ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/80'
-                : 'bg-rose-950/40 text-rose-300 border border-rose-800/80'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                : 'bg-rose-50 text-rose-800 border border-rose-300'
             }`}
           >
             <span>{status.text}</span>
             <button
               type="button"
               onClick={() => setStatus(null)}
-              className="underline ml-4 hover:opacity-75"
+              className="underline ml-4 hover:opacity-75 cursor-pointer"
             >
               Dismiss
             </button>
@@ -571,37 +572,35 @@ export default function StockActivityLog({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* ADJUSTMENT TYPE */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Adjustment Type *
               </label>
               <select
                 value={adjustmentType}
                 onChange={(e) => setAdjustmentType(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs font-medium focus:border-indigo-500 outline-none !text-white"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
               >
-                <option value="INCREASE" style={{ color: '#ffffff', backgroundColor: '#070a12' }}>Increase Stock (+)</option>
-                <option value="DECREASE" style={{ color: '#ffffff', backgroundColor: '#070a12' }}>Decrease Stock (-)</option>
+                <option value="INCREASE">Increase Stock (+)</option>
+                <option value="DECREASE">Decrease Stock (-)</option>
               </select>
             </div>
 
             {/* ITEM SEARCH INPUT WITH DATALIST */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Select Item *
               </label>
               <input
-                list="stock-activity-item-list"
+                list="stock-activity-item-list-2"
                 type="text"
                 placeholder="Type item name..."
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs font-medium placeholder-slate-500 focus:border-indigo-500 outline-none !text-white"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-medium placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                 required
               />
 
-              <datalist id="stock-activity-item-list">
+              <datalist id="stock-activity-item-list-2">
                 {items.map((item) => (
                   <option key={item.id} value={getItemDisplayName(item)}>
                     {item.unit_cost_price || item.unit_cost ? `Cost: KSh ${item.unit_cost_price || item.unit_cost}` : ''}
@@ -612,7 +611,7 @@ export default function StockActivityLog({
 
             {/* QUANTITY INPUT */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Quantity *
               </label>
               <input
@@ -622,8 +621,7 @@ export default function StockActivityLog({
                 placeholder="0"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs placeholder-slate-500 focus:border-indigo-500 outline-none !text-white"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                 required
               />
             </div>
@@ -632,7 +630,7 @@ export default function StockActivityLog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* RESTOCK PURCHASE COST */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Restock Purchase Cost (Unit) *
               </label>
               <input
@@ -642,23 +640,21 @@ export default function StockActivityLog({
                 placeholder="0.00"
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs placeholder-slate-500 focus:border-indigo-500 outline-none !text-white"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                 required
               />
             </div>
 
             {/* TRANSACTION DATE */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Transaction Date *
               </label>
               <input
                 type="date"
                 value={createdDate}
                 onChange={(e) => setCreatedDate(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs focus:border-indigo-500 outline-none !text-white"
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                 required
               />
             </div>
@@ -666,7 +662,7 @@ export default function StockActivityLog({
 
           {/* NOTES INPUT */}
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
               Notes / Reason
             </label>
             <input
@@ -674,8 +670,7 @@ export default function StockActivityLog({
               placeholder="e.g., Restock with updated purchase price"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-              className="w-full p-2.5 border border-slate-700/80 rounded-lg text-xs placeholder-slate-500 focus:border-indigo-500 outline-none !text-white"
+              className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
 
@@ -690,7 +685,7 @@ export default function StockActivityLog({
                 !createdDate ||
                 !getBranchId()
               }
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg text-xs font-semibold transition disabled:opacity-50"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
               {submitting ? 'Saving Record...' : 'Submit Activity Record'}
             </button>
@@ -701,12 +696,12 @@ export default function StockActivityLog({
       {/* ACTIVITY HISTORY CONTAINER */}
       <div className="space-y-4">
         {/* HEADER & DATE RANGE FILTER BAR */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-[#0d1322] p-4 border border-slate-800/80 rounded-xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 border border-slate-300 rounded-xl shadow-sm">
           <div>
-            <h3 className="text-sm font-bold text-white">
+            <h3 className="text-sm font-bold text-slate-900">
               Stock Activity & Adjustment History
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               Filter records by date or track restocks that adjust weighted cost.
             </p>
           </div>
@@ -714,28 +709,26 @@ export default function StockActivityLog({
           {/* FILTERS */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">
+              <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
                 From Date
               </span>
               <input
                 type="date"
                 value={startDateFilter}
                 onChange={(e) => setStartDateFilter(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="p-1.5 border border-slate-700/80 rounded-md text-xs outline-none focus:border-indigo-500 !text-white"
+                className="p-1.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-md text-xs outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">
+              <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
                 To Date
               </span>
               <input
                 type="date"
                 value={endDateFilter}
                 onChange={(e) => setEndDateFilter(e.target.value)}
-                style={{ color: '#ffffff', backgroundColor: '#070a12' }}
-                className="p-1.5 border border-slate-700/80 rounded-md text-xs outline-none focus:border-indigo-500 !text-white"
+                className="p-1.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-md text-xs outline-none focus:border-indigo-500"
               />
             </div>
 
@@ -746,7 +739,7 @@ export default function StockActivityLog({
                   setStartDateFilter('');
                   setEndDateFilter('');
                 }}
-                className="mt-4 text-xs text-slate-400 hover:text-slate-200 underline"
+                className="mt-4 text-xs text-slate-600 hover:text-slate-900 underline font-medium cursor-pointer"
               >
                 Clear
               </button>
@@ -756,7 +749,7 @@ export default function StockActivityLog({
               type="button"
               onClick={fetchLogs}
               disabled={loading}
-              className="mt-4 px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 disabled:opacity-50"
+              className="mt-4 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-100 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
@@ -764,10 +757,10 @@ export default function StockActivityLog({
         </div>
 
         {/* LOGS TABLE */}
-        <div className="overflow-x-auto border border-slate-800/80 rounded-xl bg-[#0d1322]">
+        <div className="overflow-x-auto border border-slate-300 rounded-xl bg-white shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800/80 bg-slate-900/40 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-200 bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                 <th className="p-3">Transaction Date</th>
                 <th className="p-3">Item</th>
                 <th className="p-3">Type</th>
@@ -777,7 +770,7 @@ export default function StockActivityLog({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-800/60 text-xs">
+            <tbody className="divide-y divide-slate-200 text-xs text-slate-800">
               {loading ? (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-slate-500">
@@ -802,16 +795,16 @@ export default function StockActivityLog({
                   return (
                     <tr
                       key={keyId}
-                      className={`hover:bg-slate-800/30 transition-colors ${
+                      className={`hover:bg-slate-50 transition-colors ${
                         isPriceChanged && isPositive
-                          ? 'bg-amber-950/20 font-medium'
+                          ? 'bg-amber-50/60 font-medium'
                           : ''
                       }`}
                     >
-                      <td className="p-3 text-slate-300 whitespace-nowrap">
+                      <td className="p-3 text-slate-600 whitespace-nowrap">
                         {formatLogDate(log)}
                       </td>
-                      <td className="p-3 font-semibold text-white">
+                      <td className="p-3 font-semibold text-slate-900">
                         {getItemName(log)}
                       </td>
                       <td className="p-3">
@@ -819,8 +812,8 @@ export default function StockActivityLog({
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
                               isPositive
-                                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
-                                : 'bg-rose-950/60 text-rose-300 border-rose-800'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : 'bg-rose-100 text-rose-800 border-rose-300'
                             }`}
                           >
                             {label}
@@ -828,20 +821,20 @@ export default function StockActivityLog({
                           {isPriceChanged && isPositive && (
                             <span
                               title="Restock logged with a cost price different from prior WAC baseline"
-                              className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-700/80 whitespace-nowrap"
+                              className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap"
                             >
                               New Cost Input
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="p-3 font-medium text-slate-200">
+                      <td className="p-3 font-medium text-slate-800">
                         {log.quantity ?? log.quantity_level ?? '-'}
                       </td>
-                      <td className="p-3 text-slate-400 font-mono text-[11px]">
+                      <td className="p-3 text-slate-600 font-mono text-[11px]">
                         {log.reference || log.target || '-'}
                       </td>
-                      <td className="p-3 text-slate-300 italic">
+                      <td className="p-3 text-slate-600 italic">
                         {log.notes || log.reason || '-'}
                       </td>
                     </tr>

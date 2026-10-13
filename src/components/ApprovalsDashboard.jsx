@@ -1,3 +1,4 @@
+// src/components/ApprovalsDashboard.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 
@@ -104,18 +105,18 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
     switch (key) {
       case 'NEW_REGISTERED_ITEMS':
       case 'NEW_ITEMS':
-        return { label: 'ITEM REGISTRATION', style: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
+        return { label: 'ITEM REGISTRATION', style: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
       case 'SALE_ENTRY':
       case 'DISCOUNT_APPROVAL':
       case 'PRICE_QUERY':
-        return { label: 'SALES & DISCOUNTS', style: 'bg-sky-500/10 text-sky-400 border-sky-500/30' };
+        return { label: 'SALES & DISCOUNTS', style: 'bg-sky-100 text-sky-800 border-sky-300' };
       case 'BRANCH_CREATION':
-        return { label: 'BRANCH CREATION', style: 'bg-purple-500/10 text-purple-400 border-purple-500/30' };
+        return { label: 'BRANCH CREATION', style: 'bg-purple-100 text-purple-800 border-purple-300' };
       case 'STOCK_ADJUSTMENT':
       case 'STOCK_OVERRIDE':
-        return { label: 'STOCK OVERRIDE', style: 'bg-amber-500/10 text-amber-400 border-amber-500/30' };
+        return { label: 'STOCK OVERRIDE', style: 'bg-amber-100 text-amber-800 border-amber-300' };
       default:
-        return { label: key.replace(/_/g, ' '), style: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' };
+        return { label: key.replace(/_/g, ' '), style: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
     }
   };
 
@@ -237,15 +238,15 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
   };
 
   return (
-    <div className="space-y-6 text-slate-100 font-sans">
+    <div className="space-y-6 text-slate-900 font-sans">
       {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/90 p-6 rounded-2xl border border-slate-800/80 shadow-xl backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-300 shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-wide flex items-center gap-2.5">
-            <span className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/50"></span>
+          <h1 className="text-xl font-bold text-slate-900 tracking-wide flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-indigo-600 shadow-sm"></span>
             Management Approvals & Requests Portal
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             Track authorization status for special discounts, stock overrides, and item registrations.
           </p>
         </div>
@@ -253,7 +254,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
         <button
           onClick={fetchRequests}
           disabled={loading}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+          className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
         >
           {loading ? 'Refreshing...' : '🔄 Refresh Data'}
         </button>
@@ -261,26 +262,26 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
 
       {/* EXECUTIVE KPI METRICS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800/80 shadow-md">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Submissions</span>
-          <span className="text-2xl font-extrabold text-white">{metrics.total}</span>
+        <div className="bg-white p-4 rounded-xl border border-slate-300 shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Total Submissions</span>
+          <span className="text-2xl font-extrabold text-slate-900">{metrics.total}</span>
         </div>
-        <div className="bg-slate-900/80 p-4 rounded-xl border border-amber-500/20 shadow-md">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1">Pending Review</span>
-          <span className="text-2xl font-extrabold text-amber-400">{metrics.pending}</span>
+        <div className="bg-white p-4 rounded-xl border border-amber-300 shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block mb-1">Pending Review</span>
+          <span className="text-2xl font-extrabold text-amber-700">{metrics.pending}</span>
         </div>
-        <div className="bg-slate-900/80 p-4 rounded-xl border border-emerald-500/20 shadow-md">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">Approved & Committed</span>
-          <span className="text-2xl font-extrabold text-emerald-400">{metrics.approved}</span>
+        <div className="bg-white p-4 rounded-xl border border-emerald-300 shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block mb-1">Approved & Committed</span>
+          <span className="text-2xl font-extrabold text-emerald-700">{metrics.approved}</span>
         </div>
-        <div className="bg-slate-900/80 p-4 rounded-xl border border-rose-500/20 shadow-md">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block mb-1">Rejected</span>
-          <span className="text-2xl font-extrabold text-rose-400">{metrics.rejected}</span>
+        <div className="bg-white p-4 rounded-xl border border-rose-300 shadow-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 block mb-1">Rejected</span>
+          <span className="text-2xl font-extrabold text-rose-700">{metrics.rejected}</span>
         </div>
       </div>
 
       {/* CATEGORY & STATUS FILTER TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 p-3 rounded-xl border border-slate-800/80">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-300 shadow-sm">
         <div className="flex items-center gap-1.5 overflow-x-auto py-1">
           {categories.map((cat) => (
             <button
@@ -288,8 +289,8 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
               onClick={() => setActiveCategory(cat.id)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
                 activeCategory === cat.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               {cat.label}
@@ -303,8 +304,8 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
               onClick={() => setShowHidden((prev) => !prev)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                 showHidden
-                  ? 'bg-indigo-950 text-indigo-300 border-indigo-700'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
               }`}
             >
               👁️ {showHidden ? 'Hide Hidden' : `Show Hidden (${hiddenRequestIds.length})`}
@@ -314,18 +315,18 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
           {hiddenRequestIds.length > 0 && showHidden && (
             <button
               onClick={handleUnhideAll}
-              className="text-xs text-indigo-400 hover:text-indigo-300 underline font-semibold cursor-pointer"
+              className="text-xs text-indigo-600 hover:text-indigo-800 underline font-semibold cursor-pointer"
             >
               Restore All
             </button>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium">Status Filter:</span>
+            <span className="text-xs text-slate-600 font-medium">Status Filter:</span>
             <select
               value={activeStatus}
               onChange={(e) => setActiveStatus(e.target.value)}
-              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500 cursor-pointer"
+              className="bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="PENDING">Pending Review</option>
@@ -339,7 +340,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
       {/* REQUEST LISTING CARD STREAM */}
       <div className="space-y-3">
         {filteredRequests.length === 0 ? (
-          <div className="p-12 text-center bg-slate-900/80 rounded-2xl border border-slate-800 text-xs text-slate-400 font-medium">
+          <div className="p-12 text-center bg-white rounded-2xl border border-slate-300 text-xs text-slate-500 font-medium shadow-sm">
             No approval requests matching the current filter set.
           </div>
         ) : (
@@ -357,18 +358,18 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
             return (
               <div
                 key={req.id}
-                className={`border rounded-xl overflow-hidden transition-all duration-200 shadow-md ${
+                className={`border rounded-xl overflow-hidden transition-all duration-200 shadow-sm ${
                   isHidden
-                    ? 'bg-slate-950/40 border-slate-800/40 opacity-60'
-                    : 'bg-slate-900/90 border-slate-800/90 hover:border-slate-700/90'
+                    ? 'bg-slate-50 border-slate-200 opacity-60'
+                    : 'bg-white border-slate-300 hover:border-slate-400'
                 }`}
               >
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : req.id)}
-                  className="p-4 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-slate-800/30"
+                  className="p-4 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                    <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-300">
                       #{req.id?.toString().substring(0, 8) || req.id}
                     </span>
 
@@ -377,24 +378,24 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     </span>
 
                     {payload.message && (
-                      <span className="text-xs text-slate-300 font-medium truncate max-w-xs hidden md:inline">
+                      <span className="text-xs text-slate-700 font-medium truncate max-w-xs hidden md:inline">
                         "{payload.message}"
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                    <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
                       Submitted: {req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Today'}
                     </span>
 
                     <span
                       className={`px-3 py-1 rounded-md text-[10px] font-extrabold tracking-wider uppercase transition-all border ${
                         status.includes('APPROVED')
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                           : status.includes('REJECTED')
-                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                          : 'bg-amber-500/10 text-amber-300 border-amber-500/40 animate-pulse'
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
                       }`}
                     >
                       {status}
@@ -404,7 +405,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     {isHidden ? (
                       <button
                         onClick={(e) => handleUnhideRequest(e, req.id)}
-                        className="p-1.5 text-xs text-indigo-400 hover:text-indigo-200 hover:bg-slate-800 rounded-md cursor-pointer transition"
+                        className="p-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-slate-100 rounded-md cursor-pointer transition"
                         title="Unhide from screen"
                       >
                         👁️ Unhide
@@ -412,22 +413,22 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     ) : (
                       <button
                         onClick={(e) => handleHideRequest(e, req.id)}
-                        className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-md cursor-pointer transition"
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer transition"
                         title="Remove from screen (Keep in Database)"
                       >
                         ✕
                       </button>
                     )}
 
-                    <button className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/80 cursor-pointer font-semibold">
+                    <button className="text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded bg-slate-100 border border-slate-300 cursor-pointer font-semibold">
                       {isExpanded ? 'Hide Details ▲' : 'View Details ▼'}
                     </button>
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div className="p-4 border-t border-slate-800 bg-slate-950/60 space-y-4">
-                    <div className="flex flex-wrap justify-between items-center text-xs text-slate-400 font-semibold gap-2">
+                  <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-4">
+                    <div className="flex flex-wrap justify-between items-center text-xs text-slate-600 font-semibold gap-2">
                       <span>Submitted Items ({totalItems})</span>
                       
                       <div className="flex items-center gap-2">
@@ -436,25 +437,25 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                             <button
                               onClick={() => handleResend(req)}
                               disabled={actionLoading === req.id}
-                              className="px-3 py-1 bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 text-xs font-semibold rounded-lg border border-sky-500/30 transition cursor-pointer"
+                              className="px-3 py-1 bg-sky-100 hover:bg-sky-200 text-sky-800 text-xs font-semibold rounded-lg border border-sky-300 transition cursor-pointer"
                             >
-                              🚀 Resend
+                               Resend
                             </button>
 
                             <button
                               onClick={() => handleOpenEdit(req)}
                               disabled={actionLoading === req.id}
-                              className="px-3 py-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 text-xs font-semibold rounded-lg border border-amber-500/30 transition cursor-pointer"
+                              className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-semibold rounded-lg border border-amber-300 transition cursor-pointer"
                             >
-                              ✏️ Edit & Resend
+                               Edit & Resend
                             </button>
 
                             <button
                               onClick={() => handleDelete(req.id)}
                               disabled={actionLoading === req.id}
-                              className="px-3 py-1 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-xs font-semibold rounded-lg border border-rose-500/30 transition cursor-pointer"
+                              className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-semibold rounded-lg border border-rose-300 transition cursor-pointer"
                             >
-                              🗑️ Delete
+                               Delete
                             </button>
                           </>
                         )}
@@ -464,7 +465,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                             <button
                               onClick={() => handleApprove(req.id)}
                               disabled={actionLoading === req.id}
-                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition cursor-pointer shadow-sm"
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition cursor-pointer shadow-sm"
                             >
                               ✅ Approve
                             </button>
@@ -472,7 +473,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                             <button
                               onClick={() => handleReject(req.id)}
                               disabled={actionLoading === req.id}
-                              className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition cursor-pointer shadow-sm"
+                              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition cursor-pointer shadow-sm"
                             >
                               ❌ Reject
                             </button>
@@ -482,21 +483,21 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     </div>
 
                     {payload.message && (
-                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300 font-medium">
-                        <strong className="text-slate-400">Request Details / Notes:</strong> {payload.message}
+                      <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 font-medium">
+                        <strong className="text-slate-500">Request Details / Notes:</strong> {payload.message}
                       </div>
                     )}
 
                     {req.rejection_reason && (
-                      <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg text-xs text-rose-300">
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
                         <strong>Management Rejection Reason:</strong> {req.rejection_reason}
                       </div>
                     )}
 
                     {items.length > 0 ? (
-                      <div className="overflow-x-auto rounded-lg border border-slate-800">
+                      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                         <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                          <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
                             <tr>
                               <th className="py-3 px-4">Item Name</th>
                               <th className="py-3 px-4 text-right">Cost Price</th>
@@ -504,13 +505,13 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                               <th className="py-3 px-4 text-right">Qty</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                          <tbody className="divide-y divide-slate-100 text-slate-800">
                             {items.map((item, i) => (
-                              <tr key={i} className="hover:bg-slate-800/30">
-                                <td className="py-2.5 px-4 font-medium text-white">{item.name || `Item #${item.item_id}`}</td>
-                                <td className="py-2.5 px-4 text-right text-slate-400">KSh {item.unit_cost_price || 0}</td>
-                                <td className="py-2.5 px-4 text-right font-semibold text-emerald-400">KSh {item.unit_retail_price || item.unit_selling_price || 0}</td>
-                                <td className="py-2.5 px-4 text-right text-slate-300 font-bold">{item.opening_stock ?? item.quantity ?? 0}</td>
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="py-2.5 px-4 font-medium text-slate-900">{item.name || `Item #${item.item_id}`}</td>
+                                <td className="py-2.5 px-4 text-right text-slate-600">KSh {item.unit_cost_price || 0}</td>
+                                <td className="py-2.5 px-4 text-right font-semibold text-emerald-700">KSh {item.unit_retail_price || item.unit_selling_price || 0}</td>
+                                <td className="py-2.5 px-4 text-right text-slate-900 font-bold">{item.opening_stock ?? item.quantity ?? 0}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -531,15 +532,15 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
 
       {/* EDIT & RESEND MODAL */}
       {editingRequest && (
-        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl relative">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white">
+        <div className="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-xl relative text-slate-900">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">
                 Edit & Resend Request #{editingRequest.id}
               </h3>
               <button
                 onClick={() => setEditingRequest(null)}
-                className="text-slate-400 hover:text-white text-sm font-bold cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -547,11 +548,11 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1 font-medium">Request Type</label>
+                <label className="text-xs text-slate-600 block mb-1 font-medium">Request Type</label>
                 <select
                   value={editRequestType}
                   onChange={(e) => setEditRequestType(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-500"
                 >
                   <option value="DISCOUNT_APPROVAL">Discount Approval</option>
                   <option value="STOCK_OVERRIDE">Stock Limit Override</option>
@@ -561,37 +562,37 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1 font-medium font-semibold">Message / Details</label>
+                <label className="text-xs text-slate-600 block mb-1 font-semibold">Message / Details</label>
                 <input
                   type="text"
                   value={editMessage}
                   onChange={(e) => setEditMessage(e.target.value)}
                   placeholder="e.g. Customer requests discount"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-400 font-semibold">Request Items</span>
+                <span className="text-xs text-slate-600 font-semibold">Request Items</span>
                 <button
                   onClick={handleAddItem}
-                  className="px-2.5 py-1 bg-indigo-600/30 text-indigo-300 text-xs rounded-lg border border-indigo-500/40 hover:bg-indigo-600/50 cursor-pointer font-semibold"
+                  className="px-2.5 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-lg border border-indigo-300 hover:bg-indigo-200 cursor-pointer font-semibold"
                 >
                   + Add Item
                 </button>
               </div>
 
               {editPayloadItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 items-center">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 items-center">
                   <div className="sm:col-span-4">
                     <label className="text-[10px] text-slate-500 block mb-1">Item Name</label>
                     <input
                       type="text"
                       value={item.name || ''}
                       onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -600,7 +601,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                       type="text"
                       value={item.unit_cost_price || ''}
                       onChange={(e) => handleItemChange(idx, 'unit_cost_price', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -609,7 +610,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                       type="text"
                       value={item.unit_retail_price || item.unit_selling_price || ''}
                       onChange={(e) => handleItemChange(idx, 'unit_retail_price', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
                     />
                   </div>
                   <div className="sm:col-span-3">
@@ -618,31 +619,31 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                       type="number"
                       value={item.opening_stock ?? item.quantity ?? 0}
                       onChange={(e) => handleItemChange(idx, 'opening_stock', parseInt(e.target.value) || 0)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900"
                     />
                   </div>
                   <div className="sm:col-span-1 flex justify-end">
                     <button
                       onClick={() => handleRemoveItem(idx)}
-                      className="text-rose-400 hover:text-rose-300 text-xs p-1 cursor-pointer"
+                      className="text-rose-600 hover:text-rose-800 text-xs p-1 cursor-pointer"
                     >
-                      🗑️
+                      
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-800 pt-4">
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
               <button
                 onClick={() => setEditingRequest(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl cursor-pointer"
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveAndResend}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-sm"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-sm"
               >
                 Save & Resend
               </button>

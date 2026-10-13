@@ -49,7 +49,6 @@ export default function AuthPage({ onLoginSuccess }) {
 
     const endpoint = isLogin ? 'auth/user-login/' : 'auth/register/';
 
-    
     const cleanUsername = formData.username.trim().replace(/\s+/g, '_').toLowerCase();
     
     // Split input into first_name and last_name for registration
@@ -129,22 +128,22 @@ export default function AuthPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-gray-200 flex flex-col justify-center items-center px-4 font-sans">
-      <div className="w-full max-w-md bg-[#111827] border border-gray-800 rounded-xl shadow-2xl p-8">
+    <div className="min-h-screen bg-slate-200/80 text-slate-900 flex flex-col justify-center items-center px-4 font-sans">
+      <div className="w-full max-w-md bg-white border border-slate-300 rounded-2xl shadow-xl p-8">
         <div className="text-center mb-6">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto text-lg mb-2">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-300 flex items-center justify-center mx-auto text-lg mb-2 text-indigo-700">
             🔒
           </div>
-          <h2 className="text-2xl font-semibold text-white">
+          <h2 className="text-2xl font-bold text-slate-900">
             {isLogin ? 'User Portal Sign In' : 'Create an account'}
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {isLogin ? 'Enter your credentials to access POS' : 'Fill in the details below to get started'}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-xs text-center">
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs text-center font-medium">
             {error}
           </div>
         )}
@@ -152,7 +151,7 @@ export default function AuthPage({ onLoginSuccess }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 tracking-wider uppercase">
                 EMAIL ADDRESS
               </label>
               <input
@@ -162,13 +161,13 @@ export default function AuthPage({ onLoginSuccess }) {
                 onChange={handleChange}
                 placeholder="name@company.com"
                 required={!isLogin}
-                className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
+            <label className="block text-xs font-semibold text-slate-700 mb-1 tracking-wider uppercase">
               {isLogin ? 'USERNAME' : 'FULL NAME / USERNAME'}
             </label>
             <input
@@ -178,13 +177,13 @@ export default function AuthPage({ onLoginSuccess }) {
               onChange={handleChange}
               placeholder={isLogin ? "e.g. johndoe" : "e.g. John Doe"}
               required
-              className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition"
             />
           </div>
 
           {!isLogin && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 tracking-wider uppercase">
                 ASSIGNED BRANCH
               </label>
               <select
@@ -192,13 +191,13 @@ export default function AuthPage({ onLoginSuccess }) {
                 value={formData.branch}
                 onChange={handleChange}
                 disabled={loadingBranches}
-                className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition cursor-pointer appearance-none"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition cursor-pointer"
               >
-                <option value="all" className="bg-[#111827] text-indigo-400 font-semibold">
-                  🌐 All Branches (Full Access)
+                <option value="all" className="bg-white text-indigo-700 font-semibold">
+                   All Branches (Full Access)
                 </option>
                 {loadingBranches ? (
-                  <option value="" className="bg-[#1F2937] text-gray-300">
+                  <option value="" className="bg-white text-slate-500">
                     Loading branches...
                   </option>
                 ) : (
@@ -206,7 +205,7 @@ export default function AuthPage({ onLoginSuccess }) {
                     <option
                       key={b.id}
                       value={b.id}
-                      className="bg-[#111827] text-white py-2 px-3 selection:bg-indigo-600 hover:bg-indigo-600 cursor-pointer"
+                      className="bg-white text-slate-900 py-2 px-3 hover:bg-slate-100 cursor-pointer"
                     >
                       {b.name}
                     </option>
@@ -217,7 +216,7 @@ export default function AuthPage({ onLoginSuccess }) {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
+            <label className="block text-xs font-semibold text-slate-700 mb-1 tracking-wider uppercase">
               PASSWORD
             </label>
             <input
@@ -227,13 +226,13 @@ export default function AuthPage({ onLoginSuccess }) {
               onChange={handleChange}
               placeholder="••••••••"
               required
-              className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition"
             />
           </div>
 
           {!isLogin && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1 tracking-wider uppercase">
+              <label className="block text-xs font-semibold text-slate-700 mb-1 tracking-wider uppercase">
                 CONFIRM PASSWORD
               </label>
               <input
@@ -243,20 +242,20 @@ export default function AuthPage({ onLoginSuccess }) {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required={!isLogin}
-                className="w-full px-3.5 py-2.5 bg-[#1F2937] border border-gray-700 rounded-lg text-white text-xs outline-none focus:border-indigo-500 transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition"
               />
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full py-3 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-xs font-medium rounded-lg shadow-md transition duration-150 ease-in-out mt-2 cursor-pointer"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition duration-150 ease-in-out mt-2 cursor-pointer"
           >
             {isLogin ? 'Sign In' : 'Register Account'}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-gray-400">
+        <div className="mt-6 text-center text-xs text-slate-600">
           {isLogin ? (
             <p>
               Don't have an account?{' '}
@@ -266,7 +265,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   setError('');
                   setIsLogin(false);
                 }}
-                className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                className="text-indigo-600 hover:text-indigo-800 hover:underline font-semibold cursor-pointer"
               >
                 Sign Up
               </button>
@@ -280,7 +279,7 @@ export default function AuthPage({ onLoginSuccess }) {
                   setError('');
                   setIsLogin(true);
                 }}
-                className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                className="text-indigo-600 hover:text-indigo-800 hover:underline font-semibold cursor-pointer"
               >
                 Sign In
               </button>

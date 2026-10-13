@@ -84,23 +84,23 @@ export default function AdminLogin({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#070a12] text-slate-100 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md bg-[#0d1322] border border-slate-800/80 rounded-2xl shadow-2xl p-8 space-y-6">
+    <div className="min-h-screen w-full bg-slate-200/80 text-slate-900 flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md bg-white border border-slate-300 rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-100 border border-indigo-300 text-indigo-700 mb-2">
             🛡️
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Admin Portal Login</h1>
-          <p className="text-xs text-slate-400">Sign in to access admin system controls</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Admin Portal Login</h1>
+          <p className="text-xs text-slate-600">Sign in to access admin system controls</p>
         </div>
 
         {error && (
-          <div className="p-3.5 bg-rose-950/40 border border-rose-800/80 rounded-xl text-xs text-rose-300 flex items-center justify-between">
+          <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-800 flex items-center justify-between">
             <span>{error}</span>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="text-slate-400 hover:text-white font-bold ml-2 cursor-pointer"
+              className="text-slate-400 hover:text-slate-600 font-bold ml-2 cursor-pointer"
             >
               ✕
             </button>
@@ -109,7 +109,7 @@ export default function AdminLogin({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
               Admin Username
             </label>
             <input
@@ -118,14 +118,14 @@ export default function AdminLogin({ onLoginSuccess }) {
               value={formData.username}
               onChange={handleChange}
               placeholder="Enter admin username"
-              className="w-full p-3 bg-[#070a12] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none transition"
+              className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition"
               required
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
               Password
             </label>
             <input
@@ -134,7 +134,7 @@ export default function AdminLogin({ onLoginSuccess }) {
               value={formData.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className="w-full p-3 bg-[#070a12] border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none transition"
+              className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition"
               required
             />
           </div>
@@ -142,7 +142,7 @@ export default function AdminLogin({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-xs shadow-lg shadow-indigo-600/20 transition disabled:opacity-50 mt-2 cursor-pointer"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-sm transition disabled:opacity-50 mt-2 cursor-pointer"
           >
             {loading ? 'Authenticating Admin...' : 'Sign In to Admin Portal'}
           </button>
