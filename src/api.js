@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Dynamically select API base URL with fallback to production backend
+const BASE_URL = import.meta.env.VITE_API_BASE_URL 
+  ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}/api/`
+  : 'https://api.melvexbusinesssolutions.com/api/';
+
 const API = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/',
+  baseURL: BASE_URL,
   timeout: 100000, // Extended timeout to accommodate slower backend starts
   headers: {
     'Content-Type': 'application/json',
