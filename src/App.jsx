@@ -807,13 +807,15 @@ function AppContent() {
   useAnalyticsSocket(selectedBranch, handleSocketEvent);
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-no-repeat bg-fixed relative"
-      style={{
-        backgroundImage: `url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop')`,
-      }}
-    >
-      <div className="min-h-screen bg-gradient-to-br from-slate-900/40 via-slate-900/30 to-indigo-900/40 backdrop-blur-[1px]">
+    <div className="min-h-screen bg-[#070A12] text-slate-100 font-sans relative overflow-x-hidden">
+      {/* Brand Ambient Radial Glows derived from the Melvex Logo (Crimson + Electric Cyan) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-600/15 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-cyan-500/15 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="relative z-10 min-h-screen">
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<AuthPage />} />
