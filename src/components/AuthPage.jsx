@@ -38,7 +38,7 @@ export default function AuthPage({ onLoginSuccess }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -57,7 +57,7 @@ export default function AuthPage({ onLoginSuccess }) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Format registration payload
+    // Format registration payload including confirm_password
     const payload = isLogin
       ? { 
           username: formData.username.trim(), 
@@ -69,6 +69,8 @@ export default function AuthPage({ onLoginSuccess }) {
           last_name: lastName,
           email: formData.email.trim(),
           password: formData.password,
+          confirm_password: formData.confirmPassword,
+          confirmPassword: formData.confirmPassword,
           branch: formData.branch === 'all' ? null : parseInt(formData.branch, 10),
           branch_id: formData.branch === 'all' ? null : parseInt(formData.branch, 10),
           assigned_all_branches: formData.branch === 'all',
