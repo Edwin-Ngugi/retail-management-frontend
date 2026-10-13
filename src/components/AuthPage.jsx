@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
+
 export default function AuthPage({ onLoginSuccess }) {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
@@ -20,13 +21,11 @@ export default function AuthPage({ onLoginSuccess }) {
     const fetchBranches = async () => {
       setLoadingBranches(true);
       try {
-        const response = await fetch('http://localhost:8000/api/branches/');
-        if (response.ok) {
-          const data = await response.json();
-          setBranches(data);
-          if (data.length > 0) {
-            setFormData((prev) => ({ ...prev, branch: data[0].id }));
-          }
+        const response = await API.get('branches/');
+        const data = response.data;
+        setBranches(data);
+        if (data.length > 0) {
+          setFormData((prev) => ({ ...prev, branch: data[0].id }));
         }
       } catch (err) {
         console.error('Failed to load branches:', err);
@@ -51,21 +50,12 @@ export default function AuthPage({ onLoginSuccess }) {
       return;
     }
 
-    // Dedicated User Endpoint
-    const endpoint = isLogin ? '/api/auth/user-login/' : '/api/auth/register/';
+    // Endpoint paths relative to baseURL in api.js
+    const endpoint = isLogin ? 'auth/user-login/' : 'auth/register/';
 
     try {
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.detail || 'Authentication failed');
-      }
+      const response = await API.post(endpoint, formData);
+      const data = response.data;
 
       if (isLogin) {
         localStorage.setItem('access_token', data.access);
@@ -92,7 +82,12 @@ export default function AuthPage({ onLoginSuccess }) {
         alert('Registration successful! Please log in with your credentials.');
       }
     } catch (err) {
-      setError(err.message);
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        err.message ||
+        'Authentication failed';
+      setError(errorMessage);
     }
   };
 
