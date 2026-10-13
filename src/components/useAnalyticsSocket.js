@@ -20,7 +20,12 @@ export function useAnalyticsSocket(branchId, onMessage) {
     const connect = () => {
       // Dynamic protocol support (ws vs wss)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//localhost:8000/ws/analytics/${branchId}/`;
+      
+      // Extract backend host domain dynamically (removes http://, https://, and trailing slashes)
+      const rawApiUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.melvexbusinesssolutions.com';
+      const host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+      const wsUrl = `${protocol}//${host}/ws/analytics/${branchId}/`;
       
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
