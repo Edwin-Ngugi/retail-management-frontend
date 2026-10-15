@@ -140,6 +140,53 @@ const getRecordDateStr = (record) => {
   }
 };
 
+/**
+ * Normalizes raw payment method strings strictly aligned with backend `views.py` logic.
+ */
+const normalizePaymentMethod = (method) => {
+  if (!method) return 'CASH';
+  const clean = String(method).trim().toUpperCase().replace(/[- ]/g, '_');
+
+  if (
+    clean.includes('PAYBILL') ||
+    clean.includes('PAY_BILL') ||
+    clean.includes('C2B')
+  ) {
+    return 'PAYBILL';
+  }
+
+  if (
+    clean.includes('MPESA') ||
+    clean.includes('M_PESA') ||
+    clean.includes('MOBILE') ||
+    clean.includes('SEND_MONEY') ||
+    clean.includes('SENDMONEY') ||
+    clean.includes('TILL') ||
+    clean.includes('BUY_GOODS') ||
+    clean.includes('P2P')
+  ) {
+    return 'MPESA';
+  }
+
+  if (
+    clean.includes('CREDIT') ||
+    clean.includes('DEBT') ||
+    clean.includes('ON_ACCOUNT')
+  ) {
+    return 'CREDIT';
+  }
+
+  if (
+    clean.includes('BANK') ||
+    clean.includes('EFT') ||
+    clean.includes('TRANSFER')
+  ) {
+    return 'BANK_TRANSFER';
+  }
+
+  return 'CASH';
+};
+
 /* =========================================================
    ERROR BOUNDARY CLASS COMPONENT
 ========================================================= */
@@ -378,23 +425,35 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           });
 
           sales.forEach((sale) => {
-            const method = (sale?.payment_method || '').toUpperCase();
-            const amount = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
+            const rawMethod = String(sale?.payment_method || '').toUpperCase();
+            const splitPayments = Array.isArray(sale?.split_payments) ? sale.split_payments : [];
 
-            if (method.includes('PAYBILL') || method.includes('BANK')) {
-              totals.PAYBILL += amount;
-            } else if (method.includes('MPESA') || method.includes('SEND_MONEY')) {
-              totals.MPESA += amount;
-            } else if (method.includes('CREDIT')) {
-              totals.CREDIT += amount;
-              totalCreditIssued += amount;
+            if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
+              splitPayments.forEach((sp) => {
+                const spAmt = toNumber(sp?.amount);
+                const spChannel = normalizePaymentMethod(sp?.method || sp?.payment_method);
+                if (spChannel === 'MPESA') totals.MPESA += spAmt;
+                else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
+                else if (spChannel === 'CREDIT') {
+                  totals.CREDIT += spAmt;
+                  totalCreditIssued += spAmt;
+                } else totals.CASH += spAmt;
+              });
             } else {
-              totals.CASH += amount;
+              const amount = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
+              const channel = normalizePaymentMethod(sale?.payment_method);
+
+              if (channel === 'MPESA') totals.MPESA += amount;
+              else if (channel === 'PAYBILL') totals.PAYBILL += amount;
+              else if (channel === 'CREDIT') {
+                totals.CREDIT += amount;
+                totalCreditIssued += amount;
+              } else totals.CASH += amount;
             }
           });
         }
 
-        // 2. Process Period Repayments (Subtracts from CREDIT, Adds to Liquid Channel)
+        // 2. Process Period Repayments (Adds to Liquid Channel)
         let totalRecovered = 0;
         if (repaymentsRes.status === 'fulfilled') {
           const rawRepayments = Array.isArray(repaymentsRes.value?.data)
@@ -411,18 +470,13 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
           repayments.forEach((rep) => {
             const amount = toNumber(rep?.amount || rep?.amount_paid);
-            const method = (rep?.payment_method || 'CASH').toUpperCase();
+            const channel = normalizePaymentMethod(rep?.payment_method);
 
             totalRecovered += amount;
 
-            // Route liquid funds to settlement channels
-            if (method.includes('PAYBILL') || method.includes('BANK')) {
-              totals.PAYBILL += amount;
-            } else if (method.includes('MPESA') || method.includes('SEND_MONEY')) {
-              totals.MPESA += amount;
-            } else {
-              totals.CASH += amount;
-            }
+            if (channel === 'MPESA') totals.MPESA += amount;
+            else if (channel === 'PAYBILL') totals.PAYBILL += amount;
+            else totals.CASH += amount;
           });
         }
 
@@ -800,6 +854,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
     </div>
   );
 }
+
 /* =========================================================
    USER DASHBOARD PORTAL
 ========================================================= */
