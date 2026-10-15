@@ -1,18 +1,26 @@
 // src/api.js
 import axios from 'axios';
 
-// Detect whether running on local dev machine or production build
 const isLocalhost =
   window.location.hostname === 'localhost' ||
   window.location.hostname === '127.0.0.1';
 
-// Always use local Django backend when developing locally
-const defaultBaseURL = isLocalhost
-  ? 'http://127.0.0.1:8000/api/'
-  : 'https://api.melvexbusinesssolutions.com/api/';
+// Base host domain
+const rawBaseURL = import.meta.env.VITE_API_BASE_URL || (
+  isLocalhost
+    ? 'http://127.0.0.1:8000/api/'
+    : 'https://api.melvexbusinesssolutions.com/api/'
+);
+
+// Guarantee trailing '/api/' prefix is always present
+const normalizedBaseURL = rawBaseURL.endsWith('/api/')
+  ? rawBaseURL
+  : rawBaseURL.endsWith('/')
+  ? `${rawBaseURL}api/`
+  : `${rawBaseURL}/api/`;
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || defaultBaseURL,
+  baseURL: normalizedBaseURL,
 });
 
 API.interceptors.request.use((config) => {
