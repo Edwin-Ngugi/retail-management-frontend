@@ -18,20 +18,33 @@ export function useAnalyticsSocket(branchId, onMessage) {
     let reconnectAttempts = 0;
 
     const connect = () => {
-      // Dynamic protocol support (ws vs wss)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      
-      // Extract backend host domain dynamically (removes http://, https://, and trailing slashes)
-      const rawApiUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.melvexbusinesssolutions.com';
-      const host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      // Check if running on local development host
+      const isLocalhost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+
+      // Dynamic protocol support (ws for local HTTP, wss for secure production HTTPS)
+      const protocol =
+        window.location.protocol === 'https:' && !isLocalhost ? 'wss:' : 'ws:';
+
+      let host = '127.0.0.1:8000';
+
+      if (!isLocalhost) {
+        // Extract production backend host domain (removes http://, https://, and trailing slashes)
+        const rawApiUrl =
+          import.meta.env.VITE_API_BASE_URL ||
+          'https://api.melvexbusinesssolutions.com';
+        host = rawApiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      }
 
       const wsUrl = `${protocol}//${host}/ws/analytics/${branchId}/`;
-      
+
+      console.log(`[WS ATTEMPT] Connecting to: ${wsUrl}`);
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
       socket.onopen = () => {
-        console.log(`[WS CONNECTED] Branch: ${branchId}`);
+        console.log(`[WS CONNECTED] Analytics stream connected for Branch: ${branchId}`);
         reconnectAttempts = 0; // Reset reconnect timer on success
       };
 
