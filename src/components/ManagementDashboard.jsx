@@ -233,10 +233,10 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
    MANAGEMENT DASHBOARD COMPONENT
 ========================================================= */
 
-export default function ManagementDashboard({ onLogout, currentUser: initialUser }) {
+export default function ManagementDashboard({ onLogout, currentUser: initialUser, items: initialItems = [] }) {
   const { selectedBranch, setSelectedBranch, branches = [] } = useBranch();
 
-  // Safely derive primitive branch ID string matching App.jsx logic
+  // Safely get primitive string branch key
   const branchKey = useMemo(() => {
     if (!selectedBranch) return '';
     if (typeof selectedBranch === 'string') return selectedBranch;
@@ -296,8 +296,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     endDate: '',
   });
 
-  // Real-Time Calculated Financial Metrics
-  const [items, setItems] = useState([]);
+  // Items and Calculated Financial Metrics State
+  const [items, setItems] = useState(initialItems);
   const [paymentTotals, setPaymentTotals] = useState({
     MPESA: 0,
     CASH: 0,
@@ -380,11 +380,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   };
 
   const fetchItems = useCallback(async () => {
-    if (!authToken || !branchKey) return;
+    if (!authToken) return;
     try {
-      const res = await API.get(`items/?branch=${encodeURIComponent(branchKey)}`);
-      const fetchedItems = Array.isArray(res.data) ? res.data : res.data?.results || [];
-      setItems(fetchedItems);
+      const endpoint = branchKey ? `items/?branch=${encodeURIComponent(branchKey)}` : 'items/';
+      const fetchedItems = await fetchPaginatedData(endpoint);
+      if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
+        setItems(fetchedItems);
+      } else {
+        // Fallback fetch without branch filter if initial response is empty
+        const fallbackItems = await fetchPaginatedData('items/');
+        setItems(fallbackItems);
+      }
     } catch (e) {
       console.error('Failed to fetch items:', e);
     }
@@ -441,17 +447,23 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  // DIRECT METRICS COMPUTATION (APPLIES DATE RANGE PARITY WITH USER PORTAL)
+  // DIRECT METRICS COMPUTATION (MATCHES APP.JSX COMPUTATION PARITY)
   const computeDashboardMetricsDirectly = useCallback(async () => {
-    if (!authToken || !branchKey) return;
+    if (!authToken) return;
 
     setLoadingFinancials(true);
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
-      const salesParams = new URLSearchParams({ branch: branchKey });
-      const repaymentsParams = new URLSearchParams({ branch: branchKey });
-      const purchasesParams = new URLSearchParams({ branch: branchKey });
+      const salesParams = new URLSearchParams();
+      const repaymentsParams = new URLSearchParams();
+      const purchasesParams = new URLSearchParams();
+
+      if (branchKey) {
+        salesParams.append('branch', branchKey);
+        repaymentsParams.append('branch', branchKey);
+        purchasesParams.append('branch', branchKey);
+      }
 
       const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
         fetchPaginatedData(`sales/?${salesParams.toString()}`),
@@ -1010,9 +1022,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
 
               <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                <div style={{ width: `${healthyPct}%` }} className="bg-emerald-500" title={`Optimal Stock: ${healthyPct}%`} />
-                <div style={{ width: `${lowStockPct}%` }} className="bg-amber-400" title={`Low Stock: ${lowStockPct}%`} />
-                <div style={{ width: `${outOfStockPct}%` }} className="bg-rose-500" title={`Out of Stock: ${outOfStockPct}%`} />
+                <div style={{ width: `${healthyPct}%` }} className="bg-emerald-500 transition-all duration-500" title={`Optimal Stock: ${healthyPct}%`} />
+                <div style={{ width: `${lowStockPct}%` }} className="bg-amber-400 transition-all duration-500" title={`Low Stock: ${lowStockPct}%`} />
+                <div style={{ width: `${outOfStockPct}%` }} className="bg-rose-500 transition-all duration-500" title={`Out of Stock: ${outOfStockPct}%`} />
               </div>
 
               <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
