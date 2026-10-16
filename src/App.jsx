@@ -118,7 +118,6 @@ const formatDateString = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-// Safe date extractor aligned with models.py (sale_date, purchase_date, date, created_at)
 const getRecordDateStr = (record) => {
   const rawDate =
     record?.sale_date ||
@@ -141,15 +140,17 @@ const getRecordDateStr = (record) => {
 };
 
 /**
- * Normalizes raw payment method strings strictly aligned with backend `views.py` logic.
+ * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet
  */
-const normalizePaymentMethod = (method) => {
-  if (!method) return 'CASH';
-  const clean = String(method).trim().toUpperCase().replace(/[- ]/g, '_');
+const normalizePaymentMethod = (methodName) => {
+  if (!methodName) return 'CASH';
+  const clean = String(methodName).trim().toUpperCase().replace(/[- ]/g, '_');
 
   if (
     clean.includes('PAYBILL') ||
     clean.includes('PAY_BILL') ||
+    clean.includes('BANK') ||
+    clean.includes('TRANSFER') ||
     clean.includes('C2B')
   ) {
     return 'PAYBILL';
@@ -176,15 +177,36 @@ const normalizePaymentMethod = (method) => {
     return 'CREDIT';
   }
 
-  if (
-    clean.includes('BANK') ||
-    clean.includes('EFT') ||
-    clean.includes('TRANSFER')
-  ) {
-    return 'BANK_TRANSFER';
+  return 'CASH';
+};
+
+/**
+ * Helper to exhaustively fetch all pages from DRF paginated endpoints
+ */
+const fetchPaginatedData = async (initialEndpoint) => {
+  let results = [];
+  let currentEndpoint = initialEndpoint;
+
+  while (currentEndpoint) {
+    const cleanPath = currentEndpoint.includes('/api/')
+      ? currentEndpoint.split('/api/')[1]
+      : currentEndpoint;
+
+    const res = await API.get(cleanPath);
+    const data = res.data;
+
+    if (Array.isArray(data)) {
+      results = results.concat(data);
+      break;
+    } else if (data?.results && Array.isArray(data.results)) {
+      results = results.concat(data.results);
+      currentEndpoint = data.next ? data.next : null;
+    } else {
+      break;
+    }
   }
 
-  return 'CASH';
+  return results;
 };
 
 /* =========================================================
@@ -399,10 +421,10 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           purchasesParams.append('end_date', effectiveEndDate);
         }
 
-        const [salesRes, repaymentsRes, purchasesRes] = await Promise.allSettled([
-          API.get(`sales/?${salesParams.toString()}`),
-          API.get(`credit-repayments/?${repaymentsParams.toString()}`),
-          API.get(`purchases/?${purchasesParams.toString()}`),
+        const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
+          fetchPaginatedData(`sales/?${salesParams.toString()}`),
+          fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
+          fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
         ]);
 
         if (!isMounted) return;
@@ -411,76 +433,109 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
         // 1. Process Period Sales
-        if (salesRes.status === 'fulfilled') {
-          const rawSales = Array.isArray(salesRes.value?.data)
-            ? salesRes.value.data
-            : salesRes.value?.data?.results || [];
+        const sales = rawSales.filter((s) => {
+          const dateStr = getRecordDateStr(s);
+          if (!dateStr) return true;
+          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+          return true;
+        });
 
-          const sales = rawSales.filter((s) => {
-            const dateStr = getRecordDateStr(s);
-            if (!dateStr) return true;
-            if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-            if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-            return true;
-          });
+        sales.forEach((sale) => {
+          const rawMethod = String(sale?.payment_method || '').toUpperCase();
+          const splitPayments =
+            (Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
+              ? sale.split_payments
+              : Array.isArray(sale?.payments) && sale.payments.length > 0
+              ? sale.payments
+              : []);
 
-          sales.forEach((sale) => {
-            const rawMethod = String(sale?.payment_method || '').toUpperCase();
-            const splitPayments = Array.isArray(sale?.split_payments) ? sale.split_payments : [];
+          const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
+          
+          // Initial upfront amount paid at time of sale creation
+          const initialPaidAmt = toNumber(
+            sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? 
+            (sale?.payment_method === 'CREDIT' ? (sale?.initial_paid || 0) : sale?.amount_paid)
+          );
 
-            if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
-              splitPayments.forEach((sp) => {
-                const spAmt = toNumber(sp?.amount);
-                const spChannel = normalizePaymentMethod(sp?.method || sp?.payment_method);
+          if (rawMethod === 'CREDIT') {
+            // Pure credit sale created on this date
+            const creditBalance = totalAmt - initialPaidAmt;
+            totals.CREDIT += creditBalance;
+            totalCreditIssued += creditBalance;
+
+            // If initial deposit was made at sale creation, route it to initial payment method
+            if (initialPaidAmt > 0) {
+              const depositChannel = normalizePaymentMethod(sale?.deposit_payment_method || sale?.initial_payment_method);
+              if (depositChannel === 'MPESA') totals.MPESA += initialPaidAmt;
+              else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialPaidAmt;
+              else totals.CASH += initialPaidAmt;
+            }
+          } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
+            let totalSplitLiquid = 0;
+
+            splitPayments.forEach((sp) => {
+              const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
+              const spRawMethod =
+                sp?.payment_method ||
+                sp?.method ||
+                sp?.payment_mode ||
+                sp?.channel ||
+                sp?.type ||
+                '';
+
+              const spChannel = normalizePaymentMethod(spRawMethod);
+
+              if (spChannel === 'CREDIT') {
+                totals.CREDIT += spAmt;
+                totalCreditIssued += spAmt;
+              } else {
+                totalSplitLiquid += spAmt;
                 if (spChannel === 'MPESA') totals.MPESA += spAmt;
                 else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
-                else if (spChannel === 'CREDIT') {
-                  totals.CREDIT += spAmt;
-                  totalCreditIssued += spAmt;
-                } else totals.CASH += spAmt;
-              });
-            } else {
-              const amount = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
-              const channel = normalizePaymentMethod(sale?.payment_method);
+                else totals.CASH += spAmt;
+              }
+            });
 
-              if (channel === 'MPESA') totals.MPESA += amount;
-              else if (channel === 'PAYBILL') totals.PAYBILL += amount;
-              else if (channel === 'CREDIT') {
-                totals.CREDIT += amount;
-                totalCreditIssued += amount;
-              } else totals.CASH += amount;
+            // Route any unallocated balance in a split payment directly to Credit
+            if (totalAmt > (totalSplitLiquid + totals.CREDIT)) {
+              const unallocatedCredit = totalAmt - (totalSplitLiquid + totals.CREDIT);
+              totals.CREDIT += unallocatedCredit;
+              totalCreditIssued += unallocatedCredit;
             }
-          });
-        }
+          } else {
+            // Full immediate liquid sale (PAYBILL, MPESA, CASH)
+            const channel = normalizePaymentMethod(sale?.payment_method);
+            const liquidAmt = initialPaidAmt > 0 ? initialPaidAmt : totalAmt;
 
-        // 2. Process Period Repayments (Adds to Liquid Channel)
+            if (channel === 'MPESA') totals.MPESA += liquidAmt;
+            else if (channel === 'PAYBILL') totals.PAYBILL += liquidAmt;
+            else totals.CASH += liquidAmt;
+          }
+        });
+
+        // 2. Process Period Repayments (Adds to Liquid Channel on the Repayment Date)
         let totalRecovered = 0;
-        if (repaymentsRes.status === 'fulfilled') {
-          const rawRepayments = Array.isArray(repaymentsRes.value?.data)
-            ? repaymentsRes.value.data
-            : repaymentsRes.value?.data?.results || [];
+        const repayments = rawRepayments.filter((r) => {
+          const dateStr = getRecordDateStr(r);
+          if (!dateStr) return true;
+          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+          return true;
+        });
 
-          const repayments = rawRepayments.filter((r) => {
-            const dateStr = getRecordDateStr(r);
-            if (!dateStr) return true;
-            if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-            if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-            return true;
-          });
+        repayments.forEach((rep) => {
+          const amount = toNumber(rep?.amount || rep?.amount_paid);
+          const channel = normalizePaymentMethod(rep?.payment_method);
 
-          repayments.forEach((rep) => {
-            const amount = toNumber(rep?.amount || rep?.amount_paid);
-            const channel = normalizePaymentMethod(rep?.payment_method);
+          totalRecovered += amount;
 
-            totalRecovered += amount;
+          if (channel === 'MPESA') totals.MPESA += amount;
+          else if (channel === 'PAYBILL') totals.PAYBILL += amount;
+          else totals.CASH += amount;
+        });
 
-            if (channel === 'MPESA') totals.MPESA += amount;
-            else if (channel === 'PAYBILL') totals.PAYBILL += amount;
-            else totals.CASH += amount;
-          });
-        }
-
-        // Calculate Net Outstanding Debt for Credit / On Account
+        // Net Outstanding Debt
         const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
         totals.CREDIT = netCreditOutstanding;
 
@@ -493,37 +548,31 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         });
 
         // 3. Process Restocks & Supplier Payables
-        if (purchasesRes.status === 'fulfilled') {
-          const rawPurchases = Array.isArray(purchasesRes.value?.data)
-            ? purchasesRes.value.data
-            : purchasesRes.value?.data?.results || [];
+        const purchases = rawPurchases.filter((p) => {
+          const dateStr = getRecordDateStr(p);
+          if (!dateStr) return true;
+          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+          return true;
+        });
 
-          const purchases = rawPurchases.filter((p) => {
-            const dateStr = getRecordDateStr(p);
-            if (!dateStr) return true;
-            if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-            if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-            return true;
-          });
+        let totalRestocksValue = 0;
+        let totalSupplierPayables = 0;
 
-          let totalRestocksValue = 0;
-          let totalSupplierPayables = 0;
+        purchases.forEach((p) => {
+          const cost = toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
+          const paid = toNumber(p?.amount_paid);
+          totalRestocksValue += cost;
 
-          purchases.forEach((p) => {
-            const cost = toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
-            const paid = toNumber(p?.amount_paid);
-            totalRestocksValue += cost;
+          if (p?.payment_method === 'CREDIT') {
+            totalSupplierPayables += Math.max(0, cost - paid);
+          }
+        });
 
-            if (p?.payment_method === 'CREDIT') {
-              totalSupplierPayables += Math.max(0, cost - paid);
-            }
-          });
-
-          setRestockSummary({
-            totalRestocksValue,
-            totalSupplierPayables,
-          });
-        }
+        setRestockSummary({
+          totalRestocksValue,
+          totalSupplierPayables,
+        });
       } catch (err) {
         console.error('Failed to load dashboard metrics:', err);
       } finally {
