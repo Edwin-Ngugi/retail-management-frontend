@@ -140,7 +140,7 @@ const getRecordDateStr = (record) => {
 };
 
 /**
- * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet._normalize_payment_method
+ * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet
  */
 const normalizePaymentMethod = (methodName) => {
   if (!methodName) return 'CASH';
@@ -192,16 +192,25 @@ const normalizePaymentMethod = (methodName) => {
 };
 
 /**
- * Helper to exhaustively fetch all pages from DRF paginated endpoints
+ * Helper to exhaustively fetch all pages from DRF paginated endpoints safely
  */
 const fetchPaginatedData = async (initialEndpoint) => {
   let results = [];
   let currentEndpoint = initialEndpoint;
 
   while (currentEndpoint) {
-    const cleanPath = currentEndpoint.includes('/api/')
-      ? currentEndpoint.split('/api/')[1]
-      : currentEndpoint;
+    let cleanPath = currentEndpoint;
+
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      const urlObj = new URL(cleanPath);
+      cleanPath = urlObj.pathname + urlObj.search;
+    }
+
+    if (cleanPath.startsWith('/api/')) {
+      cleanPath = cleanPath.replace(/^\/api\//, '');
+    } else if (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.slice(1);
+    }
 
     const res = await API.get(cleanPath);
     const data = res.data;
@@ -408,7 +417,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
       try {
         let summarySuccess = false;
 
-        // 1. Try Backend Report Endpoint with trailing slash
+        // 1. Primary path: query financial-reports/summary/
         try {
           const reportParams = new URLSearchParams({ branch: selectedBranch });
 
@@ -451,12 +460,12 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             summarySuccess = true;
           }
         } catch (summaryErr) {
-          console.warn('Backend financial-reports/summary/ endpoint unavailable, falling back to direct computation:', summaryErr);
+          console.warn('financial-reports/summary/ endpoint returned 404 or error. Using client fallback:', summaryErr);
         }
 
         if (summarySuccess || !isMounted) return;
 
-        // 2. Direct Fallback Calculation from endpoints
+        // 2. Client-side fallback computation
         const salesParams = new URLSearchParams({ branch: selectedBranch });
         const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
         const purchasesParams = new URLSearchParams({ branch: selectedBranch });
