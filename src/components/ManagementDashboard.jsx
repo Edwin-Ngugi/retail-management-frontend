@@ -236,6 +236,13 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
 export default function ManagementDashboard({ onLogout, currentUser: initialUser }) {
   const { selectedBranch, setSelectedBranch, branches = [] } = useBranch();
 
+  // Safely derive primitive branch ID string matching App.jsx logic
+  const branchKey = useMemo(() => {
+    if (!selectedBranch) return '';
+    if (typeof selectedBranch === 'string') return selectedBranch;
+    return selectedBranch?.id || selectedBranch?.code || '';
+  }, [selectedBranch]);
+
   // Auth State
   const [authToken, setAuthToken] = useState(
     () => localStorage.getItem('access_token') || localStorage.getItem('token') || null
@@ -280,7 +287,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Global Management Date Filter Horizon (Defaulting to ALL so initial metrics load fully)
+  // Global Management Date Filter Horizon
   const [dateFilter, setDateFilter] = useState({
     filterMode: 'ALL',
     selectedDay: formatDateString(new Date()),
@@ -373,15 +380,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   };
 
   const fetchItems = useCallback(async () => {
-    if (!authToken || !selectedBranch) return;
+    if (!authToken || !branchKey) return;
     try {
-      const res = await API.get(`items/?branch=${encodeURIComponent(selectedBranch)}`);
+      const res = await API.get(`items/?branch=${encodeURIComponent(branchKey)}`);
       const fetchedItems = Array.isArray(res.data) ? res.data : res.data?.results || [];
       setItems(fetchedItems);
     } catch (e) {
       console.error('Failed to fetch items:', e);
     }
-  }, [authToken, selectedBranch]);
+  }, [authToken, branchKey]);
 
   const fetchRequests = useCallback(async () => {
     if (!authToken) return;
@@ -436,15 +443,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   // DIRECT METRICS COMPUTATION (APPLIES DATE RANGE PARITY WITH USER PORTAL)
   const computeDashboardMetricsDirectly = useCallback(async () => {
-    if (!authToken || !selectedBranch) return;
+    if (!authToken || !branchKey) return;
 
     setLoadingFinancials(true);
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
-      const salesParams = new URLSearchParams({ branch: selectedBranch });
-      const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
-      const purchasesParams = new URLSearchParams({ branch: selectedBranch });
+      const salesParams = new URLSearchParams({ branch: branchKey });
+      const repaymentsParams = new URLSearchParams({ branch: branchKey });
+      const purchasesParams = new URLSearchParams({ branch: branchKey });
 
       const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
         fetchPaginatedData(`sales/?${salesParams.toString()}`),
@@ -585,7 +592,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } finally {
       setLoadingFinancials(false);
     }
-  }, [authToken, selectedBranch, effectiveRange]);
+  }, [authToken, branchKey, effectiveRange]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -596,7 +603,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     if (activeTab === 'OVERVIEW') {
       computeDashboardMetricsDirectly();
     }
-  }, [authToken, selectedBranch, activeTab, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
+  }, [authToken, branchKey, activeTab, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
 
   const metrics = useMemo(() => {
     let totalCostValuation = 0;
@@ -718,7 +725,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-2xl">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Branch:</label>
                 <select
-                  value={selectedBranch || ''}
+                  value={branchKey}
                   onChange={(e) => setSelectedBranch?.(e.target.value)}
                   className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
                 >
@@ -1042,7 +1049,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* INVENTORY TAB */}
         {activeTab === 'INVENTORY' && (
           <ManagementOperations
-            selectedBranch={selectedBranch}
+            selectedBranch={branchKey}
             initialSection="inventory"
             effectiveRange={effectiveRange}
             onBack={() => setActiveTab('OVERVIEW')}
@@ -1080,7 +1087,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* OPERATIONS TAB */}
         {activeTab === 'OPERATIONS' && (
           <ManagementOperations
-            selectedBranch={selectedBranch}
+            selectedBranch={branchKey}
             initialSection={operationsSection}
             effectiveRange={effectiveRange}
             onBack={() => setActiveTab('OVERVIEW')}
