@@ -1,35 +1,72 @@
 // src/api.js
 import axios from 'axios';
 
-const isLocalhost =
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+const API = axios.create({
+  baseURL: 'https://api.melvexbusinesssolutions.com/api/',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Base host domain
-const rawBaseURL = import.meta.env.VITE_API_BASE_URL || (
-  isLocalhost
-    ? 'http://127.0.0.1:8000/api/'
-    : 'https://api.melvexbusinesssolutions.com/api/'
+// Request Interceptor: Attach bearer token dynamically
+API.interceptors.request.use(
+  (config) => {
+    const token =
+      localStorage.getItem('access_token') || localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
-// Guarantee trailing '/api/' prefix is always present
-const normalizedBaseURL = rawBaseURL.endsWith('/api/')
-  ? rawBaseURL
-  : rawBaseURL.endsWith('/')
-  ? `${rawBaseURL}api/`
-  : `${rawBaseURL}/api/`;
+// Response Interceptor: Handle token expiration & automatic refresh
+API.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-const API = axios.create({
-  baseURL: normalizedBaseURL,
-});
+    // Handle 401 Unauthorized errors caused by expired access tokens
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refresh_token');
 
-API.interceptors.request.use((config) => {
-  const token =
-    localStorage.getItem('access_token') || localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+      if (refreshToken) {
+        try {
+          // Attempt silent token refresh
+          const res = await axios.post(
+            'https://api.melvexbusinesssolutions.com/api/token/refresh/',
+            { refresh: refreshToken }
+          );
+
+          if (res.data && res.data.access) {
+            const newAccessToken = res.data.access;
+            localStorage.setItem('access_token', newAccessToken);
+            localStorage.setItem('token', newAccessToken);
+
+            // Retry original failed request with the new access token
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return API(originalRequest);
+          }
+        } catch (refreshErr) {
+          console.error('Session expired. Redirecting to login...', refreshErr);
+        }
+      }
+
+      // If refresh fails or no refresh token exists, clear storage and redirect
+      localStorage.clear();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 export default API;
