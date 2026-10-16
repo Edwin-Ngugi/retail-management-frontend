@@ -142,7 +142,7 @@ const getRecordDateStr = (record) => {
 };
 
 /**
- * Normalizes payment methods into designated settlement categories
+ * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet
  */
 const normalizePaymentMethod = (methodName) => {
   if (!methodName) return 'CASH';
@@ -194,7 +194,7 @@ const normalizePaymentMethod = (methodName) => {
 };
 
 /**
- * Exhaustively fetches paginated records from standard API routes
+ * Helper to exhaustively fetch all pages from DRF paginated endpoints safely
  */
 const fetchPaginatedData = async (initialEndpoint) => {
   let results = [];
@@ -204,12 +204,8 @@ const fetchPaginatedData = async (initialEndpoint) => {
     let cleanPath = currentEndpoint;
 
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-      try {
-        const urlObj = new URL(cleanPath);
-        cleanPath = urlObj.pathname + urlObj.search;
-      } catch (e) {
-        /* ignore */
-      }
+      const urlObj = new URL(cleanPath);
+      cleanPath = urlObj.pathname + urlObj.search;
     }
 
     if (cleanPath.startsWith('/api/')) {
@@ -232,7 +228,7 @@ const fetchPaginatedData = async (initialEndpoint) => {
         break;
       }
     } catch (e) {
-      console.warn(`Fetch error on path: ${cleanPath}`, e);
+      console.warn(`Failed fetching paginated path: ${cleanPath}`, e);
       break;
     }
   }
@@ -424,24 +420,88 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
     let isMounted = true;
     setLoadingFinancials(true);
 
-    const computeDashboardMetricsDirectly = async () => {
+    const fetchDashboardMetrics = async () => {
       try {
+        let summarySuccess = false;
+
+        // 1. Primary path: query backend report endpoint
+        try {
+          const reportParams = new URLSearchParams({ branch: selectedBranch });
+
+          if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
+            reportParams.append('period_type', 'custom');
+            reportParams.append('startDate', effectiveStartDate);
+            reportParams.append('endDate', effectiveEndDate);
+          } else if (effectiveStartDate) {
+            reportParams.append('period_type', 'day');
+            reportParams.append('date', effectiveStartDate);
+          }
+
+          const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
+          const data = res.data;
+
+          if (data && data.payment_channel_breakdown && data.summary) {
+            const breakdown = data.payment_channel_breakdown;
+            const sum = data.summary;
+
+            const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
+
+            setPaymentTotals({
+              MPESA: mpesaCombined,
+              CASH: toNumber(breakdown.cash),
+              CREDIT: toNumber(breakdown.credit_outstanding ?? sum.credit_outstanding),
+              PAYBILL: toNumber(breakdown.paybill),
+            });
+
+            setCreditSummary({
+              totalCreditIssued: toNumber(sum.new_credit_sales),
+              totalRecovered: toNumber(sum.credit_repayments),
+              outstandingCredit: toNumber(sum.credit_outstanding),
+            });
+
+            setRestockSummary({
+              totalRestocksValue: toNumber(sum.purchases_cost),
+              totalSupplierPayables: 0,
+            });
+
+            summarySuccess = true;
+          }
+        } catch (summaryErr) {
+          // Fall back to direct client computation
+        }
+
+        if (summarySuccess || !isMounted) return;
+
+        // 2. Direct Fallback Calculation
         const salesParams = new URLSearchParams({ branch: selectedBranch });
         const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
         const purchasesParams = new URLSearchParams({ branch: selectedBranch });
 
-        const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
+        const [rawSales, rawRepayments, rawPurchases, rawSplitPayments] = await Promise.all([
           fetchPaginatedData(`sales/?${salesParams.toString()}`),
           fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
           fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
+          fetchPaginatedData(`sale-payments/?branch=${selectedBranch}`),
         ]);
 
         if (!isMounted) return;
 
+        // Map split payments by sale_id
+        const splitMap = {};
+        if (Array.isArray(rawSplitPayments)) {
+          rawSplitPayments.forEach((sp) => {
+            const saleId = sp.sale || sp.transaction || sp.sale_id || sp.transaction_id;
+            if (saleId) {
+              if (!splitMap[saleId]) splitMap[saleId] = [];
+              splitMap[saleId].push(sp);
+            }
+          });
+        }
+
         let totalCreditIssued = 0;
         const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-        // 1. Process Sales strictly based on sale creation date
+        // Process Sales based strictly on sale creation date
         const sales = rawSales.filter((s) => {
           const dateStr = getRecordDateStr(s);
           if (!dateStr) return true;
@@ -452,12 +512,14 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
         sales.forEach((sale) => {
           const rawMethod = String(sale?.payment_method || '').toUpperCase();
-          const splitPayments =
-            Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
+          const inlineSplits =
+            Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
               ? sale.split_payments
-              : Array.isArray(sale?.payments) && sale.payments.length > 0
+              : Array.isArray(sale?.payments) && sale.payments.length > 0 && typeof sale.payments[0] === 'object'
               ? sale.payments
               : [];
+
+          const splitPayments = inlineSplits.length > 0 ? inlineSplits : splitMap[sale.id] || [];
 
           const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
           const initialDeposit = toNumber(
@@ -516,7 +578,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           }
         });
 
-        // 2. Process Repayments strictly by repayment date
+        // Filter and process Repayments strictly by repayment date
         let totalRecovered = 0;
         const repayments = rawRepayments.filter((r) => {
           const dateStr = getRecordDateStr(r);
@@ -548,7 +610,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           outstandingCredit: netCreditOutstanding,
         });
 
-        // 3. Process Restocks & Purchases
+        // Process Purchases
         const purchases = rawPurchases.filter((p) => {
           const dateStr = getRecordDateStr(p);
           if (!dateStr) return true;
@@ -567,13 +629,13 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           totalSupplierPayables: 0,
         });
       } catch (err) {
-        console.error('Failed to compute dashboard metrics:', err);
+        console.error('Failed to load dashboard metrics:', err);
       } finally {
         if (isMounted) setLoadingFinancials(false);
       }
     };
 
-    computeDashboardMetricsDirectly();
+    fetchDashboardMetrics();
 
     return () => {
       isMounted = false;
@@ -623,7 +685,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'M-Pesa / Mobile Money',
         code: 'MPESA',
         amount: paymentTotals.MPESA,
-        icon: '',
+        icon: '📱',
         color: 'border-emerald-200 bg-emerald-50/50 text-emerald-900',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
@@ -631,7 +693,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Cash Transactions',
         code: 'CASH',
         amount: paymentTotals.CASH,
-        icon: '',
+        icon: '💵',
         color: 'border-indigo-200 bg-indigo-50/50 text-indigo-900',
         badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
       },
@@ -639,7 +701,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Credit / On Account',
         code: 'CREDIT',
         amount: paymentTotals.CREDIT,
-        icon: '',
+        icon: '💳',
         color: 'border-amber-200 bg-amber-50/50 text-amber-900',
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       },
@@ -647,7 +709,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Paybill / Till Transfer',
         code: 'PAYBILL',
         amount: paymentTotals.PAYBILL,
-        icon: '',
+        icon: '🏦',
         color: 'border-purple-200 bg-purple-50/50 text-purple-900',
         badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
       },
@@ -731,7 +793,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Period credit activity & live total balance
               </p>
             </div>
-            <span className="text-2xl"></span>
+            <span className="text-2xl">💳</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -774,7 +836,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Purchases valuation & outstanding supplier payables
               </p>
             </div>
-            <span className="text-2xl"></span>
+            <span className="text-2xl">📦</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
