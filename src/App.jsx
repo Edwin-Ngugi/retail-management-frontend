@@ -432,7 +432,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         let totalCreditIssued = 0;
         const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-        // 1. Process Period Sales
+        // 1. Process Period Sales (At Point of Sale Creation)
         const sales = rawSales.filter((s) => {
           const dateStr = getRecordDateStr(s);
           if (!dateStr) return true;
@@ -448,31 +448,34 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               ? sale.split_payments
               : Array.isArray(sale?.payments) && sale.payments.length > 0
               ? sale.payments
+              : Array.isArray(sale?.sale_payments) && sale.sale_payments.length > 0
+              ? sale.sale_payments
               : []);
 
           const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
-          
-          // Initial upfront amount paid at time of sale creation
-          const initialPaidAmt = toNumber(
-            sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? 
-            (sale?.payment_method === 'CREDIT' ? (sale?.initial_paid || 0) : sale?.amount_paid)
+
+          // Initial point-of-sale deposit/down-payment
+          const initialDeposit = toNumber(
+            sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid
           );
 
-          if (rawMethod === 'CREDIT') {
-            // Pure credit sale created on this date
-            const creditBalance = totalAmt - initialPaidAmt;
-            totals.CREDIT += creditBalance;
-            totalCreditIssued += creditBalance;
+          if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
+            // Debt issued is full sale value minus initial deposit made at checkout
+            const debtIssued = Math.max(0, totalAmt - initialDeposit);
+            totals.CREDIT += debtIssued;
+            totalCreditIssued += debtIssued;
 
-            // If initial deposit was made at sale creation, route it to initial payment method
-            if (initialPaidAmt > 0) {
-              const depositChannel = normalizePaymentMethod(sale?.deposit_payment_method || sale?.initial_payment_method);
-              if (depositChannel === 'MPESA') totals.MPESA += initialPaidAmt;
-              else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialPaidAmt;
-              else totals.CASH += initialPaidAmt;
+            // Route point-of-sale down-payment to its specific channel
+            if (initialDeposit > 0) {
+              const depositChannel = normalizePaymentMethod(
+                sale?.deposit_payment_method || sale?.initial_payment_method || sale?.payment_mode
+              );
+              if (depositChannel === 'MPESA') totals.MPESA += initialDeposit;
+              else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialDeposit;
+              else totals.CASH += initialDeposit;
             }
           } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
-            let totalSplitLiquid = 0;
+            let splitLiquidTotal = 0;
 
             splitPayments.forEach((sp) => {
               const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
@@ -490,31 +493,30 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 totals.CREDIT += spAmt;
                 totalCreditIssued += spAmt;
               } else {
-                totalSplitLiquid += spAmt;
+                splitLiquidTotal += spAmt;
                 if (spChannel === 'MPESA') totals.MPESA += spAmt;
                 else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
                 else totals.CASH += spAmt;
               }
             });
 
-            // Route any unallocated balance in a split payment directly to Credit
-            if (totalAmt > (totalSplitLiquid + totals.CREDIT)) {
-              const unallocatedCredit = totalAmt - (totalSplitLiquid + totals.CREDIT);
+            // Route any unallocated balance in a split sale directly to Credit
+            const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
+            if (unallocatedCredit > 0) {
               totals.CREDIT += unallocatedCredit;
               totalCreditIssued += unallocatedCredit;
             }
           } else {
-            // Full immediate liquid sale (PAYBILL, MPESA, CASH)
+            // Standard point-of-sale transaction (PAYBILL, MPESA, CASH)
             const channel = normalizePaymentMethod(sale?.payment_method);
-            const liquidAmt = initialPaidAmt > 0 ? initialPaidAmt : totalAmt;
-
-            if (channel === 'MPESA') totals.MPESA += liquidAmt;
-            else if (channel === 'PAYBILL') totals.PAYBILL += liquidAmt;
-            else totals.CASH += liquidAmt;
+            
+            if (channel === 'MPESA') totals.MPESA += totalAmt;
+            else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
+            else totals.CASH += totalAmt;
           }
         });
 
-        // 2. Process Period Repayments (Adds to Liquid Channel on the Repayment Date)
+        // 2. Process Period Repayments (Adds to Liquid Channels strictly on Repayment Date)
         let totalRecovered = 0;
         const repayments = rawRepayments.filter((r) => {
           const dateStr = getRecordDateStr(r);
@@ -526,16 +528,17 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
         repayments.forEach((rep) => {
           const amount = toNumber(rep?.amount || rep?.amount_paid);
-          const channel = normalizePaymentMethod(rep?.payment_method);
+          const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
 
           totalRecovered += amount;
 
+          // Repayments arrive as Cash, Paybill, or Send Money (M-Pesa)
           if (channel === 'MPESA') totals.MPESA += amount;
           else if (channel === 'PAYBILL') totals.PAYBILL += amount;
           else totals.CASH += amount;
         });
 
-        // Net Outstanding Debt
+        // Net Outstanding Debt Balance
         const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
         totals.CREDIT = netCreditOutstanding;
 
