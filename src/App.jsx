@@ -623,7 +623,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'M-Pesa / Mobile Money',
         code: 'MPESA',
         amount: paymentTotals.MPESA,
-        icon: '📱',
+        icon: '',
         color: 'border-emerald-200 bg-emerald-50/50 text-emerald-900',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
@@ -631,7 +631,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Cash Transactions',
         code: 'CASH',
         amount: paymentTotals.CASH,
-        icon: '💵',
+        icon: '',
         color: 'border-indigo-200 bg-indigo-50/50 text-indigo-900',
         badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
       },
@@ -639,7 +639,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Credit / On Account',
         code: 'CREDIT',
         amount: paymentTotals.CREDIT,
-        icon: '💳',
+        icon: '',
         color: 'border-amber-200 bg-amber-50/50 text-amber-900',
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       },
@@ -647,7 +647,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Paybill / Till Transfer',
         code: 'PAYBILL',
         amount: paymentTotals.PAYBILL,
-        icon: '🏦',
+        icon: '',
         color: 'border-purple-200 bg-purple-50/50 text-purple-900',
         badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
       },
@@ -731,7 +731,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Period credit activity & live total balance
               </p>
             </div>
-            <span className="text-2xl">💳</span>
+            <span className="text-2xl"></span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -774,7 +774,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Purchases valuation & outstanding supplier payables
               </p>
             </div>
-            <span className="text-2xl">📦</span>
+            <span className="text-2xl"></span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

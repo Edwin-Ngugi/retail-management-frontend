@@ -339,14 +339,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-      // Sales Processing
+      // 1. Process Sales & Split Breakdown
       rawSales.forEach((sale) => {
-        const rawMethod = String(sale?.payment_method || '').toUpperCase();
+        const rawMethod = String(sale?.payment_method || sale?.method || '').toUpperCase();
+        
+        // Exhaustively extract split payment arrays
         const splitPayments =
           Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
             ? sale.split_payments
             : Array.isArray(sale?.payments) && sale.payments.length > 0
             ? sale.payments
+            : Array.isArray(sale?.payment_splits) && sale.payment_splits.length > 0
+            ? sale.payment_splits
             : [];
 
         const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
@@ -355,6 +359,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         );
 
         if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
+          // Pure credit transaction: principal debt issued is Net of initial deposit
           const debtIssued = Math.max(0, totalAmt - initialDeposit);
           totals.CREDIT += debtIssued;
           totalCreditIssued += debtIssued;
@@ -369,17 +374,24 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           }
         } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
           let splitLiquidTotal = 0;
+          let splitCreditTotal = 0;
 
           splitPayments.forEach((sp) => {
-            const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
+            const spAmt = toNumber(
+              sp?.amount ?? sp?.amount_paid ?? sp?.value ?? sp?.total ?? sp?.price
+            );
             const spRawMethod =
-              sp?.payment_method || sp?.method || sp?.payment_mode || sp?.channel || sp?.type || '';
+              sp?.payment_method ||
+              sp?.method ||
+              sp?.payment_mode ||
+              sp?.channel ||
+              sp?.type ||
+              '';
 
             const spChannel = normalizePaymentMethod(spRawMethod);
 
             if (spChannel === 'CREDIT') {
-              totals.CREDIT += spAmt;
-              totalCreditIssued += spAmt;
+              splitCreditTotal += spAmt;
             } else {
               splitLiquidTotal += spAmt;
               if (spChannel === 'MPESA') totals.MPESA += spAmt;
@@ -388,12 +400,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             }
           });
 
-          const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
-          if (unallocatedCredit > 0) {
-            totals.CREDIT += unallocatedCredit;
-            totalCreditIssued += unallocatedCredit;
+          // Track credit portion from split payment
+          totals.CREDIT += splitCreditTotal;
+          totalCreditIssued += splitCreditTotal;
+
+          // Route any remaining unallocated amount to credit debt
+          const unallocatedDebt = Math.max(0, totalAmt - (splitLiquidTotal + splitCreditTotal));
+          if (unallocatedDebt > 0) {
+            totals.CREDIT += unallocatedDebt;
+            totalCreditIssued += unallocatedDebt;
           }
         } else {
+          // Standard single-method liquid sale
           const channel = normalizePaymentMethod(sale?.payment_method);
           if (channel === 'MPESA') totals.MPESA += totalAmt;
           else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
@@ -401,7 +419,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         }
       });
 
-      // Repayments Processing
+      // 2. Process Repayments (Adds to liquid channels, reduces active debt owed)
       let totalRecovered = 0;
       rawRepayments.forEach((rep) => {
         const amount = toNumber(rep?.amount || rep?.amount_paid);
@@ -414,6 +432,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         else totals.CASH += amount;
       });
 
+      // Net Outstanding Debt prevents double counting repaid amounts in the credit card
       const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
       totals.CREDIT = netCreditOutstanding;
 
@@ -425,7 +444,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         outstandingCredit: netCreditOutstanding,
       });
 
-      // Restocks Processing
+      // 3. Process Restocks
       let totalRestocksValue = 0;
       rawPurchases.forEach((p) => {
         totalRestocksValue += toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
