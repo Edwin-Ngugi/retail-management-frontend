@@ -120,10 +120,12 @@ const formatDateString = (date) => {
 
 const getRecordDateStr = (record) => {
   const rawDate =
+    record?.date ||
+    record?.payment_date ||
+    record?.repayment_date ||
+    record?.created_at ||
     record?.sale_date ||
     record?.purchase_date ||
-    record?.date ||
-    record?.created_at ||
     record?.timestamp;
 
   if (!rawDate) return '';
@@ -212,16 +214,21 @@ const fetchPaginatedData = async (initialEndpoint) => {
       cleanPath = cleanPath.slice(1);
     }
 
-    const res = await API.get(cleanPath);
-    const data = res.data;
+    try {
+      const res = await API.get(cleanPath);
+      const data = res.data;
 
-    if (Array.isArray(data)) {
-      results = results.concat(data);
-      break;
-    } else if (data?.results && Array.isArray(data.results)) {
-      results = results.concat(data.results);
-      currentEndpoint = data.next ? data.next : null;
-    } else {
+      if (Array.isArray(data)) {
+        results = results.concat(data);
+        break;
+      } else if (data?.results && Array.isArray(data.results)) {
+        results = results.concat(data.results);
+        currentEndpoint = data.next ? data.next : null;
+      } else {
+        break;
+      }
+    } catch (e) {
+      console.warn(`Failed fetching paginated path: ${cleanPath}`, e);
       break;
     }
   }
@@ -417,7 +424,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
       try {
         let summarySuccess = false;
 
-        // 1. Primary path: query financial-reports/summary/
+        // 1. Primary path: query backend report endpoint
         try {
           const reportParams = new URLSearchParams({ branch: selectedBranch });
 
@@ -460,40 +467,41 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             summarySuccess = true;
           }
         } catch (summaryErr) {
-          console.warn('financial-reports/summary/ endpoint returned 404 or error. Using client fallback:', summaryErr);
+          // Fall back to direct client computation
         }
 
         if (summarySuccess || !isMounted) return;
 
-        // 2. Client-side fallback computation
+        // 2. Direct Fallback Calculation
         const salesParams = new URLSearchParams({ branch: selectedBranch });
         const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
         const purchasesParams = new URLSearchParams({ branch: selectedBranch });
 
-        if (effectiveStartDate) {
-          salesParams.append('sale_date__gte', `${effectiveStartDate}T00:00:00`);
-          repaymentsParams.append('date__gte', effectiveStartDate);
-          purchasesParams.append('purchase_date__gte', `${effectiveStartDate}T00:00:00`);
-        }
-
-        if (effectiveEndDate) {
-          salesParams.append('sale_date__lte', `${effectiveEndDate}T23:59:59`);
-          repaymentsParams.append('date__lte', effectiveEndDate);
-          purchasesParams.append('purchase_date__lte', `${effectiveEndDate}T23:59:59`);
-        }
-
-        const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
+        const [rawSales, rawRepayments, rawPurchases, rawSplitPayments] = await Promise.all([
           fetchPaginatedData(`sales/?${salesParams.toString()}`),
           fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
           fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
+          fetchPaginatedData(`sale-payments/?branch=${selectedBranch}`),
         ]);
 
         if (!isMounted) return;
 
+        // Map split payments by sale_id
+        const splitMap = {};
+        if (Array.isArray(rawSplitPayments)) {
+          rawSplitPayments.forEach((sp) => {
+            const saleId = sp.sale || sp.transaction || sp.sale_id || sp.transaction_id;
+            if (saleId) {
+              if (!splitMap[saleId]) splitMap[saleId] = [];
+              splitMap[saleId].push(sp);
+            }
+          });
+        }
+
         let totalCreditIssued = 0;
         const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-        // Process Sales
+        // Process Sales based strictly on sale creation date
         const sales = rawSales.filter((s) => {
           const dateStr = getRecordDateStr(s);
           if (!dateStr) return true;
@@ -504,14 +512,14 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
         sales.forEach((sale) => {
           const rawMethod = String(sale?.payment_method || '').toUpperCase();
-          const splitPayments =
-            (Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
+          const inlineSplits =
+            Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
               ? sale.split_payments
-              : Array.isArray(sale?.payments) && sale.payments.length > 0
+              : Array.isArray(sale?.payments) && sale.payments.length > 0 && typeof sale.payments[0] === 'object'
               ? sale.payments
-              : Array.isArray(sale?.sale_payments) && sale.sale_payments.length > 0
-              ? sale.sale_payments
-              : []);
+              : [];
+
+          const splitPayments = inlineSplits.length > 0 ? inlineSplits : splitMap[sale.id] || [];
 
           const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
           const initialDeposit = toNumber(
@@ -570,7 +578,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           }
         });
 
-        // Process Repayments
+        // Filter and process Repayments strictly by repayment date
         let totalRecovered = 0;
         const repayments = rawRepayments.filter((r) => {
           const dateStr = getRecordDateStr(r);
