@@ -280,7 +280,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Global Management Date Filter Horizon
+  // Global Management Date Filter Horizon (Defaulting to ALL so initial metrics load fully)
   const [dateFilter, setDateFilter] = useState({
     filterMode: 'ALL',
     selectedDay: formatDateString(new Date()),
