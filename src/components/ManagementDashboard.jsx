@@ -4,6 +4,10 @@ import API from '../api';
 import { useBranch } from './BranchContext';
 import ManagementOperations from './ManagementOperations';
 
+/* =========================================================
+   HELPERS & CALCULATORS (ALIGNED WITH APP.JSX)
+========================================================= */
+
 const toNumber = (value, fallback = 0) => {
   if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
@@ -23,6 +27,13 @@ const formatCurrency = (value) => {
 
 const getRemainingStock = (item) =>
   toNumber(item?.remaining_stock ?? item?.current_stock ?? item?.stock);
+
+const formatDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getRecordDateStr = (record) => {
   const rawDate =
@@ -123,10 +134,14 @@ const fetchPaginatedData = async (initialEndpoint) => {
   return results;
 };
 
+/* =========================================================
+   MANAGEMENT DASHBOARD COMPONENT
+========================================================= */
+
 export default function ManagementDashboard({ onLogout, currentUser: initialUser }) {
   const { selectedBranch, setSelectedBranch, branches = [] } = useBranch();
 
-  // Authentication State
+  // Auth State
   const [authToken, setAuthToken] = useState(
     () => localStorage.getItem('access_token') || localStorage.getItem('token') || null
   );
@@ -144,12 +159,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return null;
   });
 
-  // Login Form State
+  // Login Form
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Navigation Tab State
+  // Active Nav Tab
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
@@ -168,43 +183,21 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   // Review Requests State
   const [requests, setRequests] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('ALL');
-  const [activeStatus, setActiveStatus] = useState('ALL');
-  const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(null);
 
-  // Hidden Requests
-  const [hiddenRequestIds, setHiddenRequestIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('mgmt_hidden_approval_ids');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [showHidden, setShowHidden] = useState(false);
-  const [showAlertModal, setShowAlertModal] = useState(false);
-
-  // Rejection & Feedback Modal
-  const [reviewingRequest, setReviewingRequest] = useState(null);
-  const [feedbackNote, setFeedbackNote] = useState('');
-  const [reviewDecision, setReviewDecision] = useState('APPROVE');
-  const [validationError, setValidationError] = useState('');
-
-  // Cashbook State
+  // Cashbook & Balance Sheet State
   const [cashbookEntries, setCashbookEntries] = useState([]);
   const [cashbookLoading, setCashbookLoading] = useState(false);
-
-  // Balance Sheet State & Filters
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [loadingBS, setLoadingBS] = useState(false);
-  const [periodType, setPeriodType] = useState('month');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Period Date Filtering
+  const [periodType, setPeriodType] = useState('day');
+  const [selectedDate, setSelectedDate] = useState(formatDateString(new Date()));
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Direct Financials & Catalog State
+  // Real-Time Calculated Financial Metrics
   const [items, setItems] = useState([]);
   const [paymentTotals, setPaymentTotals] = useState({
     MPESA: 0,
@@ -221,14 +214,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     totalRestocksValue: 0,
     totalSupplierPayables: 0,
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('mgmt_hidden_approval_ids', JSON.stringify(hiddenRequestIds));
-    } catch (e) {
-      console.warn('Failed to save hidden request IDs:', e);
-    }
-  }, [hiddenRequestIds]);
+  const [loadingFinancials, setLoadingFinancials] = useState(false);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('access_token');
@@ -261,7 +247,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       });
 
       const token = res.data?.access || res.data?.token;
-
       if (!token) throw new Error('No access token returned from backend.');
 
       localStorage.setItem('access_token', token);
@@ -285,12 +270,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setLoginForm({ username: '', password: '' });
     } catch (err) {
       console.error('Management login error:', err);
-      const detail =
+      setLoginError(
         err.response?.data?.error ||
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        'Authentication failed. Verify management credentials.';
-      setLoginError(detail);
+          err.response?.data?.detail ||
+          'Authentication failed.'
+      );
     } finally {
       setLoginLoading(false);
     }
@@ -317,13 +301,38 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } catch (err) {
       console.error('Failed to load review requests:', err);
       if (err.response?.status === 401) handleLogout();
-    } finally {
+    } fontFinally: {
       setLoading(false);
     }
   }, [authToken, handleLogout]);
 
-  const fetchDirectMetrics = useCallback(async () => {
+  // Compute effective date bounds from period controls
+  const effectiveRange = useMemo(() => {
+    let start = '';
+    let end = '';
+
+    if (periodType === 'day' && selectedDate) {
+      start = selectedDate;
+      end = selectedDate;
+    } else if (periodType === 'month' && selectedMonth && selectedYear) {
+      const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
+      const lastDay = new Date(selectedYear, selectedMonth, 0);
+      start = formatDateString(firstDay);
+      end = formatDateString(lastDay);
+    } else if (periodType === 'year' && selectedYear) {
+      start = `${selectedYear}-01-01`;
+      end = `${selectedYear}-12-31`;
+    }
+
+    return { effectiveStartDate: start, effectiveEndDate: end };
+  }, [periodType, selectedDate, selectedMonth, selectedYear]);
+
+  // DIRECT METRICS COMPUTATION (EXACTLY MATCHES APP.JSX)
+  const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken || !selectedBranch) return;
+
+    setLoadingFinancials(true);
+    const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
       const salesParams = new URLSearchParams({ branch: selectedBranch });
@@ -339,18 +348,22 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-      // 1. Process Sales & Split Breakdown
-      rawSales.forEach((sale) => {
-        const rawMethod = String(sale?.payment_method || sale?.method || '').toUpperCase();
-        
-        // Exhaustively extract split payment arrays
+      // 1. Process Sales strictly based on sale creation date
+      const sales = rawSales.filter((s) => {
+        const dateStr = getRecordDateStr(s);
+        if (!dateStr) return true;
+        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+        return true;
+      });
+
+      sales.forEach((sale) => {
+        const rawMethod = String(sale?.payment_method || '').toUpperCase();
         const splitPayments =
           Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
             ? sale.split_payments
             : Array.isArray(sale?.payments) && sale.payments.length > 0
             ? sale.payments
-            : Array.isArray(sale?.payment_splits) && sale.payment_splits.length > 0
-            ? sale.payment_splits
             : [];
 
         const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
@@ -359,7 +372,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         );
 
         if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
-          // Pure credit transaction: principal debt issued is Net of initial deposit
           const debtIssued = Math.max(0, totalAmt - initialDeposit);
           totals.CREDIT += debtIssued;
           totalCreditIssued += debtIssued;
@@ -374,12 +386,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           }
         } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
           let splitLiquidTotal = 0;
-          let splitCreditTotal = 0;
 
           splitPayments.forEach((sp) => {
-            const spAmt = toNumber(
-              sp?.amount ?? sp?.amount_paid ?? sp?.value ?? sp?.total ?? sp?.price
-            );
+            const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
             const spRawMethod =
               sp?.payment_method ||
               sp?.method ||
@@ -391,7 +400,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             const spChannel = normalizePaymentMethod(spRawMethod);
 
             if (spChannel === 'CREDIT') {
-              splitCreditTotal += spAmt;
+              totals.CREDIT += spAmt;
+              totalCreditIssued += spAmt;
             } else {
               splitLiquidTotal += spAmt;
               if (spChannel === 'MPESA') totals.MPESA += spAmt;
@@ -400,18 +410,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             }
           });
 
-          // Track credit portion from split payment
-          totals.CREDIT += splitCreditTotal;
-          totalCreditIssued += splitCreditTotal;
-
-          // Route any remaining unallocated amount to credit debt
-          const unallocatedDebt = Math.max(0, totalAmt - (splitLiquidTotal + splitCreditTotal));
-          if (unallocatedDebt > 0) {
-            totals.CREDIT += unallocatedDebt;
-            totalCreditIssued += unallocatedDebt;
+          const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
+          if (unallocatedCredit > 0) {
+            totals.CREDIT += unallocatedCredit;
+            totalCreditIssued += unallocatedCredit;
           }
         } else {
-          // Standard single-method liquid sale
           const channel = normalizePaymentMethod(sale?.payment_method);
           if (channel === 'MPESA') totals.MPESA += totalAmt;
           else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
@@ -419,9 +423,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         }
       });
 
-      // 2. Process Repayments (Adds to liquid channels, reduces active debt owed)
+      // 2. Process Repayments strictly by repayment date
       let totalRecovered = 0;
-      rawRepayments.forEach((rep) => {
+      const repayments = rawRepayments.filter((r) => {
+        const dateStr = getRecordDateStr(r);
+        if (!dateStr) return true;
+        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+        return true;
+      });
+
+      repayments.forEach((rep) => {
         const amount = toNumber(rep?.amount || rep?.amount_paid);
         const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
 
@@ -432,7 +444,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         else totals.CASH += amount;
       });
 
-      // Net Outstanding Debt prevents double counting repaid amounts in the credit card
       const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
       totals.CREDIT = netCreditOutstanding;
 
@@ -444,9 +455,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         outstandingCredit: netCreditOutstanding,
       });
 
-      // 3. Process Restocks
+      // 3. Process Restocks & Purchases
+      const purchases = rawPurchases.filter((p) => {
+        const dateStr = getRecordDateStr(p);
+        if (!dateStr) return true;
+        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+        return true;
+      });
+
       let totalRestocksValue = 0;
-      rawPurchases.forEach((p) => {
+      purchases.forEach((p) => {
         totalRestocksValue += toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
       });
 
@@ -454,10 +473,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         totalRestocksValue,
         totalSupplierPayables: 0,
       });
-    } catch (e) {
-      console.error('Failed to compute direct metrics:', e);
+    } catch (err) {
+      console.error('Failed to compute management metrics:', err);
+    } finally {
+      setLoadingFinancials(false);
     }
-  }, [authToken, selectedBranch]);
+  }, [authToken, selectedBranch, effectiveRange]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -466,9 +487,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchRequests();
 
     if (activeTab === 'OVERVIEW') {
-      fetchDirectMetrics();
+      computeDashboardMetricsDirectly();
     }
-  }, [authToken, selectedBranch, activeTab, fetchItems, fetchRequests, fetchDirectMetrics]);
+  }, [authToken, selectedBranch, activeTab, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
 
   const metrics = useMemo(() => {
     let totalCostValuation = 0;
@@ -515,8 +536,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const healthyPct = Math.round((metrics.healthyCount / totalCount) * 100);
   const lowStockPct = Math.round((metrics.lowStockCount / totalCount) * 100);
   const outOfStockPct = Math.round((metrics.outOfStockCount / totalCount) * 100);
-
-  const userName = currentUser?.username || currentUser?.name || 'Manager';
 
   if (!authToken) {
     return (
@@ -643,7 +662,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         </div>
 
-        {/* OVERVIEW TAB PARITY WITH USER PORTAL SCREENSHOT */}
+        {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6 max-w-6xl mx-auto font-sans">
             
@@ -719,7 +738,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       Period credit activity & live total balance
                     </p>
                   </div>
-                  <span className="text-2xl"></span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -762,7 +780,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       Purchases valuation & outstanding supplier payables
                     </p>
                   </div>
-                  <span className="text-2xl"></span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -789,19 +806,25 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
             {/* Payment & Settlement Channels */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Payment & Settlement Channels
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Live settlement amounts processed per financial channel
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Payment & Settlement Channels
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Live settlement amounts processed per financial channel
+                  </p>
+                </div>
+                {loadingFinancials && (
+                  <span className="text-xs font-bold text-indigo-600 animate-pulse">
+                    Syncing...
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="p-4 rounded-2xl border space-y-2 border-emerald-200 bg-emerald-50/50 text-emerald-900">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl"></span>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-emerald-100 text-emerald-800 border-emerald-300">
                       MPESA
                     </span>
@@ -816,7 +839,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="p-4 rounded-2xl border space-y-2 border-indigo-200 bg-indigo-50/50 text-indigo-900">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl"></span>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-indigo-100 text-indigo-800 border-indigo-300">
                       CASH
                     </span>
@@ -831,7 +853,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="p-4 rounded-2xl border space-y-2 border-amber-200 bg-amber-50/50 text-amber-900">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl"></span>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
                       CREDIT
                     </span>
@@ -846,7 +867,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="p-4 rounded-2xl border space-y-2 border-purple-200 bg-purple-50/50 text-purple-900">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl"></span>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-purple-100 text-purple-800 border-purple-300">
                       PAYBILL
                     </span>
@@ -914,10 +934,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           <ManagementOperations
             selectedBranch={selectedBranch}
             initialSection="inventory"
-            periodType={periodType}
-            selectedDate={selectedDate}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
             onBack={() => setActiveTab('OVERVIEW')}
           />
         )}
@@ -936,7 +952,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 onClick={() => setActiveTab('CASHBOOK')}
                 className="p-5 border rounded-2xl bg-slate-50 hover:bg-slate-100 text-left space-y-2 cursor-pointer transition"
               >
-                <span className="text-2xl block">▤</span>
                 <h3 className="font-bold text-sm text-slate-800">Cashbook Statement</h3>
                 <p className="text-xs text-slate-500">View detailed daily inflows, outflows, and net cash movements.</p>
               </button>
@@ -944,7 +959,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 onClick={() => setActiveTab('BALANCE_SHEET')}
                 className="p-5 border rounded-2xl bg-slate-50 hover:bg-slate-100 text-left space-y-2 cursor-pointer transition"
               >
-                <span className="text-2xl block">▥</span>
                 <h3 className="font-bold text-sm text-slate-800">Statement of Financial Position</h3>
                 <p className="text-xs text-slate-500">Review assets, liabilities, and equity calculations.</p>
               </button>
@@ -952,15 +966,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* OTHER EXISTING MANAGEMENT TABS */}
+        {/* OPERATIONS TAB */}
         {activeTab === 'OPERATIONS' && (
           <ManagementOperations
             selectedBranch={selectedBranch}
             initialSection={operationsSection}
-            periodType={periodType}
-            selectedDate={selectedDate}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
             onBack={() => setActiveTab('OVERVIEW')}
           />
         )}
