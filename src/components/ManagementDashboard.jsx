@@ -135,6 +135,101 @@ const fetchPaginatedData = async (initialEndpoint) => {
 };
 
 /* =========================================================
+   GLOBAL MANAGEMENT DATE FILTER BAR
+========================================================= */
+
+function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
+  const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
+
+  return (
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            Management Analytics Horizon
+          </h2>
+          <p className="text-[11px] text-slate-500">
+            Selected date boundaries apply across Dashboard, Inventory, Operations, and Reports
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-700">Filter Period:</label>
+          <select
+            value={filterMode}
+            onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
+            className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          >
+            <option value="ALL">All Time</option>
+            <option value="DAILY">Daily Pick</option>
+            <option value="THIS_WEEK">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="THIS_YEAR">Yearly</option>
+            <option value="CUSTOM">Custom Range</option>
+          </select>
+        </div>
+      </div>
+
+      {filterMode === 'DAILY' && (
+        <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+          <label className="font-bold text-slate-700">Choose Specific Day:</label>
+          <input
+            type="date"
+            value={selectedDay}
+            onChange={(e) =>
+              setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))
+            }
+            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+          />
+        </div>
+      )}
+
+      {filterMode === 'MONTHLY' && (
+        <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+          <label className="font-bold text-slate-700">Choose Specific Month:</label>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) =>
+              setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))
+            }
+            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+          />
+        </div>
+      )}
+
+      {filterMode === 'CUSTOM' && (
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-1.5">
+            <label className="font-bold text-slate-600">Start Date:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) =>
+                setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))
+              }
+              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <label className="font-bold text-slate-600">End Date:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) =>
+                setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))
+              }
+              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
    MANAGEMENT DASHBOARD COMPONENT
 ========================================================= */
 
@@ -185,17 +280,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Cashbook & Balance Sheet State
-  const [cashbookEntries, setCashbookEntries] = useState([]);
-  const [cashbookLoading, setCashbookLoading] = useState(false);
-  const [balanceSheet, setBalanceSheet] = useState(null);
-  const [loadingBS, setLoadingBS] = useState(false);
-
-  // Period Date Filtering
-  const [periodType, setPeriodType] = useState('day');
-  const [selectedDate, setSelectedDate] = useState(formatDateString(new Date()));
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Global Management Date Filter Horizon
+  const [dateFilter, setDateFilter] = useState({
+    filterMode: 'ALL',
+    selectedDay: formatDateString(new Date()),
+    selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    startDate: '',
+    endDate: '',
+  });
 
   // Real-Time Calculated Financial Metrics
   const [items, setItems] = useState([]);
@@ -301,33 +393,48 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } catch (err) {
       console.error('Failed to load review requests:', err);
       if (err.response?.status === 401) handleLogout();
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   }, [authToken, handleLogout]);
 
-  // Compute effective date bounds from period controls
+  // Compute effective date bounds from dateFilter state
   const effectiveRange = useMemo(() => {
+    const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
     let start = '';
     let end = '';
 
-    if (periodType === 'day' && selectedDate) {
-      start = selectedDate;
-      end = selectedDate;
-    } else if (periodType === 'month' && selectedMonth && selectedYear) {
-      const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
-      const lastDay = new Date(selectedYear, selectedMonth, 0);
-      start = formatDateString(firstDay);
-      end = formatDateString(lastDay);
-    } else if (periodType === 'year' && selectedYear) {
-      start = `${selectedYear}-01-01`;
-      end = `${selectedYear}-12-31`;
+    if (filterMode === 'DAILY' && selectedDay) {
+      start = selectedDay;
+      end = selectedDay;
+    } else if (filterMode === 'MONTHLY' && selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      if (y && m) {
+        const firstDay = new Date(y, m - 1, 1);
+        const lastDay = new Date(y, m, 0);
+        start = formatDateString(firstDay);
+        end = formatDateString(lastDay);
+      }
+    } else if (filterMode === 'CUSTOM') {
+      start = startDate;
+      end = endDate;
+    } else if (filterMode === 'THIS_WEEK') {
+      const now = new Date();
+      const dayOfWeek = now.getDay() || 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek + 1);
+      start = formatDateString(monday);
+      end = formatDateString(now);
+    } else if (filterMode === 'THIS_YEAR') {
+      const now = new Date();
+      start = `${now.getFullYear()}-01-01`;
+      end = formatDateString(now);
     }
 
     return { effectiveStartDate: start, effectiveEndDate: end };
-  }, [periodType, selectedDate, selectedMonth, selectedYear]);
+  }, [dateFilter]);
 
-  // DIRECT METRICS COMPUTATION (EXACTLY MATCHES APP.JSX)
+  // DIRECT METRICS COMPUTATION (APPLIES DATE RANGE PARITY WITH USER PORTAL)
   const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken || !selectedBranch) return;
 
@@ -348,7 +455,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-      // 1. Process Sales strictly based on sale creation date
+      // 1. Process Sales strictly based on effective date bounds
       const sales = rawSales.filter((s) => {
         const dateStr = getRecordDateStr(s);
         if (!dateStr) return true;
@@ -423,7 +530,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         }
       });
 
-      // 2. Process Repayments strictly by repayment date
+      // 2. Process Repayments strictly by date
       let totalRecovered = 0;
       const repayments = rawRepayments.filter((r) => {
         const dateStr = getRecordDateStr(r);
@@ -455,7 +562,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         outstandingCredit: netCreditOutstanding,
       });
 
-      // 3. Process Restocks & Purchases
+      // 3. Process Restocks & Purchases strictly by date
       const purchases = rawPurchases.filter((p) => {
         const dateStr = getRecordDateStr(p);
         if (!dateStr) return true;
@@ -661,6 +768,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           </div>
         </div>
+
+        {/* GLOBAL MANAGEMENT DATE FILTER BAR */}
+        <ManagementDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
 
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
@@ -934,6 +1044,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           <ManagementOperations
             selectedBranch={selectedBranch}
             initialSection="inventory"
+            effectiveRange={effectiveRange}
             onBack={() => setActiveTab('OVERVIEW')}
           />
         )}
@@ -971,6 +1082,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           <ManagementOperations
             selectedBranch={selectedBranch}
             initialSection={operationsSection}
+            effectiveRange={effectiveRange}
             onBack={() => setActiveTab('OVERVIEW')}
           />
         )}
