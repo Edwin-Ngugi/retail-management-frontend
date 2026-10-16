@@ -140,7 +140,7 @@ const getRecordDateStr = (record) => {
 };
 
 /**
- * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet
+ * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet._normalize_payment_method
  */
 const normalizePaymentMethod = (methodName) => {
   if (!methodName) return 'CASH';
@@ -149,22 +149,26 @@ const normalizePaymentMethod = (methodName) => {
   if (
     clean.includes('PAYBILL') ||
     clean.includes('PAY_BILL') ||
-    clean.includes('BANK') ||
-    clean.includes('TRANSFER') ||
     clean.includes('C2B')
   ) {
     return 'PAYBILL';
   }
 
   if (
-    clean.includes('MPESA') ||
-    clean.includes('M_PESA') ||
-    clean.includes('MOBILE') ||
     clean.includes('SEND_MONEY') ||
     clean.includes('SENDMONEY') ||
     clean.includes('TILL') ||
     clean.includes('BUY_GOODS') ||
+    clean.includes('BUYGOODS') ||
     clean.includes('P2P')
+  ) {
+    return 'SEND_MONEY';
+  }
+
+  if (
+    clean.includes('MPESA') ||
+    clean.includes('M_PESA') ||
+    clean.includes('MOBILE')
   ) {
     return 'MPESA';
   }
@@ -175,6 +179,18 @@ const normalizePaymentMethod = (methodName) => {
     clean.includes('ON_ACCOUNT')
   ) {
     return 'CREDIT';
+  }
+
+  if (
+    clean.includes('BANK') ||
+    clean.includes('TRANSFER') ||
+    clean.includes('EFT')
+  ) {
+    return 'BANK_TRANSFER';
+  }
+
+  if (clean.includes('SPLIT')) {
+    return 'SPLIT';
   }
 
   return 'CASH';
@@ -395,189 +411,50 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
     const fetchDashboardMetrics = async () => {
       try {
-        const salesParams = new URLSearchParams({ branch: selectedBranch });
-        const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
-        const purchasesParams = new URLSearchParams({ branch: selectedBranch });
+        const reportParams = new URLSearchParams({ branch: selectedBranch });
 
-        if (effectiveStartDate) {
-          salesParams.append('sale_date__gte', `${effectiveStartDate}T00:00:00`);
-          salesParams.append('start_date', effectiveStartDate);
-
-          repaymentsParams.append('date__gte', effectiveStartDate);
-          repaymentsParams.append('start_date', effectiveStartDate);
-
-          purchasesParams.append('purchase_date__gte', `${effectiveStartDate}T00:00:00`);
-          purchasesParams.append('start_date', effectiveStartDate);
+        if (effectiveStartDate && effectiveEndDate) {
+          reportParams.append('period_type', 'custom');
+          reportParams.append('start_date', effectiveStartDate);
+          reportParams.append('end_date', effectiveEndDate);
+        } else if (effectiveStartDate) {
+          reportParams.append('period_type', 'day');
+          reportParams.append('date', effectiveStartDate);
         }
 
-        if (effectiveEndDate) {
-          salesParams.append('sale_date__lte', `${effectiveEndDate}T23:59:59`);
-          salesParams.append('end_date', effectiveEndDate);
-
-          repaymentsParams.append('date__lte', effectiveEndDate);
-          repaymentsParams.append('end_date', effectiveEndDate);
-
-          purchasesParams.append('purchase_date__lte', `${effectiveEndDate}T23:59:59`);
-          purchasesParams.append('end_date', effectiveEndDate);
-        }
-
-        const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
-          fetchPaginatedData(`sales/?${salesParams.toString()}`),
-          fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
-          fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
-        ]);
+        // Fetch backend aggregated financial summary
+        const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
+        const data = res.data;
 
         if (!isMounted) return;
 
-        let totalCreditIssued = 0;
-        const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
+        if (data && data.payment_channel_breakdown && data.summary) {
+          const breakdown = data.payment_channel_breakdown;
+          const sum = data.summary;
 
-        // 1. Process Period Sales (At Point of Sale Creation)
-        const sales = rawSales.filter((s) => {
-          const dateStr = getRecordDateStr(s);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
+          // Align M-Pesa channels: Combine MPESA standard & Send Money into MPESA display
+          const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
 
-        sales.forEach((sale) => {
-          const rawMethod = String(sale?.payment_method || '').toUpperCase();
-          const splitPayments =
-            (Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
-              ? sale.split_payments
-              : Array.isArray(sale?.payments) && sale.payments.length > 0
-              ? sale.payments
-              : Array.isArray(sale?.sale_payments) && sale.sale_payments.length > 0
-              ? sale.sale_payments
-              : []);
+          setPaymentTotals({
+            MPESA: mpesaCombined,
+            CASH: toNumber(breakdown.cash),
+            CREDIT: toNumber(sum.credit_outstanding),
+            PAYBILL: toNumber(breakdown.paybill),
+          });
 
-          const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
+          setCreditSummary({
+            totalCreditIssued: toNumber(sum.new_credit_sales),
+            totalRecovered: toNumber(sum.credit_repayments),
+            outstandingCredit: toNumber(sum.credit_outstanding),
+          });
 
-          // Initial point-of-sale deposit/down-payment
-          const initialDeposit = toNumber(
-            sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid
-          );
-
-          if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
-            // Debt issued is full sale value minus initial deposit made at checkout
-            const debtIssued = Math.max(0, totalAmt - initialDeposit);
-            totals.CREDIT += debtIssued;
-            totalCreditIssued += debtIssued;
-
-            // Route point-of-sale down-payment to its specific channel
-            if (initialDeposit > 0) {
-              const depositChannel = normalizePaymentMethod(
-                sale?.deposit_payment_method || sale?.initial_payment_method || sale?.payment_mode
-              );
-              if (depositChannel === 'MPESA') totals.MPESA += initialDeposit;
-              else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialDeposit;
-              else totals.CASH += initialDeposit;
-            }
-          } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
-            let splitLiquidTotal = 0;
-
-            splitPayments.forEach((sp) => {
-              const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
-              const spRawMethod =
-                sp?.payment_method ||
-                sp?.method ||
-                sp?.payment_mode ||
-                sp?.channel ||
-                sp?.type ||
-                '';
-
-              const spChannel = normalizePaymentMethod(spRawMethod);
-
-              if (spChannel === 'CREDIT') {
-                totals.CREDIT += spAmt;
-                totalCreditIssued += spAmt;
-              } else {
-                splitLiquidTotal += spAmt;
-                if (spChannel === 'MPESA') totals.MPESA += spAmt;
-                else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
-                else totals.CASH += spAmt;
-              }
-            });
-
-            // Route any unallocated balance in a split sale directly to Credit
-            const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
-            if (unallocatedCredit > 0) {
-              totals.CREDIT += unallocatedCredit;
-              totalCreditIssued += unallocatedCredit;
-            }
-          } else {
-            // Standard point-of-sale transaction (PAYBILL, MPESA, CASH)
-            const channel = normalizePaymentMethod(sale?.payment_method);
-            
-            if (channel === 'MPESA') totals.MPESA += totalAmt;
-            else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
-            else totals.CASH += totalAmt;
-          }
-        });
-
-        // 2. Process Period Repayments (Adds to Liquid Channels strictly on Repayment Date)
-        let totalRecovered = 0;
-        const repayments = rawRepayments.filter((r) => {
-          const dateStr = getRecordDateStr(r);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
-
-        repayments.forEach((rep) => {
-          const amount = toNumber(rep?.amount || rep?.amount_paid);
-          const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
-
-          totalRecovered += amount;
-
-          // Repayments arrive as Cash, Paybill, or Send Money (M-Pesa)
-          if (channel === 'MPESA') totals.MPESA += amount;
-          else if (channel === 'PAYBILL') totals.PAYBILL += amount;
-          else totals.CASH += amount;
-        });
-
-        // Net Outstanding Debt Balance
-        const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
-        totals.CREDIT = netCreditOutstanding;
-
-        setPaymentTotals(totals);
-
-        setCreditSummary({
-          totalCreditIssued,
-          totalRecovered,
-          outstandingCredit: netCreditOutstanding,
-        });
-
-        // 3. Process Restocks & Supplier Payables
-        const purchases = rawPurchases.filter((p) => {
-          const dateStr = getRecordDateStr(p);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
-
-        let totalRestocksValue = 0;
-        let totalSupplierPayables = 0;
-
-        purchases.forEach((p) => {
-          const cost = toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
-          const paid = toNumber(p?.amount_paid);
-          totalRestocksValue += cost;
-
-          if (p?.payment_method === 'CREDIT') {
-            totalSupplierPayables += Math.max(0, cost - paid);
-          }
-        });
-
-        setRestockSummary({
-          totalRestocksValue,
-          totalSupplierPayables,
-        });
+          setRestockSummary({
+            totalRestocksValue: toNumber(sum.purchases_cost),
+            totalSupplierPayables: 0,
+          });
+        }
       } catch (err) {
-        console.error('Failed to load dashboard metrics:', err);
+        console.error('Failed to load financial summary:', err);
       } finally {
         if (isMounted) setLoadingFinancials(false);
       }
@@ -633,7 +510,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'M-Pesa / Mobile Money',
         code: 'MPESA',
         amount: paymentTotals.MPESA,
-        icon: '📱',
+        icon: '',
         color: 'border-emerald-200 bg-emerald-50/50 text-emerald-900',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
@@ -641,7 +518,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Cash Transactions',
         code: 'CASH',
         amount: paymentTotals.CASH,
-        icon: '💵',
+        icon: '',
         color: 'border-indigo-200 bg-indigo-50/50 text-indigo-900',
         badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
       },
@@ -649,7 +526,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         name: 'Credit / On Account',
         code: 'CREDIT',
         amount: paymentTotals.CREDIT,
-        icon: '💳',
+        icon: '',
         color: 'border-amber-200 bg-amber-50/50 text-amber-900',
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       },
@@ -741,7 +618,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Period credit activity & live total balance
               </p>
             </div>
-            <span className="text-2xl">💳</span>
+            <span className="text-2xl"></span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -784,7 +661,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 Purchases valuation & outstanding supplier payables
               </p>
             </div>
-            <span className="text-2xl">📦</span>
+            <span className="text-2xl"></span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
