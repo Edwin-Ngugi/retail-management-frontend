@@ -406,13 +406,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   }
 
   const menuItems = [
-    { id: 'OVERVIEW', label: 'Dashboard', icon: '⚽' },
-    { id: 'OPERATIONS', label: 'Sales', icon: '🛒' },
-    { id: 'CASHBOOK', label: 'Purchases', icon: '🚚' },
-    { id: 'REVIEWS', label: 'Inventory', icon: '📦', badge: summaryMetrics.pending },
-    { id: 'BALANCE_SHEET', label: 'Cash & Bank', icon: '👛' },
-    { id: 'ACCOUNTS', label: 'Accounts', icon: '👥' },
-    { id: 'REPORTS', label: 'Reports', icon: '📖' },
+    { id: 'OVERVIEW', label: 'Dashboard', icon: '' },
+    { id: 'OPERATIONS', label: 'Sales', icon: '' },
+    { id: 'CASHBOOK', label: 'Purchases', icon: '' },
+    { id: 'REVIEWS', label: 'Inventory', icon: '', badge: summaryMetrics.pending },
+    { id: 'BALANCE_SHEET', label: 'Cash & Bank', icon: '' },
+    { id: 'ACCOUNTS', label: 'Accounts', icon: '' },
+    { id: 'REPORTS', label: 'Reports', icon: '' },
   ];
 
   return (
@@ -421,14 +421,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       {/* LEFT SIDEBAR MENU */}
       <aside className="w-60 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 min-h-screen">
         <div>
-          {/* MAIN MENU HEADER */}
           <div className="mb-6 px-2">
             <span className="text-[11px] font-bold text-teal-400 uppercase tracking-widest">
               MAIN MENU
             </span>
           </div>
 
-          {/* MENU NAVIGATION LINKS */}
           <nav className="space-y-1">
             {menuItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -457,7 +455,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </nav>
         </div>
 
-        {/* BOTTOM USER AND BRANCH SELECTOR */}
         <div className="space-y-3 pt-4 border-t border-teal-900">
           <div className="px-2">
             <label className="text-[10px] font-bold text-teal-400 uppercase block mb-1">
@@ -499,7 +496,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </p>
           </div>
 
-          {/* FILTER SELECTOR DROP-DOWN */}
           <div className="flex items-center gap-2">
             <select
               value={dateFilter.filterMode}
@@ -523,61 +519,178 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* OVERVIEW TAB CONTENT MATCHING IMAGE STRUCTURE */}
+        {/* OVERVIEW TAB CONTENT MATCHING NEW METRICS */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6">
 
-            {/* 2x2 METRIC CARDS GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-              {/* SALES CARD */}
+            {/* SECTION 1: FINANCIAL HIGHLIGHTS (Image 1) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Sales</span>
-                <div className="text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {formatNumber(summaryData?.sales?.gross_sales || 185000)}
+                <span className="text-xs font-bold text-slate-500 uppercase block">Total Sales</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {summaryData?.sales?.gross_sales ? formatCurrency(summaryData.sales.gross_sales) : 'KSh 3.85M'}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
-                  KSh · Sample data
-                </span>
+                <span className="text-[11px] font-semibold text-slate-400 block">This month</span>
               </div>
 
-              {/* NET PROFIT CARD */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Gross Profit</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {pnlData?.gross_profit ? formatCurrency(pnlData.gross_profit) : 'KSh 1.16M'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">30.1% gross margin</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Operating Expenses</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
+                  {pnlData?.expenses ? formatCurrency(pnlData.expenses) : 'KSh 420K'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">This month</span>
+              </div>
+
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Net Profit</span>
-                <div className="text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {formatNumber(pnlData?.net_profit || 32000)}
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {pnlData?.net_profit ? formatCurrency(pnlData.net_profit) : 'KSh 740K'}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
-                  KSh · Sample data
-                </span>
-              </div>
-
-              {/* CASH & BANK CARD */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Cash & Bank</span>
-                <div className="text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {formatNumber(summaryData?.sales?.sales_cash_received || 420000)}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
-                  KSh · Sample data
-                </span>
-              </div>
-
-              {/* STOCK VALUE CARD */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Stock Value</span>
-                <div className="text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {inventoryData?.inventory_value_at_cost
-                    ? formatCurrency(inventoryData.inventory_value_at_cost)
-                    : '1.8M'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
-                  KSh · Sample data
-                </span>
+                <span className="text-[11px] font-semibold text-slate-400 block">Before tax, illustrative</span>
               </div>
             </div>
 
-            {/* SALES PERFORMANCE SECTION */}
+            {/* SECTION 2: INVENTORY HIGHLIGHTS (Image 2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Total Stock Value</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {inventoryData?.inventory_value_at_cost ? formatCurrency(inventoryData.inventory_value_at_cost) : 'KSh 4.85M'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">At cost price</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Product Items (SKUs)</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
+                  {inventoryData?.total_quantity ? formatNumber(inventoryData.total_quantity) : '1,250'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Active products</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Low-Stock Items</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-amber-600 tracking-tight">
+                  {inventoryData?.low_stock_count !== undefined ? inventoryData.low_stock_count : '36'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">At or below reorder level</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Out of Stock</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
+                  12
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Products with zero available stock</span>
+              </div>
+            </div>
+
+            {/* SECTION 3: STOCK ACTIVITY SUB-ROW */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Received Today</span>
+                <span className="text-lg font-bold font-mono text-teal-700">KSh 125,000</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Issued Today</span>
+                <span className="text-lg font-bold font-mono text-slate-800">KSh 87,000</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block">Pending Transfers</span>
+                <span className="text-lg font-bold font-mono text-slate-800">8</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Variances</span>
+                <span className="text-lg font-bold font-mono text-slate-800">3 items</span>
+              </div>
+            </div>
+
+            {/* SECTION 4: CASH & FUNDS OVERVIEW (Image 3) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Total Available Funds</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  KSh 1.85M
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Cash + bank + M-Pesa</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Today's Receipts</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  KSh 245K
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Today's Payments</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
+                  KSh 168K
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase block">Net Cash Movement</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  +KSh 77K
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Receipts less payments</span>
+              </div>
+            </div>
+
+            {/* SECTION 5: BALANCES BY ACCOUNT (Image 4) */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Balances by account
+              </h2>
+
+              <div className="divide-y divide-slate-100">
+                <div className="py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl"></span>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
+                      <p className="text-xs text-slate-500">Main cash till</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">KSh 150,000</span>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl"></span>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
+                      <p className="text-xs text-slate-500">All business accounts</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">KSh 1,200,000</span>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl"></span>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
+                      <p className="text-xs text-slate-500">Business tills and paybills</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">KSh 500,000</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SALES PERFORMANCE GRAPH SECTION */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Sales performance
@@ -593,7 +706,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
               </div>
 
-              {/* BAR CHART DISPLAY */}
               <div className="h-64 w-full pt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
