@@ -176,7 +176,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setDashboardError('');
 
     try {
-      // Read current URL params to ensure branch, period_type, month, year work
       const urlParams = new URLSearchParams(window.location.search);
       if (branchKey) {
         urlParams.set('branch_id', branchKey);
@@ -224,10 +223,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   if (!authToken) {
     return (
       <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-slate-50">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
-              <img src="/logo.svg" alt="Melvex Business Solutions" className="h-20 w-auto object-contain" />
+              <img src="/logo.svg" alt="Melvex Business Solutions" className="h-14 w-auto object-contain" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-wide">Management Portal</h1>
             <p className="text-xs text-slate-500">Sign in to access review portal and analytics.</p>
@@ -248,7 +247,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 required
                 value={loginForm.username}
                 onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-md px-3.5 py-2.5 text-xs text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
               />
             </div>
 
@@ -259,7 +258,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 required
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-md px-3.5 py-2.5 text-xs text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
               />
             </div>
 
@@ -287,13 +286,22 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-50 text-slate-800 font-sans">
+    <div className="flex min-h-screen w-full bg-slate-100/70 text-slate-900 font-sans">
 
-      {/* ORIGINAL TEAL SIDEBAR */}
-      <aside className="w-56 bg-slate-900 text-slate-200 flex flex-col justify-between px-3 py-5 shrink-0 border-r border-slate-800 min-h-screen">
+      {/* ELEGANT TEAL SIDEBAR WITH PROPER LOGO BRANDING */}
+      <aside className="w-60 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 min-h-screen shadow-lg">
         <div>
-          <div className="mb-6 px-2">
-            <span className="text-[11px] font-bold text-teal-400 uppercase tracking-widest">
+          {/* SIDEBAR LOGO & BRAND */}
+          <div className="flex items-center gap-3 px-2 py-3 mb-6 border-b border-teal-900/80">
+            <img src="/logo.svg" alt="Company Logo" className="h-10 w-auto object-contain brightness-110" />
+            <div>
+              <h2 className="text-xs font-black text-white tracking-widest uppercase">MELVEX</h2>
+              <span className="text-[10px] text-teal-400 font-bold tracking-wider uppercase">Management</span>
+            </div>
+          </div>
+
+          <div className="mb-3 px-2">
+            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">
               MAIN NAVIGATION
             </span>
           </div>
@@ -305,10 +313,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     isActive
-                      ? 'bg-slate-800 text-white border-l-2 border-teal-500'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-teal-900 text-white border-l-4 border-teal-400 shadow-sm'
+                      : 'text-teal-200/80 hover:bg-teal-900/50 hover:text-white'
                   }`}
                 >
                   <span>{item.label}</span>
@@ -346,183 +354,255 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-7 space-y-6 overflow-y-auto">
+      <main className="min-w-0 flex-1 p-6 space-y-6 overflow-y-auto">
 
-        {/* HEADER SECTION WITH LOGO INSIDE THE CONTENT AREA */}
-        <div className="space-y-4 border-b border-slate-200 pb-5">
-          <div className="flex items-center justify-between">
-            <img src="/logo.svg" alt="Company Logo" className="h-10 w-auto object-contain" />
-            <div className="flex items-center gap-2">
-              <select
-                value={dateFilter.filterMode}
-                onChange={(e) =>
-                  setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
-                }
-                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none shadow-sm cursor-pointer"
-              >
-                <option value="MONTHLY">This month</option>
-                <option value="DAILY">Today</option>
-                <option value="THIS_WEEK">This week</option>
-                <option value="THIS_YEAR">This year</option>
-              </select>
-            </div>
-          </div>
-
+        {/* CONTENT HEADER */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               Dashboard
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-0.5">
               Business performance overview
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={dateFilter.filterMode}
+              onChange={(e) =>
+                setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
+              }
+              className="bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-800 outline-none shadow-sm cursor-pointer"
+            >
+              <option value="MONTHLY">This month</option>
+              <option value="DAILY">Today</option>
+              <option value="THIS_WEEK">This week</option>
+              <option value="THIS_YEAR">This year</option>
+            </select>
           </div>
         </div>
 
         {dashboardError && (
-          <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-sm p-3 rounded-md flex justify-between items-center">
+          <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex justify-between items-center shadow-sm">
             <span>{dashboardError}</span>
             <button onClick={() => setDashboardError('')} className="font-bold ml-2">✕</button>
           </div>
         )}
 
-        {/* OVERVIEW: grouped business metrics */}
+        {/* OVERVIEW DASHBOARD METRICS */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6">
-            {loadingFinancials && (
-              <div className="text-xs text-slate-500" role="status">Updating dashboard figures…</div>
-            )}
 
-            {/* Financial performance */}
-            <section className="space-y-3">
-              <div className="flex items-end justify-between gap-3">
+            {/* ROW 1: PROFITABILITY HIGHLIGHTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL SALES</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">GROSS PROFIT</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">
+                  {dashboardCardsData?.profitability?.gross_margin_percentage || 0}% gross margin
+                </span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">OPERATING EXPENSES</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
+                  {dashboardCardsData?.profitability?.operating_expenses_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">NET PROFIT</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Before tax, illustrative</span>
+              </div>
+            </div>
+
+            {/* ROW 2: INVENTORY POSITION */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL STOCK VALUE</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">At cost price</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">PRODUCT ITEMS (SKUS)</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
+                  {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Active products</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">LOW-STOCK ITEMS</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-amber-600 tracking-tight">
+                  {dashboardCardsData?.inventory?.low_stock_items ?? 0}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">At or below reorder level</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">OUT OF STOCK</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
+                  {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Products with zero stock</span>
+              </div>
+            </div>
+
+            {/* ROW 3: DAILY STOCK MOVEMENTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK RECEIVED TODAY</span>
+                <div className="text-lg font-bold font-mono text-slate-900">
+                  {dashboardCardsData?.inventory?.stock_received_today_formatted || 'KSh 0'}
+                </div>
+              </div>
+
+              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK ISSUED TODAY</span>
+                <div className="text-lg font-bold font-mono text-slate-900">
+                  {dashboardCardsData?.inventory?.stock_issued_today_formatted || 'KSh 0'}
+                </div>
+              </div>
+
+              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">PENDING TRANSFERS</span>
+                <div className="text-lg font-bold font-mono text-slate-900">
+                  {dashboardCardsData?.inventory?.pending_transfers || 0}
+                </div>
+              </div>
+
+              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK VARIANCES</span>
+                <div className="text-lg font-bold font-mono text-slate-900">
+                  {dashboardCardsData?.inventory?.stock_variances || 0} items
+                </div>
+              </div>
+            </div>
+
+            {/* ROW 4: CASH FLOW & LIQUIDITY */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL AVAILABLE FUNDS</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Cash + bank + M-Pesa</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TODAY'S RECEIPTS</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TODAY'S PAYMENTS</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
+                  {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">NET CASH MOVEMENT</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
+                  {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 block">Receipts less payments</span>
+              </div>
+            </div>
+
+            {/* ROW 5: BALANCES BY ACCOUNT */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Balances by account
+              </h2>
+
+              <div className="divide-y divide-slate-100">
+                <div className="py-3.5 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
+                    <p className="text-xs text-slate-500">Main cash till</p>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.cash_at_hand_formatted || 'KSh 0'}
+                  </span>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
+                    <p className="text-xs text-slate-500">All business accounts</p>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.bank_accounts_formatted || 'KSh 0'}
+                  </span>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
+                    <p className="text-xs text-slate-500">Business tills and paybills</p>
+                  </div>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.mpesa_formatted || 'KSh 0'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ROW 6: SALES PERFORMANCE GRAPH */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Sales performance
+              </h2>
+
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-teal-500 rounded-full" />
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">Financial performance</h2>
-                  <p className="mt-1 text-xs text-slate-500">Revenue, margins and operating costs for the selected period.</p>
+                  <span className="text-xs text-slate-500 block">Total Sales (Period)</span>
+                  <span className="text-lg font-extrabold font-mono text-slate-900">
+                    {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
+                  </span>
                 </div>
-                <span className="hidden sm:inline text-xs text-slate-500">Amounts in KSh</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                {[
-                  { label: 'Total sales', value: dashboardCardsData?.profitability?.total_sales_formatted, note: 'Sales recorded in this period', tone: 'text-slate-900' },
-                  { label: 'Gross profit', value: dashboardCardsData?.profitability?.gross_profit_formatted, note: `${dashboardCardsData?.profitability?.gross_margin_percentage ?? 0}% gross margin`, tone: 'text-teal-700' },
-                  { label: 'Operating expenses', value: dashboardCardsData?.profitability?.operating_expenses_formatted, note: 'Operating costs for this period', tone: 'text-slate-900' },
-                  { label: 'Net profit', value: dashboardCardsData?.profitability?.net_profit_formatted, note: 'Before tax', tone: 'text-teal-700' },
-                ].map((item) => (
-                  <article key={item.label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-medium text-slate-500">{item.label}</p>
-                    <p className={`mt-3 break-words text-xl lg:text-2xl font-semibold tracking-tight ${item.tone}`}>
-                      {dashboardCardsData ? (item.value || 'KSh 0.00') : '—'}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-500">{item.note}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
 
-            {/* Inventory position */}
-            <section className="rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="text-base font-semibold text-slate-900">Inventory position</h2>
-                <p className="mt-1 text-xs text-slate-500">Current stock value and items requiring attention.</p>
+              <div className="h-64 w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={salesPerfData?.daily || []}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
+                    <Bar dataKey="gross_sales" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-200">
-                {[
-                  { label: 'Stock value at cost', value: dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00', tone: 'text-slate-900' },
-                  { label: 'Active products (SKUs)', value: formatNumber(dashboardCardsData?.inventory?.product_skus || 0), tone: 'text-slate-900' },
-                  { label: 'Low-stock items', value: dashboardCardsData?.inventory?.low_stock_items ?? 0, tone: 'text-amber-700' },
-                  { label: 'Out of stock', value: dashboardCardsData?.inventory?.out_of_stock_items ?? 0, tone: 'text-rose-700' },
-                ].map((item) => (
-                  <div key={item.label} className="p-4 sm:p-5">
-                    <p className="text-xs text-slate-500">{item.label}</p>
-                    <p className={`mt-2 text-xl font-semibold ${item.tone}`}>{dashboardCardsData ? item.value : '—'}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-3">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Stock received today', value: dashboardCardsData?.inventory?.stock_received_today_formatted || 'KSh 0' },
-                    { label: 'Stock issued today', value: dashboardCardsData?.inventory?.stock_issued_today_formatted || 'KSh 0' },
-                    { label: 'Pending transfers', value: dashboardCardsData?.inventory?.pending_transfers ?? 0 },
-                    { label: 'Stock variances', value: `${dashboardCardsData?.inventory?.stock_variances ?? 0} items` },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <p className="text-xs text-slate-500">{item.label}</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-800">{dashboardCardsData ? item.value : '—'}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
+            </div>
 
-            {/* Cash position */}
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Cash and liquidity</h2>
-                <p className="mt-1 text-xs text-slate-500">Available funds, daily cash movement and account balances.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                {[
-                  { label: 'Available funds', value: dashboardCardsData?.cash_flow?.total_available_funds_formatted, note: 'Cash, bank and M-Pesa' },
-                  { label: "Today's receipts", value: dashboardCardsData?.cash_flow?.todays_receipts_formatted, note: 'All channels' },
-                  { label: "Today's payments", value: dashboardCardsData?.cash_flow?.todays_payments_formatted, note: 'All channels' },
-                  { label: 'Net cash movement', value: dashboardCardsData?.cash_flow?.net_cash_movement_formatted, note: 'Receipts less payments' },
-                ].map((item) => (
-                  <article key={item.label} className="rounded-lg border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-medium text-slate-500">{item.label}</p>
-                    <p className="mt-3 break-words text-xl font-semibold tracking-tight text-slate-900">
-                      {dashboardCardsData ? (item.value || 'KSh 0.00') : '—'}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-500">{item.note}</p>
-                  </article>
-                ))}
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 px-5 py-3">
-                  <h3 className="text-sm font-semibold text-slate-900">Balances by account</h3>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {[
-                    { label: 'Cash at hand', description: 'Main cash till', value: dashboardCardsData?.account_balances?.cash_at_hand_formatted },
-                    { label: 'Bank accounts', description: 'Business bank accounts', value: dashboardCardsData?.account_balances?.bank_accounts_formatted },
-                    { label: 'M-Pesa', description: 'Business tills and paybills', value: dashboardCardsData?.account_balances?.mpesa_formatted },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-4 px-5 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{item.description}</p>
-                      </div>
-                      <p className="text-sm font-semibold tabular-nums text-slate-900">{dashboardCardsData ? (item.value || 'KSh 0') : '—'}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Trends */}
-            <section className="rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="text-base font-semibold text-slate-900">Sales performance</h2>
-                <p className="mt-1 text-xs text-slate-500">Daily sales across the selected reporting period.</p>
-              </div>
-              <div className="h-72 w-full p-4 sm:p-5">
-                {salesPerfData?.daily?.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={salesPerfData.daily} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={{ stroke: '#CBD5E1' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                      <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
-                      <Bar dataKey="gross_sales" fill="#0F766E" radius={[3, 3, 0, 0]} maxBarSize={34} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    {loadingFinancials ? 'Loading sales data…' : 'No sales data is available for this period.'}
-                  </div>
-                )}
-              </div>
-            </section>
           </div>
         )}
 
@@ -545,9 +625,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           <div className="space-y-6">
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
               {[
-                { id: 'PROFIT_LOSS', label: ' Profit & Loss Statement' },
-                { id: 'SALES_ANALYSIS', label: ' Sales Performance Analysis' },
-                { id: 'SUMMARIZED_REPORT', label: ' Comprehensive Executive Report' },
+                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
+                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
+                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
                   key={sub.id}
