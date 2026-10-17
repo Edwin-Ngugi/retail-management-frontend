@@ -12,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -122,11 +121,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_date_filter', JSON.stringify(dateFilter));
   }, [dateFilter]);
 
-  // Consolidated Dashboard Data States
+  // Dynamic Dashboard Data States
   const [dashboardCardsData, setDashboardCardsData] = useState(null);
   const [pnlData, setPnlData] = useState(null);
   const [salesPerfData, setSalesPerfData] = useState(null);
-  const [paymentMethodsData, setPaymentMethodsData] = useState(null);
 
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
@@ -261,25 +259,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         ...(effectiveEndDate && { end_date: effectiveEndDate }),
       }).toString();
 
-      const [
-        cardsRes,
-        pnlRes,
-        salesPerfRes,
-        paymentsRes,
-      ] = await Promise.all([
+      const [cardsRes, pnlRes, salesPerfRes] = await Promise.all([
         API.get(`management-analytics/dashboard-cards/?${queryParams}`),
         API.get(`management-analytics/profit-loss/?${queryParams}`),
         API.get(`management-analytics/sales-performance/?${queryParams}`),
-        API.get(`management-analytics/payment-methods/?${queryParams}`),
       ]);
 
       setDashboardCardsData(cardsRes.data);
       setPnlData(pnlRes.data);
       setSalesPerfData(salesPerfRes.data);
-      setPaymentMethodsData(paymentsRes.data);
     } catch (err) {
       console.error('Failed to fetch management analytics:', err);
-      setDashboardError('Failed to load live dashboard metrics. Check server connection.');
+      setDashboardError('Failed to load dashboard metrics. Check server connection.');
       if (err.response?.status === 401) handleLogout();
     } finally {
       setLoadingFinancials(false);
@@ -310,18 +301,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   if (!authToken) {
     return (
-      <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-slate-50">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
+      <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-gradient-to-br from-teal-900 via-teal-950 to-slate-900">
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 backdrop-blur-md">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
-              <img src="/logo.svg" alt="Melvex Business Solutions" className="h-20 w-auto object-contain" />
+              <img src="/logo.svg" alt="Melvex Business Solutions" className="h-16 w-auto object-contain drop-shadow-md" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-wide">Management Portal</h1>
-            <p className="text-xs text-slate-500">Sign in to access review portal and analytics.</p>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-wide">Management Portal</h1>
+            <p className="text-xs text-slate-500">Sign in to securely access executive analytics and review hub.</p>
           </div>
 
           {loginError && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between shadow-sm">
               <span>{loginError}</span>
               <button onClick={() => setLoginError('')} className="text-rose-500 font-bold ml-2">✕</button>
             </div>
@@ -329,31 +320,31 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
           <form onSubmit={handleManagementLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase">Username</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Username</label>
               <input
                 type="text"
                 required
                 value={loginForm.username}
                 onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase">Password</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider">Password</label>
               <input
                 type="password"
                 required
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 transition"
               />
             </div>
 
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer"
+              className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-teal-600/20 cursor-pointer"
             >
               {loginLoading ? 'Authenticating...' : '🔐 Sign In to Management Portal'}
             </button>
@@ -374,36 +365,45 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-white text-slate-900 font-sans">
+    <div className="flex min-h-screen w-full bg-slate-50 text-slate-900 font-sans">
 
       {/* LEFT SIDEBAR MENU */}
-      <aside className="w-60 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 min-h-screen">
-        <div>
-          <div className="mb-6 px-2">
-            <span className="text-[11px] font-bold text-teal-400 uppercase tracking-widest">
-              MAIN MENU
+      <aside className="w-64 bg-gradient-to-b from-teal-950 via-teal-900 to-slate-950 text-teal-100 flex flex-col justify-between p-5 shrink-0 border-r border-teal-900/50 shadow-xl min-h-screen">
+        <div className="space-y-6">
+          {/* LOGO & BRANDING */}
+          <div className="flex items-center gap-3 px-2 py-1">
+            <img src="/logo.svg" alt="Melvex Logo" className="h-9 w-auto object-contain filter drop-shadow" />
+            <div>
+              <h2 className="text-xs font-extrabold text-white tracking-wider uppercase">Melvex</h2>
+              <span className="text-[10px] text-teal-400 font-semibold tracking-widest uppercase">Management</span>
+            </div>
+          </div>
+
+          <div className="pt-2 px-2">
+            <span className="text-[10px] font-extrabold text-teal-400/80 uppercase tracking-widest">
+              MAIN NAVIGATION
             </span>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             {menuItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? 'bg-teal-900 text-white border-l-4 border-teal-400 font-bold'
-                      : 'text-teal-200 hover:bg-teal-900/50 hover:text-white'
+                      ? 'bg-teal-800/90 text-white shadow-lg shadow-teal-950/50 border-l-4 border-teal-400'
+                      : 'text-teal-200/80 hover:bg-teal-900/40 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-base">{item.icon}</span>
+                    <span className="text-sm">{item.icon}</span>
                     <span>{item.label}</span>
                   </div>
                   {item.badge > 0 && (
-                    <span className="bg-teal-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
+                    <span className="bg-teal-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">
                       {item.badge}
                     </span>
                   )}
@@ -413,15 +413,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </nav>
         </div>
 
-        <div className="space-y-3 pt-4 border-t border-teal-900">
+        <div className="space-y-4 pt-6 border-t border-teal-900/60">
           <div className="px-2">
-            <label className="text-[10px] font-bold text-teal-400 uppercase block mb-1">
-              Branch
+            <label className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block mb-1.5">
+              Active Branch
             </label>
             <select
               value={branchKey}
               onChange={(e) => setSelectedBranch?.(e.target.value)}
-              className="w-full bg-teal-900 border border-teal-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold outline-none cursor-pointer"
+              className="w-full bg-teal-900/80 border border-teal-700/60 rounded-xl px-3 py-2 text-xs text-white font-semibold outline-none cursor-pointer shadow-inner focus:ring-2 focus:ring-teal-400"
             >
               {branches.map((b) => (
                 <option key={b.id || b.code} value={b.id || b.code} className="bg-teal-950 text-white">
@@ -433,34 +433,40 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
           <button
             onClick={handleLogout}
-            className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
+            className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
           >
-            <span>⚙️</span> Logout
+            <span>⚙️</span> Logout Portal
           </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <main className="flex-1 p-8 space-y-6 overflow-y-auto">
 
         {/* TOP DASHBOARD HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Dashboard
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Dashboard Overview
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Business performance overview
+            <p className="text-xs text-slate-500 mt-0.5">
+              Real-time executive performance and financial analytics
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Time Period</span>
+              <span className="text-xs font-bold text-slate-700 capitalize">
+                {dateFilter.filterMode.toLowerCase().replace('_', ' ')}
+              </span>
+            </div>
             <select
               value={dateFilter.filterMode}
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
               }
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none cursor-pointer focus:ring-2 focus:ring-teal-500"
+              className="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 outline-none shadow-sm cursor-pointer focus:ring-2 focus:ring-teal-500 transition"
             >
               <option value="MONTHLY">This month</option>
               <option value="DAILY">Today</option>
@@ -471,28 +477,28 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         </div>
 
         {dashboardError && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex justify-between items-center">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-4 rounded-2xl flex justify-between items-center shadow-sm">
             <span>{dashboardError}</span>
-            <button onClick={() => setDashboardError('')} className="font-bold">✕</button>
+            <button onClick={() => setDashboardError('')} className="font-bold ml-2">✕</button>
           </div>
         )}
 
-        {/* OVERVIEW TAB CONTENT (LIVE BACKEND DATA) */}
+        {/* OVERVIEW TAB CONTENT - 4x4 CARD LAYOUT */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6">
 
-            {/* SECTION 1: FINANCIAL HIGHLIGHTS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Total Sales</span>
+            {/* ROW 1: PROFITABILITY HIGHLIGHTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">TOTAL SALES</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Gross Profit</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">GROSS PROFIT</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
                 </div>
@@ -501,16 +507,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Operating Expenses</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">OPERATING EXPENSES</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.profitability?.operating_expenses_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Net Profit</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">NET PROFIT</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
                 </div>
@@ -518,34 +524,34 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             </div>
 
-            {/* SECTION 2: INVENTORY HIGHLIGHTS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Total Stock Value</span>
+            {/* ROW 2: INVENTORY HIGHLIGHTS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">TOTAL STOCK VALUE</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">At cost price</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Product Items (SKUs)</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">PRODUCT ITEMS (SKUS)</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
                   {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Active products</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Low-Stock Items</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">LOW-STOCK ITEMS</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-amber-600 tracking-tight">
                   {dashboardCardsData?.inventory?.low_stock_items ?? 0}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">At or below reorder level</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Out of Stock</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">OUT OF STOCK</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
                   {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
                 </div>
@@ -553,62 +559,65 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             </div>
 
-            {/* SECTION 3: STOCK ACTIVITY SUB-ROW */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Received Today</span>
-                <span className="text-lg font-bold font-mono text-teal-700">
+            {/* ROW 3: DAILY STOCK ACTIVITY CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-white/80 border border-slate-200/90 rounded-3xl p-5 shadow-sm space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STOCK RECEIVED TODAY</span>
+                <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.inventory?.stock_received_today_formatted || 'KSh 0'}
-                </span>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Issued Today</span>
-                <span className="text-lg font-bold font-mono text-slate-800">
+
+              <div className="bg-white/80 border border-slate-200/90 rounded-3xl p-5 shadow-sm space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STOCK ISSUED TODAY</span>
+                <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.inventory?.stock_issued_today_formatted || 'KSh 0'}
-                </span>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block">Pending Transfers</span>
-                <span className="text-lg font-bold font-mono text-slate-800">
+
+              <div className="bg-white/80 border border-slate-200/90 rounded-3xl p-5 shadow-sm space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">PENDING TRANSFERS</span>
+                <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.inventory?.pending_transfers || 0}
-                </span>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Variances</span>
-                <span className="text-lg font-bold font-mono text-slate-800">
+
+              <div className="bg-white/80 border border-slate-200/90 rounded-3xl p-5 shadow-sm space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">STOCK VARIANCES</span>
+                <div className="text-xl font-bold font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.inventory?.stock_variances || 0} items
-                </span>
+                </div>
               </div>
             </div>
 
-            {/* SECTION 4: CASH & FUNDS OVERVIEW */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Total Available Funds</span>
+            {/* ROW 4: CASH FLOW CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">TOTAL AVAILABLE FUNDS</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Cash + bank + M-Pesa</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Today's Receipts</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">TODAY'S RECEIPTS</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Today's Payments</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">TODAY'S PAYMENTS</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
                   {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase block">Net Cash Movement</span>
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition space-y-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">NET CASH MOVEMENT</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
                   {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
                 </div>
@@ -617,13 +626,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
 
             {/* SECTION 5: BALANCES BY ACCOUNT */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-7 shadow-sm space-y-5">
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
                 Balances by account
               </h2>
 
               <div className="divide-y divide-slate-100">
-                <div className="py-3.5 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
                     <p className="text-xs text-slate-500">Main cash till</p>
@@ -633,7 +642,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </span>
                 </div>
 
-                <div className="py-3.5 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
                     <p className="text-xs text-slate-500">All business accounts</p>
@@ -643,7 +652,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </span>
                 </div>
 
-                <div className="py-3.5 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
                     <p className="text-xs text-slate-500">Business tills and paybills</p>
@@ -656,22 +665,22 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
 
             {/* SALES PERFORMANCE GRAPH SECTION */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-7 shadow-sm space-y-5">
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
                 Sales performance
               </h2>
 
               <div className="flex items-center gap-3">
-                <div className="w-1 h-6 bg-teal-500 rounded-full" />
+                <div className="w-1.5 h-6 bg-teal-500 rounded-full" />
                 <div>
-                  <span className="text-xs text-slate-500 block">Total Sales (Period)</span>
-                  <span className="text-lg font-extrabold font-mono text-slate-900">
+                  <span className="text-xs text-slate-400 uppercase font-bold block">Total Sales (Period)</span>
+                  <span className="text-lg font-black font-mono text-slate-900">
                     {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                   </span>
                 </div>
               </div>
 
-              <div className="h-64 w-full pt-4">
+              <div className="h-72 w-full pt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={salesPerfData?.daily || []}
@@ -681,7 +690,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
                     <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
-                    <Bar dataKey="gross_sales" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={28} />
+                    <Bar dataKey="gross_sales" fill="#0D9488" radius={[6, 6, 0, 0]} barSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -708,18 +717,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* REPORTS TAB */}
         {activeTab === 'REPORTS' && (
           <div className="space-y-6">
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center gap-2">
               {[
-                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
-                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
-                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
+                { id: 'PROFIT_LOSS', label: ' Profit & Loss Statement' },
+                { id: 'SALES_ANALYSIS', label: ' Sales Performance Analysis' },
+                { id: 'SUMMARIZED_REPORT', label: ' Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setReportSubTab(sub.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`px-4.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     reportSubTab === sub.id
-                      ? 'bg-teal-600 text-white shadow-sm'
+                      ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
@@ -729,11 +738,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
 
             {reportSubTab === 'PROFIT_LOSS' && (
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+              <div className="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm space-y-6">
                 <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
                   Profit & Loss Statement (P&L)
                 </h2>
-                <div className="h-64 w-full">
+                <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={profitLossChartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
@@ -754,16 +763,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* ACCOUNTS TAB */}
         {activeTab === 'ACCOUNTS' && (
           <section className="mx-auto max-w-5xl space-y-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900">Account Details</h2>
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Username</p>
-                  <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.username || 'N/A'}</p>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-900">Account Details</h2>
+              <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Username</p>
+                  <p className="mt-2 text-base font-extrabold text-teal-700">{currentUser?.username || 'N/A'}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Role</p>
-                  <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.role || 'Manager'}</p>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Role</p>
+                  <p className="mt-2 text-base font-extrabold text-teal-700">{currentUser?.role || 'Manager'}</p>
                 </div>
               </div>
             </div>
