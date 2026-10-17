@@ -434,7 +434,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchManagementAnalytics();
   }, [authToken, branchKey, fetchRequests, fetchManagementAnalytics]);
 
-  // Filter out "SPLIT" payments to render actual channels (Cash, Paybill, Send Money, Credit, Bank)
+  // Filter out "SPLIT" payments to render actual underlying channels
   const paymentBreakdownData = useMemo(() => {
     if (!paymentMethodsData?.sale_payments) return [];
 
@@ -448,7 +448,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     };
 
     return paymentMethodsData.sale_payments
-      .filter((sp) => sp.method !== 'SPLIT') // Exclude generic "SPLIT" label
+      .filter((sp) => sp.method !== 'SPLIT') // Exclude generic SPLIT card
       .map((sp) => ({
         name: map[sp.method]?.name || sp.method,
         value: toNumber(sp.amount),
