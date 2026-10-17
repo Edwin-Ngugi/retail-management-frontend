@@ -13,9 +13,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -125,17 +122,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_date_filter', JSON.stringify(dateFilter));
   }, [dateFilter]);
 
-  const [summaryData, setSummaryData] = useState(null);
+  // Consolidated Dashboard Data States
+  const [dashboardCardsData, setDashboardCardsData] = useState(null);
   const [pnlData, setPnlData] = useState(null);
   const [salesPerfData, setSalesPerfData] = useState(null);
   const [paymentMethodsData, setPaymentMethodsData] = useState(null);
-  const [inventoryData, setInventoryData] = useState(null);
-  const [creditData, setCreditData] = useState(null);
-  const [purchasesData, setPurchasesData] = useState(null);
 
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
-  const [lastUpdated, setLastUpdated] = useState(null);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('access_token');
@@ -253,7 +247,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
-      setDashboardError('Invalid reporting period: the start date must be on or before the end date.');
+      setDashboardError('Invalid reporting period: start date must be on or before end date.');
       return;
     }
 
@@ -268,35 +262,24 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       }).toString();
 
       const [
-        summaryRes,
+        cardsRes,
         pnlRes,
         salesPerfRes,
         paymentsRes,
-        inventoryRes,
-        creditRes,
-        purchasesRes,
       ] = await Promise.all([
-        API.get(`management-analytics/summary/?${queryParams}`),
+        API.get(`management-analytics/dashboard-cards/?${queryParams}`),
         API.get(`management-analytics/profit-loss/?${queryParams}`),
         API.get(`management-analytics/sales-performance/?${queryParams}`),
         API.get(`management-analytics/payment-methods/?${queryParams}`),
-        API.get(`management-analytics/inventory/?${queryParams}`),
-        API.get(`management-analytics/credit/?${queryParams}`),
-        API.get(`management-analytics/purchases/?${queryParams}`),
       ]);
 
-      setSummaryData(summaryRes.data);
+      setDashboardCardsData(cardsRes.data);
       setPnlData(pnlRes.data);
       setSalesPerfData(salesPerfRes.data);
       setPaymentMethodsData(paymentsRes.data);
-      setInventoryData(inventoryRes.data);
-      setCreditData(creditRes.data);
-      setPurchasesData(purchasesRes.data);
-
-      setLastUpdated(new Date());
     } catch (err) {
-      console.error('Failed to fetch optimized management analytics:', err);
-      setDashboardError('Failed to load dashboard metrics. Check server connection.');
+      console.error('Failed to fetch management analytics:', err);
+      setDashboardError('Failed to load live dashboard metrics. Check server connection.');
       if (err.response?.status === 401) handleLogout();
     } finally {
       setLoadingFinancials(false);
@@ -305,32 +288,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   useEffect(() => {
     if (!authToken) return;
-
     fetchRequests();
     fetchManagementAnalytics();
   }, [authToken, branchKey, fetchRequests, fetchManagementAnalytics]);
-
-  const paymentBreakdownData = useMemo(() => {
-    if (!paymentMethodsData?.sale_payments) return [];
-
-    const map = {
-      CASH: { name: 'Cash', fill: '#0D9488' },
-      MPESA: { name: 'M-Pesa / Mobile', fill: '#14B8A6' },
-      PAYBILL: { name: 'Paybill / Till', fill: '#2DD4BF' },
-      SEND_MONEY: { name: 'Send Money', fill: '#5EEAD4' },
-      CREDIT: { name: 'Credit Owed', fill: '#99F6E4' },
-      BANK_TRANSFER: { name: 'Bank Transfer', fill: '#115E59' },
-    };
-
-    return paymentMethodsData.sale_payments
-      .filter((sp) => sp.method !== 'SPLIT')
-      .map((sp) => ({
-        name: map[sp.method]?.name || sp.method,
-        value: toNumber(sp.amount),
-        fill: map[sp.method]?.fill || '#0D9488',
-      }))
-      .filter((item) => item.value > 0);
-  }, [paymentMethodsData]);
 
   const profitLossChartData = useMemo(() => {
     if (!pnlData) return [];
@@ -345,9 +305,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   const summaryMetrics = useMemo(() => {
     const pending = requests.filter((r) => r.status?.toUpperCase().includes('PENDING')).length;
-    const approved = requests.filter((r) => r.status?.toUpperCase().includes('APPROVED')).length;
-    const rejected = requests.filter((r) => r.status?.toUpperCase().includes('REJECTED')).length;
-    return { pending, approved, rejected, total: requests.length };
+    return { pending, total: requests.length };
   }, [requests]);
 
   if (!authToken) {
@@ -519,51 +477,53 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* OVERVIEW TAB CONTENT MATCHING NEW METRICS */}
+        {/* OVERVIEW TAB CONTENT (LIVE BACKEND DATA) */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6">
 
-            {/* SECTION 1: FINANCIAL HIGHLIGHTS (Image 1) */}
+            {/* SECTION 1: FINANCIAL HIGHLIGHTS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Total Sales</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {summaryData?.sales?.gross_sales ? formatCurrency(summaryData.sales.gross_sales) : 'KSh 3.85M'}
+                  {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">This month</span>
+                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Gross Profit</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {pnlData?.gross_profit ? formatCurrency(pnlData.gross_profit) : 'KSh 1.16M'}
+                  {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">30.1% gross margin</span>
+                <span className="text-[11px] font-semibold text-slate-400 block">
+                  {dashboardCardsData?.profitability?.gross_margin_percentage || 0}% gross margin
+                </span>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Operating Expenses</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
-                  {pnlData?.expenses ? formatCurrency(pnlData.expenses) : 'KSh 420K'}
+                  {dashboardCardsData?.profitability?.operating_expenses_formatted || 'KSh 0.00'}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">This month</span>
+                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Net Profit</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {pnlData?.net_profit ? formatCurrency(pnlData.net_profit) : 'KSh 740K'}
+                  {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Before tax, illustrative</span>
               </div>
             </div>
 
-            {/* SECTION 2: INVENTORY HIGHLIGHTS (Image 2) */}
+            {/* SECTION 2: INVENTORY HIGHLIGHTS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Total Stock Value</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {inventoryData?.inventory_value_at_cost ? formatCurrency(inventoryData.inventory_value_at_cost) : 'KSh 4.85M'}
+                  {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">At cost price</span>
               </div>
@@ -571,7 +531,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Product Items (SKUs)</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
-                  {inventoryData?.total_quantity ? formatNumber(inventoryData.total_quantity) : '1,250'}
+                  {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Active products</span>
               </div>
@@ -579,7 +539,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Low-Stock Items</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-amber-600 tracking-tight">
-                  {inventoryData?.low_stock_count !== undefined ? inventoryData.low_stock_count : '36'}
+                  {dashboardCardsData?.inventory?.low_stock_items ?? 0}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">At or below reorder level</span>
               </div>
@@ -587,9 +547,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Out of Stock</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
-                  12
+                  {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
                 </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Products with zero available stock</span>
+                <span className="text-[11px] font-semibold text-slate-400 block">Products with zero stock</span>
               </div>
             </div>
 
@@ -597,28 +557,36 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
                 <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Received Today</span>
-                <span className="text-lg font-bold font-mono text-teal-700">KSh 125,000</span>
+                <span className="text-lg font-bold font-mono text-teal-700">
+                  {dashboardCardsData?.inventory?.stock_received_today_formatted || 'KSh 0'}
+                </span>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
                 <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Issued Today</span>
-                <span className="text-lg font-bold font-mono text-slate-800">KSh 87,000</span>
+                <span className="text-lg font-bold font-mono text-slate-800">
+                  {dashboardCardsData?.inventory?.stock_issued_today_formatted || 'KSh 0'}
+                </span>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
                 <span className="text-[11px] font-bold text-slate-500 uppercase block">Pending Transfers</span>
-                <span className="text-lg font-bold font-mono text-slate-800">8</span>
+                <span className="text-lg font-bold font-mono text-slate-800">
+                  {dashboardCardsData?.inventory?.pending_transfers || 0}
+                </span>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
                 <span className="text-[11px] font-bold text-slate-500 uppercase block">Stock Variances</span>
-                <span className="text-lg font-bold font-mono text-slate-800">3 items</span>
+                <span className="text-lg font-bold font-mono text-slate-800">
+                  {dashboardCardsData?.inventory?.stock_variances || 0} items
+                </span>
               </div>
             </div>
 
-            {/* SECTION 4: CASH & FUNDS OVERVIEW (Image 3) */}
+            {/* SECTION 4: CASH & FUNDS OVERVIEW */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Total Available Funds</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  KSh 1.85M
+                  {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Cash + bank + M-Pesa</span>
               </div>
@@ -626,7 +594,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Today's Receipts</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  KSh 245K
+                  {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
               </div>
@@ -634,7 +602,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Today's Payments</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 tracking-tight">
-                  KSh 168K
+                  {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
               </div>
@@ -642,13 +610,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
                 <span className="text-xs font-bold text-slate-500 uppercase block">Net Cash Movement</span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  +KSh 77K
+                  {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
                 </div>
                 <span className="text-[11px] font-semibold text-slate-400 block">Receipts less payments</span>
               </div>
             </div>
 
-            {/* SECTION 5: BALANCES BY ACCOUNT (Image 4) */}
+            {/* SECTION 5: BALANCES BY ACCOUNT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Balances by account
@@ -656,36 +624,33 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
               <div className="divide-y divide-slate-100">
                 <div className="py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl"></span>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
-                      <p className="text-xs text-slate-500">Main cash till</p>
-                    </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
+                    <p className="text-xs text-slate-500">Main cash till</p>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">KSh 150,000</span>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.cash_at_hand_formatted || 'KSh 0'}
+                  </span>
                 </div>
 
                 <div className="py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl"></span>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
-                      <p className="text-xs text-slate-500">All business accounts</p>
-                    </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
+                    <p className="text-xs text-slate-500">All business accounts</p>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">KSh 1,200,000</span>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.bank_accounts_formatted || 'KSh 0'}
+                  </span>
                 </div>
 
                 <div className="py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl"></span>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
-                      <p className="text-xs text-slate-500">Business tills and paybills</p>
-                    </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
+                    <p className="text-xs text-slate-500">Business tills and paybills</p>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">KSh 500,000</span>
+                  <span className="font-mono text-base font-bold text-teal-600">
+                    {dashboardCardsData?.account_balances?.mpesa_formatted || 'KSh 0'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -699,9 +664,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="flex items-center gap-3">
                 <div className="w-1 h-6 bg-teal-500 rounded-full" />
                 <div>
-                  <span className="text-xs text-slate-500 block">Sales</span>
+                  <span className="text-xs text-slate-500 block">Total Sales (Period)</span>
                   <span className="text-lg font-extrabold font-mono text-slate-900">
-                    {formatCurrency(summaryData?.sales?.gross_sales || 185)}
+                    {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                   </span>
                 </div>
               </div>
@@ -709,19 +674,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="h-64 w-full pt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={
-                      salesPerfData?.daily?.length > 0
-                        ? salesPerfData.daily
-                        : [
-                            { date: 'Mon', gross_sales: 120 },
-                            { date: 'Tue', gross_sales: 150 },
-                            { date: 'Wed', gross_sales: 180 },
-                            { date: 'Thu', gross_sales: 140 },
-                            { date: 'Fri', gross_sales: 200 },
-                            { date: 'Sat', gross_sales: 220 },
-                            { date: 'Sun', gross_sales: 245 },
-                          ]
-                    }
+                    data={salesPerfData?.daily || []}
                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -759,7 +712,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               {[
                 { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
                 { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
-                { id: 'PAYMENT_BREAKDOWN', label: '💳 Payment Methods Breakdown' },
                 { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
