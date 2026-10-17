@@ -90,7 +90,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
             onChange={(e) =>
               setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
             }
-            className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
           >
             <option value="DAILY">Today / Specific Day</option>
             <option value="THIS_WEEK">This Week</option>
@@ -110,7 +110,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
             onChange={(e) =>
               setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))
             }
-            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
           />
         </div>
       )}
@@ -124,7 +124,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
             onChange={(e) =>
               setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))
             }
-            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
           />
         </div>
       )}
@@ -145,7 +145,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))
               }
-              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
             />
           </div>
 
@@ -157,7 +157,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))
               }
-              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
             />
           </div>
         </div>
@@ -222,7 +222,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Global Management Date Filter Horizon
   const [dateFilter, setDateFilter] = useState(() => {
     const saved = localStorage.getItem('mgmt_date_filter');
     if (saved) {
@@ -230,9 +229,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         const parsed = JSON.parse(saved);
         if (parsed.filterMode === 'ALL') parsed.filterMode = 'DAILY';
         return parsed;
-      } catch (e) {
-        /* fallback */
-      }
+      } catch (e) {}
     }
     return {
       filterMode: 'DAILY',
@@ -247,7 +244,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_date_filter', JSON.stringify(dateFilter));
   }, [dateFilter]);
 
-  // Analytics & Summary State variables loaded directly from optimized ViewSet
   const [summaryData, setSummaryData] = useState(null);
   const [pnlData, setPnlData] = useState(null);
   const [salesPerfData, setSalesPerfData] = useState(null);
@@ -371,7 +367,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  // OPTIMIZED ANALYTICS FETCHING FROM MANAGEMENT-ANALYTICS VIEWSET
   const fetchManagementAnalytics = useCallback(async () => {
     if (!authToken || !branchKey) return;
 
@@ -434,25 +429,24 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchManagementAnalytics();
   }, [authToken, branchKey, fetchRequests, fetchManagementAnalytics]);
 
-  // Filter out "SPLIT" payments to render actual underlying channels
   const paymentBreakdownData = useMemo(() => {
     if (!paymentMethodsData?.sale_payments) return [];
 
     const map = {
-      CASH: { name: 'Cash', fill: '#6366F1' },
-      MPESA: { name: 'M-Pesa / Mobile', fill: '#10B981' },
-      PAYBILL: { name: 'Paybill / Till', fill: '#F59E0B' },
-      SEND_MONEY: { name: 'Send Money', fill: '#3B82F6' },
-      CREDIT: { name: 'Credit Owed', fill: '#8B5CF6' },
-      BANK_TRANSFER: { name: 'Bank Transfer', fill: '#EC4899' },
+      CASH: { name: 'Cash', fill: '#0D9488' },
+      MPESA: { name: 'M-Pesa / Mobile', fill: '#14B8A6' },
+      PAYBILL: { name: 'Paybill / Till', fill: '#2DD4BF' },
+      SEND_MONEY: { name: 'Send Money', fill: '#5EEAD4' },
+      CREDIT: { name: 'Credit Owed', fill: '#99F6E4' },
+      BANK_TRANSFER: { name: 'Bank Transfer', fill: '#115E59' },
     };
 
     return paymentMethodsData.sale_payments
-      .filter((sp) => sp.method !== 'SPLIT') // Exclude generic SPLIT card
+      .filter((sp) => sp.method !== 'SPLIT')
       .map((sp) => ({
         name: map[sp.method]?.name || sp.method,
         value: toNumber(sp.amount),
-        fill: map[sp.method]?.fill || '#64748B',
+        fill: map[sp.method]?.fill || '#0D9488',
       }))
       .filter((item) => item.value > 0);
   }, [paymentMethodsData]);
@@ -460,11 +454,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const profitLossChartData = useMemo(() => {
     if (!pnlData) return [];
     return [
-      { name: 'Revenue', amount: toNumber(pnlData.revenue), fill: '#4F46E5' },
-      { name: 'COGS', amount: toNumber(pnlData.cost_of_goods_sold), fill: '#E11D48' },
-      { name: 'Gross Profit', amount: toNumber(pnlData.gross_profit), fill: '#10B981' },
-      { name: 'Expenses', amount: toNumber(pnlData.expenses), fill: '#F59E0B' },
-      { name: 'Net Profit', amount: toNumber(pnlData.net_profit), fill: '#0EA5E9' },
+      { name: 'Revenue', amount: toNumber(pnlData.revenue), fill: '#0D9488' },
+      { name: 'COGS', amount: toNumber(pnlData.cost_of_goods_sold), fill: '#0F766E' },
+      { name: 'Gross Profit', amount: toNumber(pnlData.gross_profit), fill: '#14B8A6' },
+      { name: 'Expenses', amount: toNumber(pnlData.expenses), fill: '#2DD4BF' },
+      { name: 'Net Profit', amount: toNumber(pnlData.net_profit), fill: '#0D9488' },
     ];
   }, [pnlData]);
 
@@ -477,7 +471,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   if (!authToken) {
     return (
-      <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-slate-100">
+      <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-white">
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
@@ -520,7 +514,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full py-3 bg-indigo-600 text-white text-xs font-bold rounded-xl transition shadow-md"
+              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer"
             >
               {loginLoading ? 'Authenticating...' : '🔐 Sign In to Management Portal'}
             </button>
@@ -531,30 +525,30 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   }
 
   return (
-    <div className="min-h-screen relative w-full text-slate-900 p-3 sm:p-6 font-sans bg-slate-950/5">
+    <div className="min-h-screen relative w-full text-slate-900 p-3 sm:p-6 font-sans bg-white">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* HEADER & TOP NAVBAR */}
-        <div className="sticky top-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 text-white shadow-xl">
+        <div className="sticky top-2 z-50 bg-teal-950 border border-teal-900 rounded-2xl p-3 sm:p-4 text-white shadow-xl">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex items-center gap-4">
               <img src="/logo.svg" alt="Melvex Business Solutions" className="h-12 sm:h-14 w-auto object-contain" />
-              <div className="border-l border-slate-800 pl-4 hidden sm:block">
+              <div className="border-l border-teal-800 pl-4 hidden sm:block">
                 <h1 className="text-lg font-extrabold tracking-tight">Management Dashboard</h1>
-                <p className="text-xs text-slate-400">Optimized branch analytics, operations, and financial reporting.</p>
+                <p className="text-xs text-teal-200/80">Optimized branch analytics, operations, and financial reporting.</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-2xl">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Branch:</label>
+              <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-700/80 px-3 py-1.5 rounded-2xl">
+                <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
                 <select
                   value={branchKey}
                   onChange={(e) => setSelectedBranch?.(e.target.value)}
                   className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
                 >
                   {branches.map((b) => (
-                    <option key={b.id || b.code} value={b.id || b.code} className="bg-slate-900 text-white">
+                    <option key={b.id || b.code} value={b.id || b.code} className="bg-teal-950 text-white">
                       {b.name || b.branch_name}
                     </option>
                   ))}
@@ -562,7 +556,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
 
               {/* NAV TAB ITEMS */}
-              <nav className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
+              <nav className="flex items-center gap-1.5 bg-teal-900/50 p-1.5 rounded-2xl border border-teal-800">
                 {[
                   { id: 'OVERVIEW', label: 'Overview' },
                   { id: 'OPERATIONS', label: 'Operations' },
@@ -579,13 +573,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       activeTab === tab.id
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-teal-100 hover:text-white hover:bg-teal-800/60'
                     }`}
                   >
                     {tab.label}
                     {tab.badge > 0 && (
-                      <span className="ml-1.5 bg-indigo-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+                      <span className="ml-1.5 bg-teal-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
                         {tab.badge}
                       </span>
                     )}
@@ -626,64 +620,64 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6 max-w-6xl mx-auto font-sans">
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-teal-600">
                     Branch Executive Summary
                   </span>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                     Business Performance
                   </h1>
-                  <p className="text-xs sm:text-sm text-slate-300 max-w-md">
+                  <p className="text-xs sm:text-sm text-slate-500 max-w-md">
                     Lightweight API analytics loaded directly from Django.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-slate-800/80 p-4 rounded-2xl border border-slate-700/80 backdrop-blur-sm">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-teal-50/50 p-4 rounded-2xl border border-teal-100">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                       Gross Sales Volume
                     </span>
-                    <span className="text-lg sm:text-xl font-bold font-mono text-indigo-400">
+                    <span className="text-lg sm:text-xl font-bold font-mono text-teal-600">
                       {formatCurrency(summaryData?.sales?.gross_sales)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                       Cash Received from Sales
                     </span>
-                    <span className="text-lg sm:text-xl font-bold font-mono text-emerald-400">
+                    <span className="text-lg sm:text-xl font-bold font-mono text-teal-700">
                       {formatCurrency(summaryData?.sales?.sales_cash_received)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-800/80">
-                <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-100">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                     Total Transactions
                   </span>
-                  <span className="text-lg font-bold font-mono text-indigo-300">
+                  <span className="text-lg font-bold font-mono text-teal-700">
                     {summaryData?.sales?.transaction_count || 0} Orders
                   </span>
                 </div>
 
-                <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                     Credit Issued
                   </span>
-                  <span className="text-lg font-bold font-mono text-amber-300">
+                  <span className="text-lg font-bold font-mono text-teal-700">
                     {formatCurrency(summaryData?.sales?.credit_issued)}
                   </span>
                 </div>
 
-                <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">
                     Pending Approvals
                   </span>
-                  <span className="text-lg font-bold font-mono text-purple-400">
+                  <span className="text-lg font-bold font-mono text-teal-800">
                     {summaryMetrics.pending} Requests
                   </span>
                 </div>
@@ -704,19 +698,19 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
                       New Credit Sales
                     </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
+                    <span className="text-xs sm:text-sm font-bold font-mono text-teal-600 block">
                       {formatCurrency(creditData?.new_credit_sales)}
                     </span>
                   </div>
 
-                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
-                    <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">
+                  <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200">
+                    <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                       Repayments Received
                     </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-emerald-700 block">
+                    <span className="text-xs sm:text-sm font-bold font-mono text-teal-800 block">
                       {formatCurrency(creditData?.repayments_received_in_period)}
                     </span>
                   </div>
@@ -734,11 +728,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
-                    <span className="text-[9px] font-bold text-blue-600 uppercase block mb-1">
+                  <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200">
+                    <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                       Restock Total Cost
                     </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-blue-900 block">
+                    <span className="text-xs sm:text-sm font-bold font-mono text-teal-800 block">
                       {formatCurrency(purchasesData?.purchase_total)}
                     </span>
                   </div>
@@ -747,7 +741,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
                       Purchase Invoices
                     </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
+                    <span className="text-xs sm:text-sm font-bold font-mono text-teal-600 block">
                       {purchasesData?.purchase_count || 0} Batches
                     </span>
                   </div>
@@ -767,11 +761,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
-                  <span className="block text-[10px] font-bold text-indigo-700 uppercase">
+                <div className="p-3 bg-teal-50/60 rounded-xl border border-teal-200">
+                  <span className="block text-[10px] font-bold text-teal-700 uppercase">
                     Inventory Value (Cost)
                   </span>
-                  <span className="text-base font-bold font-mono text-indigo-900">
+                  <span className="text-base font-bold font-mono text-teal-800">
                     {formatCurrency(inventoryData?.inventory_value_at_cost)}
                   </span>
                 </div>
@@ -780,16 +774,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   <span className="block text-[10px] font-bold text-slate-600 uppercase">
                     Total Physical Stock Qty
                   </span>
-                  <span className="text-base font-bold font-mono text-slate-900">
+                  <span className="text-base font-bold font-mono text-teal-600">
                     {formatNumber(inventoryData?.total_quantity)} Units
                   </span>
                 </div>
 
-                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100">
-                  <span className="block text-[10px] font-bold text-amber-700 uppercase">
+                <div className="p-3 bg-teal-50/60 rounded-xl border border-teal-200">
+                  <span className="block text-[10px] font-bold text-teal-700 uppercase">
                     Low Stock Threshold Warnings
                   </span>
-                  <span className="text-base font-bold font-mono text-amber-800">
+                  <span className="text-base font-bold font-mono text-teal-800">
                     {inventoryData?.low_stock_count || 0} Items
                   </span>
                 </div>
@@ -818,7 +812,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   onClick={() => setReportSubTab(sub.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                     reportSubTab === sub.id
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'bg-teal-600 text-white shadow-sm'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
@@ -861,28 +855,28 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">Revenue</span>
-                    <span className="text-lg font-bold font-mono text-slate-900 block mt-1">
+                    <span className="text-lg font-bold font-mono text-teal-600 block mt-1">
                       {formatCurrency(pnlData?.revenue)}
                     </span>
                   </div>
 
-                  <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
-                    <span className="text-[10px] font-bold text-rose-600 uppercase block">COGS</span>
-                    <span className="text-lg font-bold font-mono text-rose-800 block mt-1">
+                  <div className="p-4 bg-teal-50/40 rounded-xl border border-teal-200">
+                    <span className="text-[10px] font-bold text-teal-700 uppercase block">COGS</span>
+                    <span className="text-lg font-bold font-mono text-teal-800 block mt-1">
                       {formatCurrency(pnlData?.cost_of_goods_sold)}
                     </span>
                   </div>
 
-                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase block">Gross Profit</span>
-                    <span className="text-lg font-bold font-mono text-emerald-800 block mt-1">
+                  <div className="p-4 bg-teal-50/70 rounded-xl border border-teal-200">
+                    <span className="text-[10px] font-bold text-teal-700 uppercase block">Gross Profit</span>
+                    <span className="text-lg font-bold font-mono text-teal-800 block mt-1">
                       {formatCurrency(pnlData?.gross_profit)}
                     </span>
                   </div>
 
-                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
-                    <span className="text-[10px] font-bold text-indigo-600 uppercase block">Net Profit</span>
-                    <span className="text-lg font-bold font-mono text-indigo-900 block mt-1">
+                  <div className="p-4 bg-teal-100/60 rounded-xl border border-teal-300">
+                    <span className="text-[10px] font-bold text-teal-800 uppercase block">Net Profit</span>
+                    <span className="text-lg font-bold font-mono text-teal-900 block mt-1">
                       {formatCurrency(pnlData?.net_profit)}
                     </span>
                   </div>
@@ -905,7 +899,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 <div className="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
+                      <tr className="bg-teal-950 text-white font-bold text-[11px] uppercase">
                         <th className="py-3.5 px-4">Date</th>
                         <th className="py-3.5 px-4 text-right">Transactions</th>
                         <th className="py-3.5 px-4 text-right">Gross Sales</th>
@@ -925,7 +919,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                             <td className="py-3 px-4 text-right font-mono font-bold text-slate-700">
                               {row.transactions} orders
                             </td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
+                            <td className="py-3 px-4 text-right font-mono font-bold text-teal-600">
                               {formatCurrency(row.gross_sales)}
                             </td>
                           </tr>
@@ -980,12 +974,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                   <div className="space-y-3">
                     {paymentMethodsData?.sale_payments
-                      ?.filter((sp) => sp.method !== 'SPLIT') // Exclude generic SPLIT card
+                      ?.filter((sp) => sp.method !== 'SPLIT')
                       ?.map((sp) => (
                         <div key={sp.method} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
                           <div>
                             <span className="text-[10px] font-bold text-slate-500 uppercase block">{sp.method}</span>
-                            <span className="text-base font-extrabold font-mono text-slate-900">{formatCurrency(sp.amount)}</span>
+                            <span className="text-base font-extrabold font-mono text-teal-600">{formatCurrency(sp.amount)}</span>
                           </div>
                         </div>
                       ))}
@@ -1005,10 +999,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex flex-col gap-2 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">User Account</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-teal-600">User Account</p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-900">Account Details</h2>
                 </div>
-                <span className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Signed In</span>
+                <span className="inline-flex w-fit items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">Signed In</span>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
@@ -1019,12 +1013,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 ].map((field) => (
                   <div key={field.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{field.label}</p>
-                    <p className="mt-2 break-words text-base font-semibold text-slate-900">{field.value}</p>
+                    <p className="mt-2 break-words text-base font-semibold text-teal-700">{field.value}</p>
                   </div>
                 ))}
               </div>
               <div className="mt-5 flex justify-end">
-                <button type="button" onClick={handleLogout} className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50">Sign Out</button>
+                <button type="button" onClick={handleLogout} className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer">Sign Out</button>
               </div>
             </div>
           </section>
