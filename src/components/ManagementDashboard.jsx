@@ -18,10 +18,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const PAYMENT_COLORS = ['#10B981', '#6366F1', '#F59E0B', '#8B5CF6', '#EC4899'];
-
 /* =========================================================
-   HELPERS & CALCULATORS
+   HELPERS & FORMATTERS
 ========================================================= */
 
 const toNumber = (value, fallback = 0) => {
@@ -41,113 +39,11 @@ const formatCurrency = (value) => {
   return `KSh ${formatNumber(value, 2, 2)}`;
 };
 
-const getRemainingStock = (item) =>
-  toNumber(item?.remaining_stock ?? item?.current_stock ?? item?.stock);
-
 const formatDateString = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-};
-
-const getRecordDateStr = (record) => {
-  const rawDate =
-    record?.date ||
-    record?.payment_date ||
-    record?.repayment_date ||
-    record?.created_at ||
-    record?.sale_date ||
-    record?.purchase_date ||
-    record?.timestamp;
-
-  if (!rawDate) return '';
-  if (typeof rawDate === 'string') return rawDate.split('T')[0];
-
-  try {
-    return new Date(rawDate).toISOString().split('T')[0];
-  } catch {
-    return '';
-  }
-};
-
-const normalizePaymentMethod = (methodName) => {
-  if (!methodName) return 'CASH';
-  const clean = String(methodName).trim().toUpperCase().replace(/[- ]/g, '_');
-
-  if (clean.includes('PAYBILL') || clean.includes('PAY_BILL') || clean.includes('C2B')) {
-    return 'PAYBILL';
-  }
-
-  if (
-    clean.includes('SEND_MONEY') ||
-    clean.includes('SENDMONEY') ||
-    clean.includes('TILL') ||
-    clean.includes('BUY_GOODS') ||
-    clean.includes('BUYGOODS') ||
-    clean.includes('P2P') ||
-    clean.includes('MPESA') ||
-    clean.includes('M_PESA') ||
-    clean.includes('MOBILE')
-  ) {
-    return 'MPESA';
-  }
-
-  if (clean.includes('CREDIT') || clean.includes('DEBT') || clean.includes('ON_ACCOUNT')) {
-    return 'CREDIT';
-  }
-
-  if (clean.includes('BANK') || clean.includes('TRANSFER') || clean.includes('EFT')) {
-    return 'BANK_TRANSFER';
-  }
-
-  if (clean.includes('SPLIT')) return 'SPLIT';
-
-  return 'CASH';
-};
-
-const fetchPaginatedData = async (initialEndpoint) => {
-  let results = [];
-  let currentEndpoint = initialEndpoint;
-
-  while (currentEndpoint) {
-    let cleanPath = currentEndpoint;
-
-    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-      try {
-        const urlObj = new URL(cleanPath);
-        cleanPath = urlObj.pathname + urlObj.search;
-      } catch (e) {
-        /* ignore */
-      }
-    }
-
-    if (cleanPath.startsWith('/api/')) {
-      cleanPath = cleanPath.replace(/^\/api\//, '');
-    } else if (cleanPath.startsWith('/')) {
-      cleanPath = cleanPath.slice(1);
-    }
-
-    try {
-      const res = await API.get(cleanPath);
-      const data = res.data;
-
-      if (Array.isArray(data)) {
-        results = results.concat(data);
-        break;
-      } else if (data?.results && Array.isArray(data.results)) {
-        results = results.concat(data.results);
-        currentEndpoint = data.next ? data.next : null;
-      } else {
-        break;
-      }
-    } catch (e) {
-      console.error(`Fetch failed for ${cleanPath}`, e);
-      throw e;
-    }
-  }
-
-  return results;
 };
 
 /* =========================================================
@@ -162,36 +58,43 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Reporting period
+            Reporting Period Horizon
           </h2>
           <p className="text-[11px] text-slate-500">
-            The selected dates apply to the dashboard, operations and reports
+            Selected dates filter analytics across Dashboard, Operations, and Reports
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setDateFilter({
-              filterMode: 'DAILY',
-              selectedDay: formatDateString(new Date()),
-              selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-              startDate: '',
-              endDate: '',
-            })}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >Today
+            onClick={() =>
+              setDateFilter({
+                filterMode: 'DAILY',
+                selectedDay: formatDateString(new Date()),
+                selectedMonth: `${new Date().getFullYear()}-${String(
+                  new Date().getMonth() + 1
+                ).padStart(2, '0')}`,
+                startDate: '',
+                endDate: '',
+              })
+            }
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+          >
+            Today
           </button>
           <label className="text-xs font-bold text-slate-700">Period:</label>
           <select
             value={filterMode}
-            onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
+            onChange={(e) =>
+              setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
+            }
             className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="DAILY">Today / specific day</option>
-            <option value="THIS_WEEK">This week</option>
-            <option value="MONTHLY">This month / specific month</option>
-            <option value="THIS_YEAR">This year</option>
+            <option value="DAILY">Today / Specific Day</option>
+            <option value="THIS_WEEK">This Week</option>
+            <option value="MONTHLY">This Month / Specific Month</option>
+            <option value="THIS_YEAR">This Year</option>
             <option value="CUSTOM">Custom Range</option>
           </select>
         </div>
@@ -234,7 +137,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
       {filterMode === 'CUSTOM' && (
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">Start date:</label>
+            <label className="font-bold text-slate-600">Start Date:</label>
             <input
               type="date"
               value={startDate}
@@ -246,7 +149,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">End date:</label>
+            <label className="font-bold text-slate-600">End Date:</label>
             <input
               type="date"
               value={endDate}
@@ -296,7 +199,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Active Nav Tab & Reports Sub-Tab persistence
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('mgmt_active_tab');
     return saved === 'INVENTORY' ? 'OPERATIONS' : saved || 'OVERVIEW';
@@ -328,7 +230,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         if (parsed.filterMode === 'ALL') parsed.filterMode = 'DAILY';
         return parsed;
       } catch (e) {
-        /* fallback below */
+        /* fallback */
       }
     }
     return {
@@ -344,25 +246,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_date_filter', JSON.stringify(dateFilter));
   }, [dateFilter]);
 
-  const [items, setItems] = useState(initialItems);
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  
-  const [paymentTotals, setPaymentTotals] = useState({
-    MPESA: 0,
-    CASH: 0,
-    CREDIT: 0,
-    PAYBILL: 0,
-  });
-  const [creditSummary, setCreditSummary] = useState({
-    totalCreditIssued: 0,
-    totalRecovered: 0,
-    outstandingCredit: 0,
-  });
-  const [restockSummary, setRestockSummary] = useState({
-    totalRestocksValue: 0,
-    totalSupplierPayables: 0,
-  });
+  // Analytics & Summary State variables loaded directly from optimized ViewSet
+  const [summaryData, setSummaryData] = useState(null);
+  const [pnlData, setPnlData] = useState(null);
+  const [salesPerfData, setSalesPerfData] = useState(null);
+  const [paymentMethodsData, setPaymentMethodsData] = useState(null);
+  const [inventoryData, setInventoryData] = useState(null);
+  const [creditData, setCreditData] = useState(null);
+  const [purchasesData, setPurchasesData] = useState(null);
+
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -408,8 +300,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         localStorage.setItem('refresh_token', res.data.refresh);
       }
 
-      // Use the identity returned by the backend. The backend remains the authority
-      // for roles and permissions; do not invent a role or email in the browser.
       const userObj = res.data?.user || { username: loginForm.username.trim() };
 
       localStorage.setItem('user', JSON.stringify(userObj));
@@ -430,20 +320,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     }
   };
 
-  const fetchItems = useCallback(async () => {
-    if (!authToken) return;
-    try {
-      const endpoint = branchKey ? `items/?branch=${encodeURIComponent(branchKey)}` : 'items/';
-      const fetchedItems = await fetchPaginatedData(endpoint);
-      // An empty branch result is valid. Never replace it with all-branch inventory.
-      setItems(Array.isArray(fetchedItems) ? fetchedItems : []);
-    } catch (e) {
-      console.error('Failed to fetch items:', e);
-      setDashboardError('Some dashboard data could not be loaded. Check your connection and refresh.');
-      if (e.response?.status === 401) handleLogout();
-    }
-  }, [authToken, branchKey, handleLogout]);
-
   const fetchRequests = useCallback(async () => {
     if (!authToken) return;
     setLoading(true);
@@ -453,7 +329,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setRequests(fetchedRequests);
     } catch (err) {
       console.error('Failed to load review requests:', err);
-      setDashboardError('Approvals could not be loaded. Check your access and connection, then refresh.');
       if (err.response?.status === 401) handleLogout();
     } finally {
       setLoading(false);
@@ -495,13 +370,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  const computeDashboardMetricsDirectly = useCallback(async () => {
+  // OPTIMIZED ANALYTICS FETCHING FROM MANAGEMENT-ANALYTICS VIEWSET
+  const fetchManagementAnalytics = useCallback(async () => {
     if (!authToken || !branchKey) return;
 
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
     if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
       setDashboardError('Invalid reporting period: the start date must be on or before the end date.');
-      setLoadingFinancials(false);
       return;
     }
 
@@ -509,182 +384,43 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setDashboardError('');
 
     try {
-      const salesParams = new URLSearchParams({ branch: branchKey });
-      const repaymentsParams = new URLSearchParams({ branch: branchKey });
-      const purchasesParams = new URLSearchParams({ branch: branchKey });
-      const expensesParams = new URLSearchParams({ branch: branchKey });
+      const queryParams = new URLSearchParams({
+        branch_id: branchKey,
+        ...(effectiveStartDate && { start_date: effectiveStartDate }),
+        ...(effectiveEndDate && { end_date: effectiveEndDate }),
+      }).toString();
 
-      const [rawSales, rawRepayments, rawPurchases, rawSplitPayments, rawExpenses] = await Promise.all([
-        fetchPaginatedData(`sales/?${salesParams.toString()}`),
-        fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
-        fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
-        fetchPaginatedData(`sale-payments/?branch=${branchKey}`),
-        fetchPaginatedData(`expenses/?${expensesParams.toString()}`),
+      // Parallel execution of lightweight API calls
+      const [
+        summaryRes,
+        pnlRes,
+        salesPerfRes,
+        paymentsRes,
+        inventoryRes,
+        creditRes,
+        purchasesRes,
+      ] = await Promise.all([
+        API.get(`management-analytics/summary/?${queryParams}`),
+        API.get(`management-analytics/profit-loss/?${queryParams}`),
+        API.get(`management-analytics/sales-performance/?${queryParams}`),
+        API.get(`management-analytics/payment-methods/?${queryParams}`),
+        API.get(`management-analytics/inventory/?${queryParams}`),
+        API.get(`management-analytics/credit/?${queryParams}`),
+        API.get(`management-analytics/purchases/?${queryParams}`),
       ]);
 
-      setSales(rawSales);
-      setExpenses(rawExpenses);
+      setSummaryData(summaryRes.data);
+      setPnlData(pnlRes.data);
+      setSalesPerfData(salesPerfRes.data);
+      setPaymentMethodsData(paymentsRes.data);
+      setInventoryData(inventoryRes.data);
+      setCreditData(creditRes.data);
+      setPurchasesData(purchasesRes.data);
 
-      const splitMap = {};
-      if (Array.isArray(rawSplitPayments)) {
-        rawSplitPayments.forEach((sp) => {
-          const saleId = sp.sale || sp.transaction || sp.sale_id || sp.transaction_id;
-          if (saleId) {
-            if (!splitMap[saleId]) splitMap[saleId] = [];
-            splitMap[saleId].push(sp);
-          }
-        });
-      }
-
-      let totalCreditIssued = 0;
-      const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
-
-      const filteredSales = rawSales.filter((s) => {
-        const dateStr = getRecordDateStr(s);
-        if (!dateStr) return true;
-        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-        return true;
-      });
-
-      filteredSales.forEach((sale) => {
-        const rawMethod = String(sale?.payment_method || '').toUpperCase();
-        const inlineSplits =
-          Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
-            ? sale.split_payments
-            : Array.isArray(sale?.payments) && sale.payments.length > 0 && typeof sale.payments[0] === 'object'
-            ? sale.payments
-            : [];
-
-        const splitPayments = inlineSplits.length > 0 ? inlineSplits : splitMap[sale.id] || [];
-
-        const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
-        const initialDeposit = toNumber(
-          sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid
-        );
-
-        if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
-          const debtIssued = Math.max(0, totalAmt - initialDeposit);
-          totals.CREDIT += debtIssued;
-          totalCreditIssued += debtIssued;
-
-          if (initialDeposit > 0) {
-            const depositChannel = normalizePaymentMethod(
-              sale?.deposit_payment_method || sale?.initial_payment_method || sale?.payment_mode
-            );
-            if (depositChannel === 'MPESA') totals.MPESA += initialDeposit;
-            else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialDeposit;
-            else totals.CASH += initialDeposit;
-          }
-        } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
-          let splitLiquidTotal = 0;
-
-          splitPayments.forEach((sp) => {
-            const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
-            const spRawMethod =
-              sp?.payment_method ||
-              sp?.method ||
-              sp?.payment_mode ||
-              sp?.channel ||
-              sp?.type ||
-              '';
-
-            const spChannel = normalizePaymentMethod(spRawMethod);
-
-            if (spChannel === 'CREDIT') {
-              totals.CREDIT += spAmt;
-              totalCreditIssued += spAmt;
-            } else {
-              splitLiquidTotal += spAmt;
-              if (spChannel === 'MPESA') totals.MPESA += spAmt;
-              else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
-              else totals.CASH += spAmt;
-            }
-          });
-
-          const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
-          if (unallocatedCredit > 0) {
-            totals.CREDIT += unallocatedCredit;
-            totalCreditIssued += unallocatedCredit;
-          }
-        } else {
-          const channel = normalizePaymentMethod(sale?.payment_method);
-          if (channel === 'MPESA') totals.MPESA += totalAmt;
-          else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
-          else totals.CASH += totalAmt;
-        }
-      });
-
-      let totalRecovered = 0;
-      const repayments = rawRepayments.filter((r) => {
-        const dateStr = getRecordDateStr(r);
-        if (!dateStr) return true;
-        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-        return true;
-      });
-
-      repayments.forEach((rep) => {
-        const amount = toNumber(rep?.amount || rep?.amount_paid);
-        totalRecovered += amount;
-      });
-
-      // Period activity and outstanding debt are different measures. Calculate the
-      // cumulative outstanding amount from all available sales and repayment records.
-      const allTimeCreditIssued = rawSales.reduce((sum, sale) => {
-        const method = String(sale?.payment_method || '').toUpperCase();
-        const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
-        const deposit = toNumber(sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid);
-        const inlineSplits = Array.isArray(sale?.split_payments) && sale.split_payments.length
-          ? sale.split_payments
-          : Array.isArray(sale?.payments) && sale.payments.length
-            ? sale.payments
-            : [];
-        const splits = inlineSplits.length ? inlineSplits : splitMap[sale.id] || [];
-        if (method === 'CREDIT' || Boolean(sale?.is_credit)) return sum + Math.max(0, totalAmt - deposit);
-        if (method === 'SPLIT' || splits.length) {
-          const splitCredit = splits.reduce((creditSum, sp) => {
-            const splitMethod = normalizePaymentMethod(sp?.payment_method || sp?.method || sp?.payment_mode || sp?.channel || sp?.type);
-            return creditSum + (splitMethod === 'CREDIT' ? toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total) : 0);
-          }, 0);
-          const allocated = splits.reduce((allocatedSum, sp) => allocatedSum + toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total), 0);
-          return sum + splitCredit + Math.max(0, totalAmt - allocated);
-        }
-        return sum;
-      }, 0);
-      const allTimeRecovered = rawRepayments.reduce((sum, rep) => sum + toNumber(rep?.amount || rep?.amount_paid), 0);
-      const netCreditOutstanding = Math.max(0, allTimeCreditIssued - allTimeRecovered);
-      // This payment channel card is period credit issued, not the cumulative balance.
-      totals.CREDIT = totalCreditIssued;
-
-      setPaymentTotals(totals);
-      setCreditSummary({
-        totalCreditIssued,
-        totalRecovered,
-        outstandingCredit: netCreditOutstanding,
-      });
-
-      const purchases = rawPurchases.filter((p) => {
-        const dateStr = getRecordDateStr(p);
-        if (!dateStr) return true;
-        if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-        if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-        return true;
-      });
-
-      let totalRestocksValue = 0;
-      purchases.forEach((p) => {
-        totalRestocksValue += toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
-      });
-
-      setRestockSummary({
-        totalRestocksValue,
-        totalSupplierPayables: 0,
-      });
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Failed to compute management metrics:', err);
-      setDashboardError('Some dashboard data could not be loaded. Values may be incomplete; refresh before relying on them.');
+      console.error('Failed to fetch optimized management analytics:', err);
+      setDashboardError('Failed to load dashboard metrics. Check server connection.');
       if (err.response?.status === 401) handleLogout();
     } finally {
       setLoadingFinancials(false);
@@ -694,148 +430,41 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   useEffect(() => {
     if (!authToken) return;
 
-    fetchItems();
     fetchRequests();
-    computeDashboardMetricsDirectly();
-  }, [authToken, branchKey, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
+    fetchManagementAnalytics();
+  }, [authToken, branchKey, fetchRequests, fetchManagementAnalytics]);
 
-  const metrics = useMemo(() => {
-    let totalCostValuation = 0;
-    let totalRetailValuation = 0;
-    let totalEstimatedCOGS = 0;
-    let lowStockCount = 0;
-    let outOfStockCount = 0;
-
-    items.forEach((item) => {
-      const qty = getRemainingStock(item);
-      const cost = toNumber(item?.unit_cost_price);
-      const retail = toNumber(item?.unit_retail_price || item?.unit_selling_price);
-
-      totalCostValuation += qty * cost;
-      totalRetailValuation += qty * retail;
-
-      const totalUnitsSold = toNumber(item?.total_stock_sold || item?.quantity_sold || 0);
-      totalEstimatedCOGS += totalUnitsSold * cost;
-
-      if (qty === 0) outOfStockCount++;
-      else if (Boolean(item?.is_low_stock)) lowStockCount++;
-    });
-
-    const healthyCount = Math.max(0, items.length - lowStockCount - outOfStockCount);
-
-    return {
-      totalCostValuation,
-      totalRetailValuation,
-      totalEstimatedCOGS,
-      lowStockCount,
-      outOfStockCount,
-      healthyCount,
-    };
-  }, [items]);
-
-  // Analytics Calculation for Reports Tab
-  const reportAnalytics = useMemo(() => {
-    const { effectiveStartDate, effectiveEndDate } = effectiveRange;
-
-    const periodSales = sales.filter((s) => {
-      const dateStr = getRecordDateStr(s);
-      if (!dateStr) return true;
-      if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-      if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-      return true;
-    });
-
-    const periodExpenses = expenses.filter((e) => {
-      const dateStr = getRecordDateStr(e);
-      if (!dateStr) return true;
-      if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-      if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-      return true;
-    });
-
-    let totalRevenue = 0;
-    let totalCogs = 0;
-    const itemSalesMap = {};
-
-    periodSales.forEach((sale) => {
-      const saleAmt = toNumber(sale.total_amount || sale.amount || sale.total_price);
-      const method = String(sale?.payment_method || '').toUpperCase();
-      const deposit = toNumber(sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid);
-      const splitList = Array.isArray(sale?.split_payments) && sale.split_payments.length
-        ? sale.split_payments
-        : Array.isArray(sale?.payments) && sale.payments.length
-          ? sale.payments
-          : [];
-      let recognizedRevenue = saleAmt;
-      if (method === 'CREDIT' || Boolean(sale?.is_credit)) {
-        // Credit sales are tracked in the credit ledger, not recognized as cash revenue here.
-        recognizedRevenue = deposit;
-      } else if (method === 'SPLIT' || splitList.length) {
-        recognizedRevenue = splitList.reduce((sum, payment) => {
-          const channel = normalizePaymentMethod(payment?.payment_method || payment?.method || payment?.payment_mode || payment?.channel || payment?.type);
-          return sum + (channel === 'CREDIT' ? 0 : toNumber(payment?.amount || payment?.amount_paid || payment?.value || payment?.total));
-        }, 0);
-      }
-      totalRevenue += recognizedRevenue;
-
-      const saleItems = sale.items || sale.sale_items || [];
-      saleItems.forEach((si) => {
-        const itemId = String(si.item || si.item_id || si.product || si.id);
-        const itemName = si.name || si.item_name || si.product_name || `Item #${itemId}`;
-        const qty = toNumber(si.quantity_sold || si.quantity || si.qty || 1);
-        const price = toNumber(si.unit_price || si.price || 0);
-        const cost = toNumber(si.unit_cost_price || si.unit_cost || si.cost_price || 0);
-
-        totalCogs += qty * cost;
-
-        if (!itemSalesMap[itemId]) {
-          itemSalesMap[itemId] = { id: itemId, name: itemName, qty: 0, revenue: 0 };
-        }
-        itemSalesMap[itemId].qty += qty;
-        itemSalesMap[itemId].revenue += qty * (price || saleAmt);
-      });
-    });
-
-    let totalExpenseAmount = 0;
-    periodExpenses.forEach((exp) => {
-      totalExpenseAmount += toNumber(exp.amount || exp.total || exp.cost);
-    });
-
-    const grossProfit = totalRevenue - totalCogs;
-    const netProfit = grossProfit - totalExpenseAmount;
-
-    const itemsPerformanceList = Object.values(itemSalesMap).sort((a, b) => b.revenue - a.revenue);
-
-    return {
-      totalRevenue,
-      totalCogs,
-      grossProfit,
-      totalExpenses: totalExpenseAmount,
-      netProfit,
-      itemsPerformanceList,
-    };
-  }, [sales, expenses, effectiveRange]);
-
-  // Payment Breakdown Chart Data
+  // Chart transformations using API data
   const paymentBreakdownData = useMemo(() => {
-    return [
-      { name: 'M-Pesa / Mobile', value: paymentTotals.MPESA, fill: '#10B981' },
-      { name: 'Cash', value: paymentTotals.CASH, fill: '#6366F1' },
-      { name: 'Paybill / Till', value: paymentTotals.PAYBILL, fill: '#F59E0B' },
-      { name: 'Credit issued (period)', value: paymentTotals.CREDIT, fill: '#8B5CF6' },
-    ].filter((item) => item.value > 0);
-  }, [paymentTotals]);
+    if (!paymentMethodsData?.sale_payments) return [];
 
-  // P&L Chart Data
+    const map = {
+      MPESA: { name: 'M-Pesa / Mobile', fill: '#10B981' },
+      CASH: { name: 'Cash', fill: '#6366F1' },
+      PAYBILL: { name: 'Paybill / Till', fill: '#F59E0B' },
+      CREDIT: { name: 'Credit Owed', fill: '#8B5CF6' },
+      BANK_TRANSFER: { name: 'Bank Transfer', fill: '#EC4899' },
+    };
+
+    return paymentMethodsData.sale_payments
+      .map((sp) => ({
+        name: map[sp.method]?.name || sp.method,
+        value: toNumber(sp.amount),
+        fill: map[sp.method]?.fill || '#64748B',
+      }))
+      .filter((item) => item.value > 0);
+  }, [paymentMethodsData]);
+
   const profitLossChartData = useMemo(() => {
+    if (!pnlData) return [];
     return [
-      { name: 'Revenue', amount: reportAnalytics.totalRevenue, fill: '#4F46E5' },
-      { name: 'COGS', amount: reportAnalytics.totalCogs, fill: '#E11D48' },
-      { name: 'Gross Profit', amount: reportAnalytics.grossProfit, fill: '#10B981' },
-      { name: 'Expenses', amount: reportAnalytics.totalExpenses, fill: '#F59E0B' },
-      { name: 'Net Profit', amount: reportAnalytics.netProfit, fill: '#0EA5E9' },
+      { name: 'Revenue', amount: toNumber(pnlData.revenue), fill: '#4F46E5' },
+      { name: 'COGS', amount: toNumber(pnlData.cost_of_goods_sold), fill: '#E11D48' },
+      { name: 'Gross Profit', amount: toNumber(pnlData.gross_profit), fill: '#10B981' },
+      { name: 'Expenses', amount: toNumber(pnlData.expenses), fill: '#F59E0B' },
+      { name: 'Net Profit', amount: toNumber(pnlData.net_profit), fill: '#0EA5E9' },
     ];
-  }, [reportAnalytics]);
+  }, [pnlData]);
 
   const summaryMetrics = useMemo(() => {
     const pending = requests.filter((r) => r.status?.toUpperCase().includes('PENDING')).length;
@@ -843,11 +472,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     const rejected = requests.filter((r) => r.status?.toUpperCase().includes('REJECTED')).length;
     return { pending, approved, rejected, total: requests.length };
   }, [requests]);
-
-  const totalCount = items.length || 1;
-  const healthyPct = Math.round((metrics.healthyCount / totalCount) * 100);
-  const lowStockPct = Math.round((metrics.lowStockCount / totalCount) * 100);
-  const outOfStockPct = Math.round((metrics.outOfStockCount / totalCount) * 100);
 
   if (!authToken) {
     return (
@@ -908,14 +532,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     <div className="min-h-screen relative w-full text-slate-900 p-3 sm:p-6 font-sans bg-slate-950/5">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
-        {/* HEADER & TOP NAVBAR (REPORTS MOVED TO END) */}
+        {/* HEADER & TOP NAVBAR */}
         <div className="sticky top-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 text-white shadow-xl">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex items-center gap-4">
               <img src="/logo.svg" alt="Melvex Business Solutions" className="h-12 sm:h-14 w-auto object-contain" />
               <div className="border-l border-slate-800 pl-4 hidden sm:block">
                 <h1 className="text-lg font-extrabold tracking-tight">Management Dashboard</h1>
-                <p className="text-xs text-slate-400">Branch performance, inventory, approvals and financial reports.</p>
+                <p className="text-xs text-slate-400">Optimized branch analytics, operations, and financial reporting.</p>
               </div>
             </div>
 
@@ -935,7 +559,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </select>
               </div>
 
-              {/* REPORTS IS NOW AT THE END OF THE TOP NAV */}
+              {/* NAV TAB ITEMS */}
               <nav className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
                 {[
                   { id: 'OVERVIEW', label: 'Overview' },
@@ -979,77 +603,94 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
         {/* GLOBAL MANAGEMENT DATE FILTER BAR */}
         <ManagementDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
+
+        {dashboardError && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex justify-between items-center">
+            <span>{dashboardError}</span>
+            <button onClick={() => setDashboardError('')} className="font-bold">✕</button>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1 text-xs text-slate-500">
-          <span>Reporting dates: <strong className="text-slate-700">{effectiveRange.effectiveStartDate || 'Start not set'} – {effectiveRange.effectiveEndDate || 'End not set'}</strong></span>
+          <span>
+            Reporting dates:{' '}
+            <strong className="text-slate-700">
+              {effectiveRange.effectiveStartDate || 'Start not set'} – {effectiveRange.effectiveEndDate || 'End not set'}
+            </strong>
+          </span>
           <span>{lastUpdated ? `Last refreshed ${lastUpdated.toLocaleTimeString()}` : 'Dashboard'}</span>
         </div>
-
 
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6 max-w-6xl mx-auto font-sans">
             
-            {/* Business performance */}
+            {/* Business Performance Overview */}
             <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400">
-                    Branch Overview
+                    Branch Executive Summary
                   </span>
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    Business performance
+                    Business Performance
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-300 max-w-md">
-                    Inventory value, product performance and stock status.
+                    Lightweight API analytics loaded directly from Django.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-slate-800/80 p-4 rounded-2xl border border-slate-700/80 backdrop-blur-sm">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                      Total Inventory Valuation (Cost)
+                      Gross Sales Volume
                     </span>
                     <span className="text-lg sm:text-xl font-bold font-mono text-indigo-400">
-                      {formatCurrency(metrics.totalCostValuation)}
+                      {formatCurrency(summaryData?.sales?.gross_sales)}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                      Estimated cost of goods sold
+                      Cash Received from Sales
                     </span>
-                    <span className="text-lg sm:text-xl font-bold font-mono text-amber-400">
-                      {formatCurrency(metrics.totalEstimatedCOGS)}
+                    <span className="text-lg sm:text-xl font-bold font-mono text-emerald-400">
+                      {formatCurrency(summaryData?.sales?.sales_cash_received)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-800/80">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-800/80">
                 <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                    Registered products
+                    Total Transactions
                   </span>
                   <span className="text-lg font-bold font-mono text-indigo-300">
-                    {items.length} Products
+                    {summaryData?.sales?.transaction_count || 0} Orders
                   </span>
                 </div>
 
                 <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                    Pending approvals
+                    Credit Issued
                   </span>
-                  <span
-                    className={`text-lg font-bold font-mono ${
-                      summaryMetrics.pending > 0 ? 'text-purple-400' : 'text-slate-200'
-                    }`}
-                  >
+                  <span className="text-lg font-bold font-mono text-amber-300">
+                    {formatCurrency(summaryData?.sales?.credit_issued)}
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    Pending Approvals
+                  </span>
+                  <span className="text-lg font-bold font-mono text-purple-400">
                     {summaryMetrics.pending} Requests
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Customer Credit & Restocks Grid */}
+            {/* Credit & Purchases Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
@@ -1057,37 +698,26 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                       Customer Credit Summary
                     </h2>
-                    <p className="text-xs text-slate-500">
-                      Credit issued and repayments for the selected period, plus cumulative outstanding credit.
-                    </p>
+                    <p className="text-xs text-slate-500">Credit activity & collections for period</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
-                      Credit Issued (Period)
+                      New Credit Sales
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
-                      {formatCurrency(creditSummary.totalCreditIssued)}
+                      {formatCurrency(creditData?.new_credit_sales)}
                     </span>
                   </div>
 
                   <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
                     <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">
-                      Credit repayments (period)
+                      Repayments Received
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-emerald-700 block">
-                      {formatCurrency(creditSummary.totalRecovered)}
-                    </span>
-                  </div>
-
-                  <div className="bg-rose-50 p-3 rounded-xl border border-rose-200">
-                    <span className="text-[9px] font-bold text-rose-500 uppercase block mb-1">
-                      Outstanding customer credit
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-rose-700 block">
-                      {formatCurrency(creditSummary.outstandingCredit)}
+                      {formatCurrency(creditData?.repayments_received_in_period)}
                     </span>
                   </div>
                 </div>
@@ -1097,153 +727,70 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                      Purchases and supplier balances
+                      Purchases & Restocks
                     </h2>
-                    <p className="text-xs text-slate-500">
-                      Purchase value for the selected period and supplier balances where available.
-                    </p>
+                    <p className="text-xs text-slate-500">Restock procurement total</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                     <span className="text-[9px] font-bold text-blue-600 uppercase block mb-1">
-                      Total Restock Purchases
+                      Restock Total Cost
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-blue-900 block">
-                      {formatCurrency(restockSummary.totalRestocksValue)}
+                      {formatCurrency(purchasesData?.purchase_total)}
                     </span>
                   </div>
 
-                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
-                    <span className="text-[9px] font-bold text-amber-600 uppercase block mb-1">
-                      Supplier Owed Payables
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
+                      Purchase Invoices
                     </span>
-                    <span className="text-xs sm:text-sm font-bold font-mono text-amber-800 block">
-                      {formatCurrency(restockSummary.totalSupplierPayables)}
+                    <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
+                      {purchasesData?.purchase_count || 0} Batches
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Payments by method */}
+            {/* Inventory Valuation & Low Stock warning */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Payments by method
+                    Inventory Status & Stock Valuation
                   </h2>
-                  <p className="text-xs text-slate-500">
-                    Payment amounts recorded for the selected period.
-                  </p>
+                  <p className="text-xs text-slate-500">Live store stock quantities and cost valuation</p>
                 </div>
-                {loadingFinancials && (
-                  <span className="text-xs font-bold text-indigo-600 animate-pulse">
-                    Syncing...
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
+                  <span className="block text-[10px] font-bold text-indigo-700 uppercase">
+                    Inventory Value (Cost)
                   </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="p-4 rounded-2xl border space-y-2 border-emerald-200 bg-emerald-50/50 text-emerald-900">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-emerald-100 text-emerald-800 border-emerald-300">
-                      MPESA
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-700">M-Pesa / Mobile Money</h3>
-                    <span className="text-base font-bold font-mono text-slate-900 block mt-1">
-                      {formatCurrency(paymentTotals.MPESA)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl border space-y-2 border-indigo-200 bg-indigo-50/50 text-indigo-900">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-indigo-100 text-indigo-800 border-indigo-300">
-                      CASH
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-700">Cash Transactions</h3>
-                    <span className="text-base font-bold font-mono text-slate-900 block mt-1">
-                      {formatCurrency(paymentTotals.CASH)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl border space-y-2 border-amber-200 bg-amber-50/50 text-amber-900">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
-                      CREDIT
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-700">Credit issued in period</h3>
-                    <span className="text-base font-bold font-mono text-slate-900 block mt-1">
-                      {formatCurrency(paymentTotals.CREDIT)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-2xl border space-y-2 border-purple-200 bg-purple-50/50 text-purple-900">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-purple-100 text-purple-800 border-purple-300">
-                      PAYBILL
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-700">Paybill / Till Transfer</h3>
-                    <span className="text-base font-bold font-mono text-slate-900 block mt-1">
-                      {formatCurrency(paymentTotals.PAYBILL)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Stock status */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Stock status
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Registered products grouped by current stock level.
-                </p>
-              </div>
-
-              <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                <div style={{ width: `${healthyPct}%` }} className="bg-emerald-500 transition-all duration-500" title={`Optimal Stock: ${healthyPct}%`} />
-                <div style={{ width: `${lowStockPct}%` }} className="bg-amber-400 transition-all duration-500" title={`Low Stock: ${lowStockPct}%`} />
-                <div style={{ width: `${outOfStockPct}%` }} className="bg-rose-500 transition-all duration-500" title={`Out of Stock: ${outOfStockPct}%`} />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
-                <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100">
-                  <span className="block text-[10px] font-bold text-emerald-700 uppercase">
-                    Optimal Stock
-                  </span>
-                  <span className="text-base font-bold font-mono text-emerald-800">
-                    {metrics.healthyCount} ({healthyPct}%)
+                  <span className="text-base font-bold font-mono text-indigo-900">
+                    {formatCurrency(inventoryData?.inventory_value_at_cost)}
                   </span>
                 </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <span className="block text-[10px] font-bold text-slate-600 uppercase">
+                    Total Physical Stock Qty
+                  </span>
+                  <span className="text-base font-bold font-mono text-slate-900">
+                    {formatNumber(inventoryData?.total_quantity)} Units
+                  </span>
+                </div>
+
                 <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100">
                   <span className="block text-[10px] font-bold text-amber-700 uppercase">
-                    Low Stock Threshold
+                    Low Stock Threshold Warnings
                   </span>
                   <span className="text-base font-bold font-mono text-amber-800">
-                    {metrics.lowStockCount} ({lowStockPct}%)
-                  </span>
-                </div>
-                <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100">
-                  <span className="block text-[10px] font-bold text-rose-700 uppercase">
-                    Out of Stock
-                  </span>
-                  <span className="text-base font-bold font-mono text-rose-800">
-                    {metrics.outOfStockCount} ({outOfStockPct}%)
+                    {inventoryData?.low_stock_count || 0} Items
                   </span>
                 </div>
               </div>
@@ -1256,13 +803,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {activeTab === 'REPORTS' && (
           <div className="space-y-6">
             
-            {/* SUB-NAVIGATOR FOR REPORTS */}
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
               {[
-                { id: 'PROFIT_LOSS', label: ' Profit & Loss Statement' },
-                { id: 'SALES_ANALYSIS', label: ' Sales Performance Analysis' },
-                { id: 'PAYMENT_BREAKDOWN', label: ' Payment Methods Breakdown' },
-                { id: 'SUMMARIZED_REPORT', label: ' Comprehensive Executive Report' },
+                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
+                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
+                { id: 'PAYMENT_BREAKDOWN', label: '💳 Payment Methods Breakdown' },
+                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
                   key={sub.id}
@@ -1278,7 +824,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               ))}
             </div>
 
-            {/* 1. PROFIT AND LOSS REPORT PANEL WITH CHARTS */}
+            {/* 1. PROFIT AND LOSS PANEL */}
             {reportSubTab === 'PROFIT_LOSS' && (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
                 <div className="border-b border-slate-100 pb-4">
@@ -1286,13 +832,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     Profit & Loss Statement (P&L)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Revenue shown here excludes unpaid credit sales; repayments are tracked separately in the credit activity summary.
+                    Statement generated dynamically via Django backend viewset.
                   </p>
                 </div>
 
-                {/* VISUAL CHART */}
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase">Profitability Breakdown Chart</h3>
+                  <h3 className="text-xs font-bold text-slate-700 uppercase">Profitability Chart</h3>
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={profitLossChartData} margin={{ top: 15, right: 20, left: 20, bottom: 5 }}>
@@ -1312,89 +857,45 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Recognized revenue (excluding unpaid credit)</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Revenue</span>
                     <span className="text-lg font-bold font-mono text-slate-900 block mt-1">
-                      {formatCurrency(reportAnalytics.totalRevenue)}
+                      {formatCurrency(pnlData?.revenue)}
                     </span>
                   </div>
 
                   <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
-                    <span className="text-[10px] font-bold text-rose-600 uppercase block">Cost of Goods Sold (COGS)</span>
+                    <span className="text-[10px] font-bold text-rose-600 uppercase block">COGS</span>
                     <span className="text-lg font-bold font-mono text-rose-800 block mt-1">
-                      {formatCurrency(reportAnalytics.totalCogs)}
+                      {formatCurrency(pnlData?.cost_of_goods_sold)}
                     </span>
                   </div>
 
                   <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                     <span className="text-[10px] font-bold text-emerald-600 uppercase block">Gross Profit</span>
                     <span className="text-lg font-bold font-mono text-emerald-800 block mt-1">
-                      {formatCurrency(reportAnalytics.grossProfit)}
+                      {formatCurrency(pnlData?.gross_profit)}
                     </span>
                   </div>
 
                   <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
-                    <span className="text-[10px] font-bold text-indigo-600 uppercase block">Net Operating Profit</span>
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase block">Net Profit</span>
                     <span className="text-lg font-bold font-mono text-indigo-900 block mt-1">
-                      {formatCurrency(reportAnalytics.netProfit)}
+                      {formatCurrency(pnlData?.net_profit)}
                     </span>
                   </div>
-                </div>
-
-                {/* DETAILED P&L TABLE */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
-                        <th className="py-3 px-4">Financial Statement Line Item</th>
-                        <th className="py-3 px-4 text-right">Amount (KSh)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-                      <tr>
-                        <td className="py-3 px-4 font-bold text-slate-900">Gross Sales Revenue</td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
-                          {formatCurrency(reportAnalytics.totalRevenue)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 px-4 text-slate-600 pl-8">Less: Direct Cost of Sales (COGS)</td>
-                        <td className="py-3 px-4 text-right font-mono text-rose-600">
-                          -{formatCurrency(reportAnalytics.totalCogs)}
-                        </td>
-                      </tr>
-                      <tr className="bg-slate-50 font-bold">
-                        <td className="py-3 px-4 text-slate-900">GROSS MARGIN / PROFIT</td>
-                        <td className="py-3 px-4 text-right font-mono text-emerald-700">
-                          {formatCurrency(reportAnalytics.grossProfit)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 px-4 text-slate-600 pl-8">Less: Total Operating Expenses</td>
-                        <td className="py-3 px-4 text-right font-mono text-amber-600">
-                          -{formatCurrency(reportAnalytics.totalExpenses)}
-                        </td>
-                      </tr>
-                      <tr className="bg-indigo-50/80 font-extrabold border-t-2 border-indigo-200">
-                        <td className="py-3.5 px-4 text-indigo-950 uppercase">NET OPERATING INCOME / PROFIT</td>
-                        <td className="py-3.5 px-4 text-right font-mono text-indigo-950 text-sm">
-                          {formatCurrency(reportAnalytics.netProfit)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
               </div>
             )}
 
-            {/* 2. SALES ANALYSIS REPORT PANEL WITH VISUAL PROGRESS BARS */}
+            {/* 2. SALES ANALYSIS PANEL */}
             {reportSubTab === 'SALES_ANALYSIS' && (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
                 <div className="border-b border-slate-100 pb-4">
                   <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
-                    Sales & Product Movement Analysis
+                    Sales & Performance Analytics
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Review fast-moving items, revenue contribution, and volume per item.
+                    Daily sales trends and order volumes for period.
                   </p>
                 </div>
 
@@ -1402,50 +903,30 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
-                        <th className="py-3.5 px-4">Rank & Item Name</th>
-                        <th className="py-3.5 px-4 text-right">Units Sold</th>
-                        <th className="py-3.5 px-4 text-right">Recognized revenue</th>
-                        <th className="py-3.5 px-4 text-right">Revenue Contribution</th>
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4 text-right">Transactions</th>
+                        <th className="py-3.5 px-4 text-right">Gross Sales</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-                      {reportAnalytics.itemsPerformanceList.length === 0 ? (
+                      {!salesPerfData?.daily || salesPerfData.daily.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="py-8 text-center text-slate-500">
+                          <td colSpan="3" className="py-8 text-center text-slate-500">
                             No sales records available for the selected period.
                           </td>
                         </tr>
                       ) : (
-                        reportAnalytics.itemsPerformanceList.map((item, idx) => {
-                          const pct = reportAnalytics.totalRevenue > 0
-                            ? Math.round((item.revenue / reportAnalytics.totalRevenue) * 100)
-                            : 0;
-
-                          return (
-                            <tr key={item.id} className="hover:bg-slate-50 transition">
-                              <td className="py-3 px-4 font-bold text-slate-900 flex items-center gap-2">
-                                <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-800 flex items-center justify-center text-[10px] font-extrabold">
-                                  #{idx + 1}
-                                </span>
-                                {item.name}
-                              </td>
-                              <td className="py-3 px-4 text-right font-mono font-bold text-slate-700">
-                                {formatNumber(item.qty)} units
-                              </td>
-                              <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
-                                {formatCurrency(item.revenue)}
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                    <div style={{ width: `${pct}%` }} className="h-full bg-indigo-600 rounded-full" />
-                                  </div>
-                                  <span className="font-mono text-[10px] font-bold text-slate-500">{pct}%</span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
+                        salesPerfData.daily.map((row) => (
+                          <tr key={row.date} className="hover:bg-slate-50 transition">
+                            <td className="py-3 px-4 font-bold text-slate-900">{row.date}</td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-slate-700">
+                              {row.transactions} orders
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
+                              {formatCurrency(row.gross_sales)}
+                            </td>
+                          </tr>
+                        ))
                       )}
                     </tbody>
                   </table>
@@ -1453,21 +934,18 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             )}
 
-            {/* 3. PAYMENT METHODS BREAKDOWN PANEL */}
+            {/* 3. PAYMENT METHODS PANEL */}
             {reportSubTab === 'PAYMENT_BREAKDOWN' && (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
                 <div className="border-b border-slate-100 pb-4">
                   <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
-                    Payment Methods Breakdown & Settlement Mix
+                    Payment Channel Breakdown
                   </h2>
-                  <p className="text-xs text-slate-500">
-                    Detailed distribution across M-Pesa, Cash, Credit, and Paybill channels.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
                   <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2">
-                    <h3 className="text-xs font-bold text-slate-700 uppercase">Settlement Mix Pie Chart</h3>
+                    <h3 className="text-xs font-bold text-slate-700 uppercase">Settlement Chart</h3>
                     <div className="h-64 w-full">
                       {paymentBreakdownData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
@@ -1491,69 +969,28 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                         </ResponsiveContainer>
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                          No settlement transactions for selected horizon.
+                          No channel data available.
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase block">M-Pesa / Mobile Money</span>
-                        <span className="text-base font-extrabold font-mono text-emerald-900">{formatCurrency(paymentTotals.MPESA)}</span>
+                    {paymentMethodsData?.sale_payments?.map((sp) => (
+                      <div key={sp.method} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">{sp.method}</span>
+                          <span className="text-base font-extrabold font-mono text-slate-900">{formatCurrency(sp.amount)}</span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        {paymentTotals.MPESA > 0 && reportAnalytics.totalRevenue > 0
-                          ? `${Math.round((paymentTotals.MPESA / reportAnalytics.totalRevenue) * 100)}%`
-                          : '0%'}
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-indigo-700 uppercase block">Cash Payments</span>
-                        <span className="text-base font-extrabold font-mono text-indigo-900">{formatCurrency(paymentTotals.CASH)}</span>
-                      </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300">
-                        {paymentTotals.CASH > 0 && reportAnalytics.totalRevenue > 0
-                          ? `${Math.round((paymentTotals.CASH / reportAnalytics.totalRevenue) * 100)}%`
-                          : '0%'}
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-amber-700 uppercase block">Paybill / Till Transfer</span>
-                        <span className="text-base font-extrabold font-mono text-amber-900">{formatCurrency(paymentTotals.PAYBILL)}</span>
-                      </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                        {paymentTotals.PAYBILL > 0 && reportAnalytics.totalRevenue > 0
-                          ? `${Math.round((paymentTotals.PAYBILL / reportAnalytics.totalRevenue) * 100)}%`
-                          : '0%'}
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/60 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-purple-700 uppercase block">Credit / Debt Sales</span>
-                        <span className="text-base font-extrabold font-mono text-purple-900">{formatCurrency(paymentTotals.CREDIT)}</span>
-                      </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
-                        {paymentTotals.CREDIT > 0 && reportAnalytics.totalRevenue > 0
-                          ? `${Math.round((paymentTotals.CREDIT / reportAnalytics.totalRevenue) * 100)}%`
-                          : '0%'}
-                      </span>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 4. SUMMARIZED COMPREHENSIVE REPORT (IMPORTED REPORTS.JSX) */}
-            {reportSubTab === 'SUMMARIZED_REPORT' && (
-              <Reports items={items} />
-            )}
+            {/* 4. SUMMARIZED REPORT */}
+            {reportSubTab === 'SUMMARIZED_REPORT' && <Reports items={[]} />}
 
           </div>
         )}
@@ -1564,18 +1001,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex flex-col gap-2 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">User account</p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-900">Account details</h2>
-                  <p className="mt-1 text-sm text-slate-500">Signed-in user information and assigned access role.</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">User Account</p>
+                  <h2 className="mt-1 text-2xl font-bold text-slate-900">Account Details</h2>
                 </div>
-                <span className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Signed in</span>
+                <span className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Signed In</span>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
-                  { label: 'Username', value: currentUser?.username || currentUser?.user_name || currentUser?.name || 'Not provided' },
-                  { label: 'Email address', value: currentUser?.email || currentUser?.user?.email || 'Not provided by server' },
-                  { label: 'Role', value: currentUser?.role || currentUser?.user_role || currentUser?.group_name || currentUser?.user?.role || (Array.isArray(currentUser?.groups) ? currentUser.groups.map((g) => typeof g === 'string' ? g : g?.name).filter(Boolean).join(', ') : '') || 'Not provided by server' },
-                  { label: 'Branch', value: selectedBranch?.name || selectedBranch?.branch_name || branches.find((b) => String(b.id || b.code) === String(branchKey))?.name || (typeof selectedBranch === 'string' ? selectedBranch : 'Not selected') },
+                  { label: 'Username', value: currentUser?.username || 'Not provided' },
+                  { label: 'Email Address', value: currentUser?.email || 'Not provided' },
+                  { label: 'Role', value: currentUser?.role || 'Manager' },
+                  { label: 'Branch', value: selectedBranch?.name || branchKey || 'Not selected' },
                 ].map((field) => (
                   <div key={field.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{field.label}</p>
@@ -1583,9 +1019,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 ))}
               </div>
-              <p className="mt-5 rounded-lg bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">Account details are displayed from information available in the current session. If email or role is missing, update the management-login API to return those fields; the dashboard will not guess them.</p>
               <div className="mt-5 flex justify-end">
-                <button type="button" onClick={handleLogout} className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50">Sign out</button>
+                <button type="button" onClick={handleLogout} className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50">Sign Out</button>
               </div>
             </div>
           </section>
