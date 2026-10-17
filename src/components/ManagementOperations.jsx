@@ -1,6 +1,7 @@
 // src/components/ManagementOperations.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
+import { useBranch } from './BranchContext';
 
 const toNumber = (value, fallback = 0) => {
   if (value === null || value === undefined || value === '') return fallback;
@@ -84,11 +85,28 @@ const fetchPaginatedData = async (initialEndpoint) => {
 };
 
 export default function ManagementOperations({
-  selectedBranch,
+  selectedBranch: initialBranch,
   initialSection = 'inventory',
   effectiveRange = {},
   onBack,
 }) {
+  const { selectedBranch: contextBranch, setSelectedBranch: setContextBranch, branches = [] } = useBranch();
+  const [internalBranch, setInternalBranch] = useState(initialBranch || contextBranch || '');
+
+  const branchKey = useMemo(() => {
+    const active = internalBranch || contextBranch || initialBranch || '';
+    if (typeof active === 'object') return active?.id || active?.code || '';
+    return active;
+  }, [internalBranch, contextBranch, initialBranch]);
+
+  const handleBranchChange = (e) => {
+    const newBranch = e.target.value;
+    setInternalBranch(newBranch);
+    if (typeof setContextBranch === 'function') {
+      setContextBranch(newBranch);
+    }
+  };
+
   const [activeSection, setActiveSection] = useState(initialSection);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,30 +119,40 @@ export default function ManagementOperations({
   const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
   const loadData = useCallback(async () => {
-    if (!selectedBranch) return;
     setLoading(true);
 
     try {
-      const branchParam = `branch=${encodeURIComponent(selectedBranch)}`;
+      const branchParam = branchKey ? `branch=${encodeURIComponent(branchKey)}` : '';
 
-      // Query branch-item-pricings, items, sales, and purchases
-      const [pricingRes, itemRes, saleRes, purchaseRes] = await Promise.all([
-        fetchPaginatedData(`branch-item-pricings/?${branchParam}`),
-        fetchPaginatedData(`items/?${branchParam}`),
-        fetchPaginatedData(`sales/?${branchParam}`),
-        fetchPaginatedData(`purchases/?${branchParam}`),
+      const [
+        pricingsBranch,
+        pricingsAll,
+        itemsBranch,
+        itemsAll,
+        salesBranch,
+        purchasesBranch
+      ] = await Promise.all([
+        branchParam ? fetchPaginatedData(`branch-item-pricings/?${branchParam}`) : Promise.resolve([]),
+        fetchPaginatedData('branch-item-pricings/'),
+        branchParam ? fetchPaginatedData(`items/?${branchParam}`) : Promise.resolve([]),
+        fetchPaginatedData('items/'),
+        branchParam ? fetchPaginatedData(`sales/?${branchParam}`) : fetchPaginatedData('sales/'),
+        branchParam ? fetchPaginatedData(`purchases/?${branchParam}`) : fetchPaginatedData('purchases/'),
       ]);
 
-      setRawPricings(Array.isArray(pricingRes) ? pricingRes : []);
-      setItems(Array.isArray(itemRes) ? itemRes : []);
-      setSales(Array.isArray(saleRes) ? saleRes : []);
-      setPurchases(Array.isArray(purchaseRes) ? purchaseRes : []);
+      const mergedPricings = pricingsBranch.length > 0 ? pricingsBranch : pricingsAll;
+      const mergedItems = itemsBranch.length > 0 ? itemsBranch : itemsAll;
+
+      setRawPricings(mergedPricings);
+      setItems(mergedItems);
+      setSales(salesBranch);
+      setPurchases(purchasesBranch);
     } catch (err) {
       console.error('Error loading operations data:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch]);
+  }, [branchKey]);
 
   useEffect(() => {
     loadData();
@@ -132,31 +160,50 @@ export default function ManagementOperations({
 
   // Combine BranchItemPricing and Item Catalog entries
   const catalogList = useMemo(() => {
+    const catalogMap = new Map();
+
     if (rawPricings.length > 0) {
-      return rawPricings.map((p) => {
+      rawPricings.forEach((p) => {
         const itemObj = p.item && typeof p.item === 'object' ? p.item : {};
-        return {
-          id: itemObj.id || p.item_id || p.item || p.id,
-          name: itemObj.name || p.item_name || p.name || 'Unnamed Product',
-          sku: itemObj.sku || itemObj.code || p.sku || p.code || `#${p.id}`,
+        const id = itemObj.id || p.item_id || p.item || p.id;
+        if (!id) return;
+
+        catalogMap.set(String(id), {
+          id,
+          name: itemObj.name || p.item_name || p.name || `Item #${id}`,
+          sku: itemObj.sku || itemObj.code || p.sku || p.code || `#${id}`,
           opening_stock: toNumber(p.opening_stock),
           current_cost_price: toNumber(p.unit_cost_price || p.opening_stock_unit_cost_price),
           unit_selling_price: toNumber(p.unit_selling_price || p.unit_retail_price),
           remaining_stock: toNumber(p.remaining_stock ?? p.quantity ?? itemObj.remaining_stock),
-        };
+        });
       });
     }
 
-    // Fallback to standard items list if pricings endpoint is empty
-    return items.map((item) => ({
-      id: item.id,
-      name: item.name || 'Unnamed Product',
-      sku: item.sku || item.code || `#${item.id}`,
-      opening_stock: toNumber(item.opening_stock),
-      current_cost_price: toNumber(item.unit_cost_price || item.cost_price),
-      unit_selling_price: toNumber(item.unit_selling_price || item.unit_retail_price || item.retail_price),
-      remaining_stock: toNumber(item.remaining_stock ?? item.current_stock ?? item.stock),
-    }));
+    if (items.length > 0) {
+      items.forEach((item) => {
+        const id = String(item.id);
+        const existing = catalogMap.get(id);
+
+        if (!existing) {
+          catalogMap.set(id, {
+            id: item.id,
+            name: item.name || `Item #${item.id}`,
+            sku: item.sku || item.code || `#${item.id}`,
+            opening_stock: toNumber(item.opening_stock),
+            current_cost_price: toNumber(item.unit_cost_price || item.cost_price),
+            unit_selling_price: toNumber(item.unit_selling_price || item.unit_retail_price || item.retail_price),
+            remaining_stock: toNumber(item.remaining_stock ?? item.current_stock ?? item.stock),
+          });
+        } else {
+          if (!existing.current_cost_price) existing.current_cost_price = toNumber(item.unit_cost_price || item.cost_price);
+          if (!existing.unit_selling_price) existing.unit_selling_price = toNumber(item.unit_selling_price || item.unit_retail_price);
+          if (!existing.remaining_stock) existing.remaining_stock = toNumber(item.remaining_stock ?? item.current_stock ?? item.stock);
+        }
+      });
+    }
+
+    return Array.from(catalogMap.values());
   }, [rawPricings, items]);
 
   // Compute Detailed Stock Control Metrics
@@ -177,12 +224,11 @@ export default function ManagementOperations({
       return true;
     });
 
-    // Aggregate sold units per item
     const soldByItem = {};
     filteredSales.forEach((sale) => {
       const saleItems = sale.items || sale.sale_items || [sale];
       saleItems.forEach((si) => {
-        const itemId = si.item || si.item_id || si.product || si.id;
+        const itemId = String(si.item || si.item_id || si.product || si.id);
         const qty = toNumber(si.quantity_sold || si.quantity || si.qty || 1);
         if (itemId) {
           soldByItem[itemId] = (soldByItem[itemId] || 0) + qty;
@@ -190,7 +236,6 @@ export default function ManagementOperations({
       });
     });
 
-    // Aggregate restocked units & costs per item
     const restockedByItem = {};
     const purchaseCostByItem = {};
     const purchaseQtyByItem = {};
@@ -198,7 +243,7 @@ export default function ManagementOperations({
     filteredPurchases.forEach((p) => {
       const pItems = p.items || p.purchase_items || [p];
       pItems.forEach((pi) => {
-        const itemId = pi.item || pi.item_id || pi.product || pi.id;
+        const itemId = String(pi.item || pi.item_id || pi.product || pi.id);
         const qty = toNumber(pi.quantity || pi.qty || 0);
         const cost = toNumber(pi.unit_cost_price || pi.unit_cost || pi.cost_price || 0);
 
@@ -211,9 +256,10 @@ export default function ManagementOperations({
     });
 
     return catalogList.map((row) => {
+      const itemIdStr = String(row.id);
       const currentStock = row.remaining_stock;
-      const sold = soldByItem[row.id] || 0;
-      const restocked = restockedByItem[row.id] || 0;
+      const sold = soldByItem[itemIdStr] || 0;
+      const restocked = restockedByItem[itemIdStr] || 0;
 
       const openingStock = row.opening_stock > 0
         ? row.opening_stock
@@ -222,8 +268,8 @@ export default function ManagementOperations({
       const costPrice = row.current_cost_price;
       const retailPrice = row.unit_selling_price;
 
-      const totalPurchaseCost = purchaseCostByItem[row.id] || 0;
-      const totalPurchaseQty = purchaseQtyByItem[row.id] || 0;
+      const totalPurchaseCost = purchaseCostByItem[itemIdStr] || 0;
+      const totalPurchaseQty = purchaseQtyByItem[itemIdStr] || 0;
 
       let wac = costPrice;
       if (totalPurchaseQty > 0) {
@@ -256,8 +302,8 @@ export default function ManagementOperations({
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-6 font-sans">
       
-      {/* SECTION HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      {/* SECTION HEADER WITH BRANCH SELECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
           <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-600 block">
             Management Operations
@@ -270,7 +316,27 @@ export default function ManagementOperations({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* BRANCH SELECTION DROPDOWN */}
+          <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-xl">
+            <label className="text-[10px] font-bold text-slate-600 uppercase">Select Branch:</label>
+            <select
+              value={branchKey}
+              onChange={handleBranchChange}
+              className="bg-transparent text-slate-900 text-xs font-bold outline-none cursor-pointer"
+            >
+              {branches.length > 0 ? (
+                branches.map((b) => (
+                  <option key={b.id || b.code} value={b.id || b.code}>
+                    {b.name || b.branch_name}
+                  </option>
+                ))
+              ) : (
+                <option value={branchKey}>{branchKey ? `Branch #${branchKey}` : 'All Branches'}</option>
+              )}
+            </select>
+          </div>
+
           {onBack && (
             <button
               onClick={onBack}
@@ -279,6 +345,7 @@ export default function ManagementOperations({
               ← Overview
             </button>
           )}
+
           <button
             onClick={loadData}
             disabled={loading}
