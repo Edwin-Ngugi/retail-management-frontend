@@ -4,6 +4,7 @@ import API from '../api';
 import { useBranch } from './BranchContext';
 import ManagementOperations from './ManagementOperations';
 import Reports from './Reports';
+import Cashbook from './Cashbook';
 import {
   BarChart,
   Bar,
@@ -390,7 +391,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         ...(effectiveEndDate && { end_date: effectiveEndDate }),
       }).toString();
 
-      // Parallel execution of lightweight API calls
       const [
         summaryRes,
         pnlRes,
@@ -434,19 +434,21 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchManagementAnalytics();
   }, [authToken, branchKey, fetchRequests, fetchManagementAnalytics]);
 
-  // Chart transformations using API data
+  // Filter out "SPLIT" payments to render actual channels (Cash, Paybill, Send Money, Credit, Bank)
   const paymentBreakdownData = useMemo(() => {
     if (!paymentMethodsData?.sale_payments) return [];
 
     const map = {
-      MPESA: { name: 'M-Pesa / Mobile', fill: '#10B981' },
       CASH: { name: 'Cash', fill: '#6366F1' },
+      MPESA: { name: 'M-Pesa / Mobile', fill: '#10B981' },
       PAYBILL: { name: 'Paybill / Till', fill: '#F59E0B' },
+      SEND_MONEY: { name: 'Send Money', fill: '#3B82F6' },
       CREDIT: { name: 'Credit Owed', fill: '#8B5CF6' },
       BANK_TRANSFER: { name: 'Bank Transfer', fill: '#EC4899' },
     };
 
     return paymentMethodsData.sale_payments
+      .filter((sp) => sp.method !== 'SPLIT') // Exclude generic "SPLIT" label
       .map((sp) => ({
         name: map[sp.method]?.name || sp.method,
         value: toNumber(sp.amount),
@@ -624,8 +626,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6 max-w-6xl mx-auto font-sans">
-            
-            {/* Business Performance Overview */}
             <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
@@ -795,14 +795,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
               </div>
             </div>
-
           </div>
+        )}
+
+        {/* CASHBOOK & BALANCE SHEET TABS */}
+        {(activeTab === 'CASHBOOK' || activeTab === 'BALANCE_SHEET') && (
+          <Cashbook selectedBranch={branchKey} />
         )}
 
         {/* REPORTS TAB WITH CHARTS & PAYMENT BREAKDOWN */}
         {activeTab === 'REPORTS' && (
           <div className="space-y-6">
-            
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
               {[
                 { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
@@ -976,14 +979,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
 
                   <div className="space-y-3">
-                    {paymentMethodsData?.sale_payments?.map((sp) => (
-                      <div key={sp.method} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase block">{sp.method}</span>
-                          <span className="text-base font-extrabold font-mono text-slate-900">{formatCurrency(sp.amount)}</span>
+                    {paymentMethodsData?.sale_payments
+                      ?.filter((sp) => sp.method !== 'SPLIT') // Exclude generic SPLIT card
+                      ?.map((sp) => (
+                        <div key={sp.method} className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase block">{sp.method}</span>
+                            <span className="text-base font-extrabold font-mono text-slate-900">{formatCurrency(sp.amount)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               </div>
@@ -991,7 +996,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
             {/* 4. SUMMARIZED REPORT */}
             {reportSubTab === 'SUMMARIZED_REPORT' && <Reports items={[]} />}
-
           </div>
         )}
 
