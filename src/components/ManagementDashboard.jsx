@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 import { useBranch } from './BranchContext';
+import SalesView from './SalesView';
 import ManagementOperations from './ManagementOperations';
 import Reports from './Reports';
 import Cashbook from './Cashbook';
@@ -606,8 +607,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* OPERATIONS TAB */}
+        {/* SALES TAB (RENDERS SalesView WITH 6 NAVIGATION MODULES) */}
         {activeTab === 'OPERATIONS' && (
+          <SalesView
+            branchId={branchKey}
+            startDate={effectiveRange.effectiveStartDate}
+            endDate={effectiveRange.effectiveEndDate}
+          />
+        )}
+
+        {/* INVENTORY / REVIEWS TAB */}
+        {activeTab === 'REVIEWS' && (
           <ManagementOperations
             selectedBranch={branchKey}
             effectiveRange={effectiveRange}
