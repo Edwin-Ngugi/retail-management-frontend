@@ -242,7 +242,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return selectedBranch?.id || selectedBranch?.code || '';
   }, [selectedBranch]);
 
-  // Auth State
   const [authToken, setAuthToken] = useState(
     () => localStorage.getItem('access_token') || localStorage.getItem('token') || null
   );
@@ -260,12 +259,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return null;
   });
 
-  // Login Form
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Active Nav Tab
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
@@ -282,11 +279,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_operations_section', operationsSection);
   }, [operationsSection]);
 
-  // Review Requests State
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Global Management Date Filter Horizon
   const [dateFilter, setDateFilter] = useState({
     filterMode: 'ALL',
     selectedDay: formatDateString(new Date()),
@@ -295,7 +290,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     endDate: '',
   });
 
-  // Items and Calculated Financial Metrics State
   const [items, setItems] = useState(initialItems);
   const [paymentTotals, setPaymentTotals] = useState({
     MPESA: 0,
@@ -444,7 +438,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  // DIRECT METRICS COMPUTATION ALIGNED WITH APP.JSX
   const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken) return;
 
@@ -452,61 +445,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
-      let summarySuccess = false;
-
-      // 1. Primary path: financial-reports/summary (matches App.jsx logic)
-      if (branchKey) {
-        try {
-          const reportParams = new URLSearchParams({ branch: branchKey });
-
-          if (dateFilter.filterMode === 'ALL') {
-            reportParams.append('period_type', 'all_time');
-          } else if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
-            reportParams.append('period_type', 'custom');
-            reportParams.append('startDate', effectiveStartDate);
-            reportParams.append('endDate', effectiveEndDate);
-          } else if (effectiveStartDate) {
-            reportParams.append('period_type', 'day');
-            reportParams.append('date', effectiveStartDate);
-          }
-
-          const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
-          const data = res.data;
-
-          if (data && data.payment_channel_breakdown && data.summary) {
-            const breakdown = data.payment_channel_breakdown;
-            const sum = data.summary;
-
-            const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
-
-            setPaymentTotals({
-              MPESA: mpesaCombined,
-              CASH: toNumber(breakdown.cash),
-              CREDIT: toNumber(breakdown.credit_outstanding ?? sum.credit_outstanding),
-              PAYBILL: toNumber(breakdown.paybill),
-            });
-
-            setCreditSummary({
-              totalCreditIssued: toNumber(sum.new_credit_sales),
-              totalRecovered: toNumber(sum.credit_repayments),
-              outstandingCredit: toNumber(sum.credit_outstanding),
-            });
-
-            setRestockSummary({
-              totalRestocksValue: toNumber(sum.purchases_cost),
-              totalSupplierPayables: 0,
-            });
-
-            summarySuccess = true;
-          }
-        } catch (summaryErr) {
-          // Fall back to client calculation
-        }
-      }
-
-      if (summarySuccess) return;
-
-      // 2. Client-side fallback calculation with split payments mapping
+      // Fetch sales, repayments, purchases, and sale-payments concurrently
       const salesParams = new URLSearchParams();
       const repaymentsParams = new URLSearchParams();
       const purchasesParams = new URLSearchParams();
@@ -524,6 +463,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         fetchPaginatedData(`sale-payments/?${branchKey ? `branch=${branchKey}` : ''}`),
       ]);
 
+      // Map split payments by transaction/sale ID
       const splitMap = {};
       if (Array.isArray(rawSplitPayments)) {
         rawSplitPayments.forEach((sp) => {
@@ -538,6 +478,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
+      // Filter Sales strictly by active date range (skip filtering if filterMode === 'ALL')
       const sales = rawSales.filter((s) => {
         if (dateFilter.filterMode === 'ALL') return true;
         const dateStr = getRecordDateStr(s);
@@ -615,6 +556,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         }
       });
 
+      // Filter and sum Repayments
       let totalRecovered = 0;
       const repayments = rawRepayments.filter((r) => {
         if (dateFilter.filterMode === 'ALL') return true;
@@ -627,7 +569,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
       repayments.forEach((rep) => {
         const amount = toNumber(rep?.amount || rep?.amount_paid);
+        const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
+
         totalRecovered += amount;
+
+        if (channel === 'MPESA') totals.MPESA += amount;
+        else if (channel === 'PAYBILL') totals.PAYBILL += amount;
+        else totals.CASH += amount;
       });
 
       const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
