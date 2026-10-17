@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 import { useBranch } from './BranchContext';
 import ManagementOperations from './ManagementOperations';
+import Reports from './Reports';
 
 /* =========================================================
    HELPERS & CALCULATORS (ALIGNED WITH APP.JSX)
@@ -262,11 +263,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Active Nav Tab with localStorage persistence
+  // Active Nav Tab & Reports Sub-Tab persistence
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('mgmt_active_tab');
     return saved === 'INVENTORY' ? 'OPERATIONS' : saved || 'OVERVIEW';
   });
+
+  const [reportSubTab, setReportSubTab] = useState('PROFIT_LOSS');
 
   const [operationsSection, setOperationsSection] = useState(() => {
     return localStorage.getItem('mgmt_operations_section') || 'inventory';
@@ -283,7 +286,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Global Management Date Filter Horizon with localStorage persistence
+  // Global Management Date Filter Horizon
   const [dateFilter, setDateFilter] = useState(() => {
     const saved = localStorage.getItem('mgmt_date_filter');
     if (saved) {
@@ -309,6 +312,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   }, [dateFilter]);
 
   const [items, setItems] = useState(initialItems);
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  
   const [paymentTotals, setPaymentTotals] = useState({
     MPESA: 0,
     CASH: 0,
@@ -464,65 +470,21 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
-      let summarySuccess = false;
-
-      try {
-        const reportParams = new URLSearchParams({ branch: branchKey });
-
-        if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
-          reportParams.append('period_type', 'custom');
-          reportParams.append('startDate', effectiveStartDate);
-          reportParams.append('endDate', effectiveEndDate);
-        } else if (effectiveStartDate) {
-          reportParams.append('period_type', 'day');
-          reportParams.append('date', effectiveStartDate);
-        }
-
-        const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
-        const data = res.data;
-
-        if (data && data.payment_channel_breakdown && data.summary) {
-          const breakdown = data.payment_channel_breakdown;
-          const sum = data.summary;
-
-          const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
-
-          setPaymentTotals({
-            MPESA: mpesaCombined,
-            CASH: toNumber(breakdown.cash),
-            CREDIT: toNumber(breakdown.credit_outstanding ?? sum.credit_outstanding),
-            PAYBILL: toNumber(breakdown.paybill),
-          });
-
-          setCreditSummary({
-            totalCreditIssued: toNumber(sum.new_credit_sales),
-            totalRecovered: toNumber(sum.credit_repayments),
-            outstandingCredit: toNumber(sum.credit_outstanding),
-          });
-
-          setRestockSummary({
-            totalRestocksValue: toNumber(sum.purchases_cost),
-            totalSupplierPayables: 0,
-          });
-
-          summarySuccess = true;
-        }
-      } catch (summaryErr) {
-        // Fall back to client calculation
-      }
-
-      if (summarySuccess) return;
-
       const salesParams = new URLSearchParams({ branch: branchKey });
       const repaymentsParams = new URLSearchParams({ branch: branchKey });
       const purchasesParams = new URLSearchParams({ branch: branchKey });
+      const expensesParams = new URLSearchParams({ branch: branchKey });
 
-      const [rawSales, rawRepayments, rawPurchases, rawSplitPayments] = await Promise.all([
+      const [rawSales, rawRepayments, rawPurchases, rawSplitPayments, rawExpenses] = await Promise.all([
         fetchPaginatedData(`sales/?${salesParams.toString()}`),
         fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
         fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
         fetchPaginatedData(`sale-payments/?branch=${branchKey}`),
+        fetchPaginatedData(`expenses/?${expensesParams.toString()}`),
       ]);
+
+      setSales(rawSales);
+      setExpenses(rawExpenses);
 
       const splitMap = {};
       if (Array.isArray(rawSplitPayments)) {
@@ -538,7 +500,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-      const sales = rawSales.filter((s) => {
+      const filteredSales = rawSales.filter((s) => {
         const dateStr = getRecordDateStr(s);
         if (!dateStr) return true;
         if (effectiveStartDate && dateStr < effectiveStartDate) return false;
@@ -546,7 +508,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         return true;
       });
 
-      sales.forEach((sale) => {
+      filteredSales.forEach((sale) => {
         const rawMethod = String(sale?.payment_method || '').toUpperCase();
         const inlineSplits =
           Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
@@ -668,10 +630,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
     fetchItems();
     fetchRequests();
-
-    if (activeTab === 'OVERVIEW') {
-      computeDashboardMetricsDirectly();
-    }
+    computeDashboardMetricsDirectly();
   }, [authToken, branchKey, activeTab, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
 
   const metrics = useMemo(() => {
@@ -707,6 +666,72 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       healthyCount,
     };
   }, [items]);
+
+  // Analytics Calculation for P&L and Sales Performance
+  const reportAnalytics = useMemo(() => {
+    const { effectiveStartDate, effectiveEndDate } = effectiveRange;
+
+    const periodSales = sales.filter((s) => {
+      const dateStr = getRecordDateStr(s);
+      if (!dateStr) return true;
+      if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+      if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+      return true;
+    });
+
+    const periodExpenses = expenses.filter((e) => {
+      const dateStr = getRecordDateStr(e);
+      if (!dateStr) return true;
+      if (effectiveStartDate && dateStr < effectiveStartDate) return false;
+      if (effectiveEndDate && dateStr > effectiveEndDate) return false;
+      return true;
+    });
+
+    let totalRevenue = 0;
+    let totalCogs = 0;
+    const itemSalesMap = {};
+
+    periodSales.forEach((sale) => {
+      const saleAmt = toNumber(sale.total_amount || sale.amount || sale.total_price);
+      totalRevenue += saleAmt;
+
+      const saleItems = sale.items || sale.sale_items || [];
+      saleItems.forEach((si) => {
+        const itemId = String(si.item || si.item_id || si.product || si.id);
+        const itemName = si.name || si.item_name || si.product_name || `Item #${itemId}`;
+        const qty = toNumber(si.quantity_sold || si.quantity || si.qty || 1);
+        const price = toNumber(si.unit_price || si.price || 0);
+        const cost = toNumber(si.unit_cost_price || si.unit_cost || si.cost_price || 0);
+
+        totalCogs += qty * cost;
+
+        if (!itemSalesMap[itemId]) {
+          itemSalesMap[itemId] = { id: itemId, name: itemName, qty: 0, revenue: 0 };
+        }
+        itemSalesMap[itemId].qty += qty;
+        itemSalesMap[itemId].revenue += qty * (price || saleAmt);
+      });
+    });
+
+    let totalExpenseAmount = 0;
+    periodExpenses.forEach((exp) => {
+      totalExpenseAmount += toNumber(exp.amount || exp.total || exp.cost);
+    });
+
+    const grossProfit = totalRevenue - totalCogs;
+    const netProfit = grossProfit - totalExpenseAmount;
+
+    const itemsPerformanceList = Object.values(itemSalesMap).sort((a, b) => b.revenue - a.revenue);
+
+    return {
+      totalRevenue,
+      totalCogs,
+      grossProfit,
+      totalExpenses: totalExpenseAmount,
+      netProfit,
+      itemsPerformanceList,
+    };
+  }, [sales, expenses, effectiveRange]);
 
   const summaryMetrics = useMemo(() => {
     const pending = requests.filter((r) => r.status?.toUpperCase().includes('PENDING')).length;
@@ -806,7 +831,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </select>
               </div>
 
-              {/* CLEAN TOP NAV (NO DUPED INVENTORY TAB) */}
               <nav className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
                 {[
                   { id: 'OVERVIEW', label: 'Dashboard' },
@@ -1115,31 +1139,191 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* REPORTS TAB */}
+        {/* REPORTS TAB WITH EXPANDED REPORT SUB-PANELS */}
         {activeTab === 'REPORTS' && (
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">
-              Management Reports & Statements
-            </h2>
-            <p className="text-xs text-slate-500">
-              Access cashbook ledgers, balance sheet statements, and audit reports.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-              <button
-                onClick={() => setActiveTab('CASHBOOK')}
-                className="p-5 border rounded-2xl bg-slate-50 hover:bg-slate-100 text-left space-y-2 cursor-pointer transition"
-              >
-                <h3 className="font-bold text-sm text-slate-800">Cashbook Statement</h3>
-                <p className="text-xs text-slate-500">View detailed daily inflows, outflows, and net cash movements.</p>
-              </button>
-              <button
-                onClick={() => setActiveTab('BALANCE_SHEET')}
-                className="p-5 border rounded-2xl bg-slate-50 hover:bg-slate-100 text-left space-y-2 cursor-pointer transition"
-              >
-                <h3 className="font-bold text-sm text-slate-800">Statement of Financial Position</h3>
-                <p className="text-xs text-slate-500">Review assets, liabilities, and equity calculations.</p>
-              </button>
+          <div className="space-y-6">
+            
+            {/* SUB-NAVIGATOR FOR REPORTS */}
+            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
+              {[
+                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
+                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
+                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
+              ].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setReportSubTab(sub.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    reportSubTab === sub.id
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
             </div>
+
+            {/* 1. PROFIT AND LOSS REPORT PANEL */}
+            {reportSubTab === 'PROFIT_LOSS' && (
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
+                <div className="border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
+                    Profit & Loss Statement (P&L)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Statement of revenues, cost of goods sold, and operating expenditure for the period.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Sales Revenue</span>
+                    <span className="text-lg font-bold font-mono text-slate-900 block mt-1">
+                      {formatCurrency(reportAnalytics.totalRevenue)}
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
+                    <span className="text-[10px] font-bold text-rose-600 uppercase block">Cost of Goods Sold (COGS)</span>
+                    <span className="text-lg font-bold font-mono text-rose-800 block mt-1">
+                      {formatCurrency(reportAnalytics.totalCogs)}
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase block">Gross Profit</span>
+                    <span className="text-lg font-bold font-mono text-emerald-800 block mt-1">
+                      {formatCurrency(reportAnalytics.grossProfit)}
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase block">Net Operating Profit</span>
+                    <span className="text-lg font-bold font-mono text-indigo-900 block mt-1">
+                      {formatCurrency(reportAnalytics.netProfit)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* DETAILED P&L TABLE */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
+                        <th className="py-3 px-4">Financial Statement Line Item</th>
+                        <th className="py-3 px-4 text-right">Amount (KSh)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                      <tr>
+                        <td className="py-3 px-4 font-bold text-slate-900">Gross Sales Revenue</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                          {formatCurrency(reportAnalytics.totalRevenue)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 px-4 text-slate-600 pl-8">Less: Direct Cost of Sales (COGS)</td>
+                        <td className="py-3 px-4 text-right font-mono text-rose-600">
+                          -{formatCurrency(reportAnalytics.totalCogs)}
+                        </td>
+                      </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="py-3 px-4 text-slate-900">GROSS MARGIN / PROFIT</td>
+                        <td className="py-3 px-4 text-right font-mono text-emerald-700">
+                          {formatCurrency(reportAnalytics.grossProfit)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 px-4 text-slate-600 pl-8">Less: Total Operating Expenses</td>
+                        <td className="py-3 px-4 text-right font-mono text-amber-600">
+                          -{formatCurrency(reportAnalytics.totalExpenses)}
+                        </td>
+                      </tr>
+                      <tr className="bg-indigo-50/80 font-extrabold border-t-2 border-indigo-200">
+                        <td className="py-3.5 px-4 text-indigo-950 uppercase">NET OPERATING INCOME / PROFIT</td>
+                        <td className="py-3.5 px-4 text-right font-mono text-indigo-950 text-sm">
+                          {formatCurrency(reportAnalytics.netProfit)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 2. SALES ANALYSIS REPORT PANEL */}
+            {reportSubTab === 'SALES_ANALYSIS' && (
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
+                <div className="border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
+                    Sales & Product Movement Analysis
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Review fast-moving items, revenue contribution, and volume per item.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-2xl shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
+                        <th className="py-3.5 px-4">Rank & Item Name</th>
+                        <th className="py-3.5 px-4 text-right">Units Sold</th>
+                        <th className="py-3.5 px-4 text-right">Total Revenue Generated</th>
+                        <th className="py-3.5 px-4 text-right">Revenue Contribution</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                      {reportAnalytics.itemsPerformanceList.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="py-8 text-center text-slate-500">
+                            No sales records available for the selected period.
+                          </td>
+                        </tr>
+                      ) : (
+                        reportAnalytics.itemsPerformanceList.map((item, idx) => {
+                          const pct = reportAnalytics.totalRevenue > 0
+                            ? Math.round((item.revenue / reportAnalytics.totalRevenue) * 100)
+                            : 0;
+
+                          return (
+                            <tr key={item.id} className="hover:bg-slate-50 transition">
+                              <td className="py-3 px-4 font-bold text-slate-900 flex items-center gap-2">
+                                <span className="w-5 h-5 rounded bg-indigo-100 text-indigo-800 flex items-center justify-center text-[10px] font-extrabold">
+                                  #{idx + 1}
+                                </span>
+                                {item.name}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono font-bold text-slate-700">
+                                {formatNumber(item.qty)} units
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">
+                                {formatCurrency(item.revenue)}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div style={{ width: `${pct}%` }} className="h-full bg-indigo-600 rounded-full" />
+                                  </div>
+                                  <span className="font-mono text-[10px] font-bold text-slate-500">{pct}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 3. SUMMARIZED COMPREHENSIVE REPORT (IMPORTED REPORTS.JSX) */}
+            {reportSubTab === 'SUMMARIZED_REPORT' && (
+              <Reports items={items} />
+            )}
+
           </div>
         )}
 
