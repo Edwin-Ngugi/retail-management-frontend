@@ -236,7 +236,6 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
 export default function ManagementDashboard({ onLogout, currentUser: initialUser, items: initialItems = [] }) {
   const { selectedBranch, setSelectedBranch, branches = [] } = useBranch();
 
-  // Safely get primitive string branch key
   const branchKey = useMemo(() => {
     if (!selectedBranch) return '';
     if (typeof selectedBranch === 'string') return selectedBranch;
@@ -387,7 +386,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
         setItems(fetchedItems);
       } else {
-        // Fallback fetch without branch filter if initial response is empty
         const fallbackItems = await fetchPaginatedData('items/');
         setItems(fallbackItems);
       }
@@ -411,7 +409,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     }
   }, [authToken, handleLogout]);
 
-  // Compute effective date bounds from dateFilter state
   const effectiveRange = useMemo(() => {
     const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
     let start = '';
@@ -447,7 +444,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  // DIRECT METRICS COMPUTATION (MATCHES APP.JSX COMPUTATION PARITY)
+  // DIRECT METRICS COMPUTATION ALIGNED WITH APP.JSX
   const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken) return;
 
@@ -455,6 +452,61 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
     try {
+      let summarySuccess = false;
+
+      // 1. Primary path: financial-reports/summary (matches App.jsx logic)
+      if (branchKey) {
+        try {
+          const reportParams = new URLSearchParams({ branch: branchKey });
+
+          if (dateFilter.filterMode === 'ALL') {
+            reportParams.append('period_type', 'all_time');
+          } else if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
+            reportParams.append('period_type', 'custom');
+            reportParams.append('startDate', effectiveStartDate);
+            reportParams.append('endDate', effectiveEndDate);
+          } else if (effectiveStartDate) {
+            reportParams.append('period_type', 'day');
+            reportParams.append('date', effectiveStartDate);
+          }
+
+          const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
+          const data = res.data;
+
+          if (data && data.payment_channel_breakdown && data.summary) {
+            const breakdown = data.payment_channel_breakdown;
+            const sum = data.summary;
+
+            const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
+
+            setPaymentTotals({
+              MPESA: mpesaCombined,
+              CASH: toNumber(breakdown.cash),
+              CREDIT: toNumber(breakdown.credit_outstanding ?? sum.credit_outstanding),
+              PAYBILL: toNumber(breakdown.paybill),
+            });
+
+            setCreditSummary({
+              totalCreditIssued: toNumber(sum.new_credit_sales),
+              totalRecovered: toNumber(sum.credit_repayments),
+              outstandingCredit: toNumber(sum.credit_outstanding),
+            });
+
+            setRestockSummary({
+              totalRestocksValue: toNumber(sum.purchases_cost),
+              totalSupplierPayables: 0,
+            });
+
+            summarySuccess = true;
+          }
+        } catch (summaryErr) {
+          // Fall back to client calculation
+        }
+      }
+
+      if (summarySuccess) return;
+
+      // 2. Client-side fallback calculation with split payments mapping
       const salesParams = new URLSearchParams();
       const repaymentsParams = new URLSearchParams();
       const purchasesParams = new URLSearchParams();
@@ -465,17 +517,29 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         purchasesParams.append('branch', branchKey);
       }
 
-      const [rawSales, rawRepayments, rawPurchases] = await Promise.all([
+      const [rawSales, rawRepayments, rawPurchases, rawSplitPayments] = await Promise.all([
         fetchPaginatedData(`sales/?${salesParams.toString()}`),
         fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
         fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
+        fetchPaginatedData(`sale-payments/?${branchKey ? `branch=${branchKey}` : ''}`),
       ]);
+
+      const splitMap = {};
+      if (Array.isArray(rawSplitPayments)) {
+        rawSplitPayments.forEach((sp) => {
+          const saleId = sp.sale || sp.transaction || sp.sale_id || sp.transaction_id;
+          if (saleId) {
+            if (!splitMap[saleId]) splitMap[saleId] = [];
+            splitMap[saleId].push(sp);
+          }
+        });
+      }
 
       let totalCreditIssued = 0;
       const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-      // 1. Process Sales strictly based on effective date bounds
       const sales = rawSales.filter((s) => {
+        if (dateFilter.filterMode === 'ALL') return true;
         const dateStr = getRecordDateStr(s);
         if (!dateStr) return true;
         if (effectiveStartDate && dateStr < effectiveStartDate) return false;
@@ -485,12 +549,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
       sales.forEach((sale) => {
         const rawMethod = String(sale?.payment_method || '').toUpperCase();
-        const splitPayments =
-          Array.isArray(sale?.split_payments) && sale.split_payments.length > 0
+        const inlineSplits =
+          Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
             ? sale.split_payments
-            : Array.isArray(sale?.payments) && sale.payments.length > 0
+            : Array.isArray(sale?.payments) && sale.payments.length > 0 && typeof sale.payments[0] === 'object'
             ? sale.payments
             : [];
+
+        const splitPayments = inlineSplits.length > 0 ? inlineSplits : splitMap[sale.id] || [];
 
         const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
         const initialDeposit = toNumber(
@@ -549,9 +615,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         }
       });
 
-      // 2. Process Repayments strictly by date
       let totalRecovered = 0;
       const repayments = rawRepayments.filter((r) => {
+        if (dateFilter.filterMode === 'ALL') return true;
         const dateStr = getRecordDateStr(r);
         if (!dateStr) return true;
         if (effectiveStartDate && dateStr < effectiveStartDate) return false;
@@ -561,13 +627,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
       repayments.forEach((rep) => {
         const amount = toNumber(rep?.amount || rep?.amount_paid);
-        const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
-
         totalRecovered += amount;
-
-        if (channel === 'MPESA') totals.MPESA += amount;
-        else if (channel === 'PAYBILL') totals.PAYBILL += amount;
-        else totals.CASH += amount;
       });
 
       const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
@@ -581,8 +641,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         outstandingCredit: netCreditOutstanding,
       });
 
-      // 3. Process Restocks & Purchases strictly by date
       const purchases = rawPurchases.filter((p) => {
+        if (dateFilter.filterMode === 'ALL') return true;
         const dateStr = getRecordDateStr(p);
         if (!dateStr) return true;
         if (effectiveStartDate && dateStr < effectiveStartDate) return false;
@@ -604,7 +664,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } finally {
       setLoadingFinancials(false);
     }
-  }, [authToken, branchKey, effectiveRange]);
+  }, [authToken, branchKey, effectiveRange, dateFilter.filterMode]);
 
   useEffect(() => {
     if (!authToken) return;
