@@ -160,7 +160,6 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
             onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
             className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="ALL">All Time</option>
             <option value="DAILY">Daily Pick</option>
             <option value="THIS_WEEK">Weekly</option>
             <option value="MONTHLY">Monthly</option>
@@ -263,6 +262,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
+  // Active Nav Tab with localStorage persistence
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
@@ -282,13 +282,30 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [dateFilter, setDateFilter] = useState({
-    filterMode: 'ALL',
-    selectedDay: formatDateString(new Date()),
-    selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    startDate: '',
-    endDate: '',
+  // Global Management Date Filter Horizon with localStorage persistence
+  const [dateFilter, setDateFilter] = useState(() => {
+    const saved = localStorage.getItem('mgmt_date_filter');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.filterMode === 'ALL') parsed.filterMode = 'DAILY';
+        return parsed;
+      } catch (e) {
+        /* fallback below */
+      }
+    }
+    return {
+      filterMode: 'DAILY',
+      selectedDay: formatDateString(new Date()),
+      selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+      startDate: '',
+      endDate: '',
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem('mgmt_date_filter', JSON.stringify(dateFilter));
+  }, [dateFilter]);
 
   const [items, setItems] = useState(initialItems);
   const [paymentTotals, setPaymentTotals] = useState({
@@ -316,6 +333,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.removeItem('user_data');
     localStorage.removeItem('mgmt_active_tab');
     localStorage.removeItem('mgmt_operations_section');
+    localStorage.removeItem('mgmt_date_filter');
     setAuthToken(null);
     setCurrentUser(null);
     if (typeof onLogout === 'function') onLogout();
@@ -438,7 +456,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return { effectiveStartDate: start, effectiveEndDate: end };
   }, [dateFilter]);
 
-  // EXACT REPLICATION OF APP.JSX FETCHING BEHAVIOR
   const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken || !branchKey) return;
 
@@ -448,7 +465,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     try {
       let summarySuccess = false;
 
-      // 1. Primary path: query financial-reports/summary/?branch=... (strictly following App.jsx)
       try {
         const reportParams = new URLSearchParams({ branch: branchKey });
 
@@ -496,7 +512,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
       if (summarySuccess) return;
 
-      // 2. Direct Fallback Calculation (strictly matching App.jsx)
       const salesParams = new URLSearchParams({ branch: branchKey });
       const repaymentsParams = new URLSearchParams({ branch: branchKey });
       const purchasesParams = new URLSearchParams({ branch: branchKey });
