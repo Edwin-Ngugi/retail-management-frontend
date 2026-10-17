@@ -142,8 +142,8 @@ const fetchPaginatedData = async (initialEndpoint) => {
         break;
       }
     } catch (e) {
-      console.warn(`Fetch error on path: ${cleanPath}`, e);
-      break;
+      console.error(`Fetch failed for ${cleanPath}`, e);
+      throw e;
     }
   }
 
@@ -162,24 +162,36 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Management Analytics Horizon
+            Reporting period
           </h2>
           <p className="text-[11px] text-slate-500">
-            Selected date boundaries apply across Dashboard, Operations, and Reports
+            The selected dates apply to the dashboard, operations and reports
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-700">Filter Period:</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDateFilter({
+              filterMode: 'DAILY',
+              selectedDay: formatDateString(new Date()),
+              selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+              startDate: '',
+              endDate: '',
+            })}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >Today
+          </button>
+          <label className="text-xs font-bold text-slate-700">Period:</label>
           <select
             value={filterMode}
             onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
             className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="DAILY">Daily Pick</option>
-            <option value="THIS_WEEK">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="THIS_YEAR">Yearly</option>
+            <option value="DAILY">Today / specific day</option>
+            <option value="THIS_WEEK">This week</option>
+            <option value="MONTHLY">This month / specific month</option>
+            <option value="THIS_YEAR">This year</option>
             <option value="CUSTOM">Custom Range</option>
           </select>
         </div>
@@ -187,7 +199,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
 
       {filterMode === 'DAILY' && (
         <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <label className="font-bold text-slate-700">Choose Specific Day:</label>
+          <label className="font-bold text-slate-700">Date:</label>
           <input
             type="date"
             value={selectedDay}
@@ -201,7 +213,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
 
       {filterMode === 'MONTHLY' && (
         <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <label className="font-bold text-slate-700">Choose Specific Month:</label>
+          <label className="font-bold text-slate-700">Month:</label>
           <input
             type="month"
             value={selectedMonth}
@@ -213,10 +225,16 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
         </div>
       )}
 
+      {filterMode === 'CUSTOM' && startDate && endDate && startDate > endDate && (
+        <p role="alert" className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+          The start date must be on or before the end date.
+        </p>
+      )}
+
       {filterMode === 'CUSTOM' && (
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">Start Date:</label>
+            <label className="font-bold text-slate-600">Start date:</label>
             <input
               type="date"
               value={startDate}
@@ -228,7 +246,7 @@ function ManagementDateFilterBar({ dateFilter, setDateFilter }) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">End Date:</label>
+            <label className="font-bold text-slate-600">End date:</label>
             <input
               type="date"
               value={endDate}
@@ -346,6 +364,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     totalSupplierPayables: 0,
   });
   const [loadingFinancials, setLoadingFinancials] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('access_token');
@@ -388,11 +408,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         localStorage.setItem('refresh_token', res.data.refresh);
       }
 
-      const userObj = res.data?.user || {
-        username: loginForm.username,
-        role: 'Manager',
-        email: `${loginForm.username}@admin.com`,
-      };
+      // Use the identity returned by the backend. The backend remains the authority
+      // for roles and permissions; do not invent a role or email in the browser.
+      const userObj = res.data?.user || { username: loginForm.username.trim() };
 
       localStorage.setItem('user', JSON.stringify(userObj));
       localStorage.setItem('user_data', JSON.stringify(userObj));
@@ -417,16 +435,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     try {
       const endpoint = branchKey ? `items/?branch=${encodeURIComponent(branchKey)}` : 'items/';
       const fetchedItems = await fetchPaginatedData(endpoint);
-      if (Array.isArray(fetchedItems) && fetchedItems.length > 0) {
-        setItems(fetchedItems);
-      } else {
-        const fallbackItems = await fetchPaginatedData('items/');
-        setItems(fallbackItems);
-      }
+      // An empty branch result is valid. Never replace it with all-branch inventory.
+      setItems(Array.isArray(fetchedItems) ? fetchedItems : []);
     } catch (e) {
       console.error('Failed to fetch items:', e);
+      setDashboardError('Some dashboard data could not be loaded. Check your connection and refresh.');
+      if (e.response?.status === 401) handleLogout();
     }
-  }, [authToken, branchKey]);
+  }, [authToken, branchKey, handleLogout]);
 
   const fetchRequests = useCallback(async () => {
     if (!authToken) return;
@@ -437,6 +453,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setRequests(fetchedRequests);
     } catch (err) {
       console.error('Failed to load review requests:', err);
+      setDashboardError('Approvals could not be loaded. Check your access and connection, then refresh.');
       if (err.response?.status === 401) handleLogout();
     } finally {
       setLoading(false);
@@ -481,8 +498,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const computeDashboardMetricsDirectly = useCallback(async () => {
     if (!authToken || !branchKey) return;
 
-    setLoadingFinancials(true);
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
+    if (effectiveStartDate && effectiveEndDate && effectiveStartDate > effectiveEndDate) {
+      setDashboardError('Invalid reporting period: the start date must be on or before the end date.');
+      setLoadingFinancials(false);
+      return;
+    }
+
+    setLoadingFinancials(true);
+    setDashboardError('');
 
     try {
       const salesParams = new URLSearchParams({ branch: branchKey });
@@ -605,11 +629,35 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         totalRecovered += amount;
       });
 
-      const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
-      totals.CREDIT = netCreditOutstanding;
+      // Period activity and outstanding debt are different measures. Calculate the
+      // cumulative outstanding amount from all available sales and repayment records.
+      const allTimeCreditIssued = rawSales.reduce((sum, sale) => {
+        const method = String(sale?.payment_method || '').toUpperCase();
+        const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
+        const deposit = toNumber(sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid);
+        const inlineSplits = Array.isArray(sale?.split_payments) && sale.split_payments.length
+          ? sale.split_payments
+          : Array.isArray(sale?.payments) && sale.payments.length
+            ? sale.payments
+            : [];
+        const splits = inlineSplits.length ? inlineSplits : splitMap[sale.id] || [];
+        if (method === 'CREDIT' || Boolean(sale?.is_credit)) return sum + Math.max(0, totalAmt - deposit);
+        if (method === 'SPLIT' || splits.length) {
+          const splitCredit = splits.reduce((creditSum, sp) => {
+            const splitMethod = normalizePaymentMethod(sp?.payment_method || sp?.method || sp?.payment_mode || sp?.channel || sp?.type);
+            return creditSum + (splitMethod === 'CREDIT' ? toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total) : 0);
+          }, 0);
+          const allocated = splits.reduce((allocatedSum, sp) => allocatedSum + toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total), 0);
+          return sum + splitCredit + Math.max(0, totalAmt - allocated);
+        }
+        return sum;
+      }, 0);
+      const allTimeRecovered = rawRepayments.reduce((sum, rep) => sum + toNumber(rep?.amount || rep?.amount_paid), 0);
+      const netCreditOutstanding = Math.max(0, allTimeCreditIssued - allTimeRecovered);
+      // This payment channel card is period credit issued, not the cumulative balance.
+      totals.CREDIT = totalCreditIssued;
 
       setPaymentTotals(totals);
-
       setCreditSummary({
         totalCreditIssued,
         totalRecovered,
@@ -633,12 +681,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         totalRestocksValue,
         totalSupplierPayables: 0,
       });
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to compute management metrics:', err);
+      setDashboardError('Some dashboard data could not be loaded. Values may be incomplete; refresh before relying on them.');
+      if (err.response?.status === 401) handleLogout();
     } finally {
       setLoadingFinancials(false);
     }
-  }, [authToken, branchKey, effectiveRange]);
+  }, [authToken, branchKey, effectiveRange, handleLogout]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -646,7 +697,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchItems();
     fetchRequests();
     computeDashboardMetricsDirectly();
-  }, [authToken, branchKey, activeTab, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
+  }, [authToken, branchKey, fetchItems, fetchRequests, computeDashboardMetricsDirectly]);
 
   const metrics = useMemo(() => {
     let totalCostValuation = 0;
@@ -708,7 +759,24 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
     periodSales.forEach((sale) => {
       const saleAmt = toNumber(sale.total_amount || sale.amount || sale.total_price);
-      totalRevenue += saleAmt;
+      const method = String(sale?.payment_method || '').toUpperCase();
+      const deposit = toNumber(sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid);
+      const splitList = Array.isArray(sale?.split_payments) && sale.split_payments.length
+        ? sale.split_payments
+        : Array.isArray(sale?.payments) && sale.payments.length
+          ? sale.payments
+          : [];
+      let recognizedRevenue = saleAmt;
+      if (method === 'CREDIT' || Boolean(sale?.is_credit)) {
+        // Credit sales are tracked in the credit ledger, not recognized as cash revenue here.
+        recognizedRevenue = deposit;
+      } else if (method === 'SPLIT' || splitList.length) {
+        recognizedRevenue = splitList.reduce((sum, payment) => {
+          const channel = normalizePaymentMethod(payment?.payment_method || payment?.method || payment?.payment_mode || payment?.channel || payment?.type);
+          return sum + (channel === 'CREDIT' ? 0 : toNumber(payment?.amount || payment?.amount_paid || payment?.value || payment?.total));
+        }, 0);
+      }
+      totalRevenue += recognizedRevenue;
 
       const saleItems = sale.items || sale.sale_items || [];
       saleItems.forEach((si) => {
@@ -754,7 +822,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       { name: 'M-Pesa / Mobile', value: paymentTotals.MPESA, fill: '#10B981' },
       { name: 'Cash', value: paymentTotals.CASH, fill: '#6366F1' },
       { name: 'Paybill / Till', value: paymentTotals.PAYBILL, fill: '#F59E0B' },
-      { name: 'Credit Owed', value: paymentTotals.CREDIT, fill: '#8B5CF6' },
+      { name: 'Credit issued (period)', value: paymentTotals.CREDIT, fill: '#8B5CF6' },
     ].filter((item) => item.value > 0);
   }, [paymentTotals]);
 
@@ -846,8 +914,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <div className="flex items-center gap-4">
               <img src="/logo.svg" alt="Melvex Business Solutions" className="h-12 sm:h-14 w-auto object-contain" />
               <div className="border-l border-slate-800 pl-4 hidden sm:block">
-                <h1 className="text-lg font-extrabold tracking-tight">Management Executive Dashboard</h1>
-                <p className="text-xs text-slate-400">Branch operational metrics, inventory health, and reports.</p>
+                <h1 className="text-lg font-extrabold tracking-tight">Management Management dashboard</h1>
+                <p className="text-xs text-slate-400">Branch performance, inventory, approvals and financial reports.</p>
               </div>
             </div>
 
@@ -870,15 +938,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               {/* REPORTS IS NOW AT THE END OF THE TOP NAV */}
               <nav className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
                 {[
-                  { id: 'OVERVIEW', label: 'Dashboard' },
+                  { id: 'OVERVIEW', label: 'Overview' },
                   { id: 'OPERATIONS', label: 'Operations' },
-                  { id: 'REVIEWS', label: 'User Reviews', badge: summaryMetrics.pending },
+                  { id: 'REVIEWS', label: 'Approvals', badge: summaryMetrics.pending },
                   { id: 'CASHBOOK', label: 'Cashbook' },
                   { id: 'BALANCE_SHEET', label: 'Balance Sheet' },
                   { id: 'REPORTS', label: 'Reports' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
+                    type="button"
+                    aria-current={activeTab === tab.id ? 'page' : undefined}
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       activeTab === tab.id
@@ -908,12 +978,22 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
         {/* GLOBAL MANAGEMENT DATE FILTER BAR */}
         <ManagementDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1 text-xs text-slate-500">
+          <span>Reporting dates: <strong className="text-slate-700">{effectiveRange.effectiveStartDate || 'Start not set'} – {effectiveRange.effectiveEndDate || 'End not set'}</strong></span>
+          <span>{lastUpdated ? `Last refreshed ${lastUpdated.toLocaleTimeString()}` : 'Waiting for first successful refresh'}</span>
+        </div>
+        {dashboardError && (
+          <div role="alert" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            <span>{dashboardError}</span>
+            <button type="button" onClick={() => { setDashboardError(''); fetchItems(); fetchRequests(); computeDashboardMetricsDirectly(); }} className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold hover:bg-rose-100">Refresh data</button>
+          </div>
+        )}
 
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
           <div className="space-y-6 max-w-6xl mx-auto font-sans">
             
-            {/* Operational & COGS Analytics */}
+            {/* Business performance */}
             <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
@@ -921,10 +1001,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     Branch Overview
                   </span>
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    Operational & COGS Analytics
+                    Business performance
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-300 max-w-md">
-                    Real-time cost of goods sold, catalog metrics, and inventory ratios.
+                    Inventory value, product performance and stock status.
                   </p>
                 </div>
 
@@ -939,7 +1019,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                      Estimated Sales COGS
+                      Estimated cost of goods sold
                     </span>
                     <span className="text-lg sm:text-xl font-bold font-mono text-amber-400">
                       {formatCurrency(metrics.totalEstimatedCOGS)}
@@ -951,7 +1031,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-800/80">
                 <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                    Cataloged SKUs
+                    Registered products
                   </span>
                   <span className="text-lg font-bold font-mono text-indigo-300">
                     {items.length} Products
@@ -960,7 +1040,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                    Pending Management Sign-offs
+                    Pending approvals
                   </span>
                   <span
                     className={`text-lg font-bold font-mono ${
@@ -982,7 +1062,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       Customer Credit Summary
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Period credit activity & live total balance
+                      Credit issued and repayments for the selected period, plus cumulative outstanding credit.
                     </p>
                   </div>
                 </div>
@@ -999,7 +1079,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                   <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
                     <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">
-                      Recovered (Period)
+                      Credit repayments (period)
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-emerald-700 block">
                       {formatCurrency(creditSummary.totalRecovered)}
@@ -1008,7 +1088,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                   <div className="bg-rose-50 p-3 rounded-xl border border-rose-200">
                     <span className="text-[9px] font-bold text-rose-500 uppercase block mb-1">
-                      Live Total Debt Owed
+                      Outstanding customer credit
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-rose-700 block">
                       {formatCurrency(creditSummary.outstandingCredit)}
@@ -1021,10 +1101,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                      Restocks & Supplier Payables
+                      Purchases and supplier balances
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Purchases valuation & outstanding supplier payables
+                      Purchase value for the selected period and supplier balances where available.
                     </p>
                   </div>
                 </div>
@@ -1051,15 +1131,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             </div>
 
-            {/* Payment & Settlement Channels */}
+            {/* Payments by method */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Payment & Settlement Channels
+                    Payments by method
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Live settlement amounts processed per financial channel
+                    Payment amounts recorded for the selected period.
                   </p>
                 </div>
                 {loadingFinancials && (
@@ -1105,7 +1185,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     </span>
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs text-slate-700">Credit / On Account</h3>
+                    <h3 className="font-bold text-xs text-slate-700">Credit issued in period</h3>
                     <span className="text-base font-bold font-mono text-slate-900 block mt-1">
                       {formatCurrency(paymentTotals.CREDIT)}
                     </span>
@@ -1128,14 +1208,14 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             </div>
 
-            {/* Inventory Health Ratio */}
+            {/* Stock status */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
               <div>
                 <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Inventory Health Ratio
+                  Stock status
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Proportion of optimal vs. threshold stock across registered items
+                  Registered products grouped by current stock level.
                 </p>
               </div>
 
@@ -1210,7 +1290,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     Profit & Loss Statement (P&L)
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Statement of revenues, cost of goods sold, and operating expenditure for the period.
+                    Revenue shown here excludes unpaid credit sales; repayments are tracked separately in the credit activity summary.
                   </p>
                 </div>
 
@@ -1236,7 +1316,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Sales Revenue</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Recognized revenue (excluding unpaid credit)</span>
                     <span className="text-lg font-bold font-mono text-slate-900 block mt-1">
                       {formatCurrency(reportAnalytics.totalRevenue)}
                     </span>
@@ -1328,7 +1408,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase">
                         <th className="py-3.5 px-4">Rank & Item Name</th>
                         <th className="py-3.5 px-4 text-right">Units Sold</th>
-                        <th className="py-3.5 px-4 text-right">Total Revenue Generated</th>
+                        <th className="py-3.5 px-4 text-right">Recognized revenue</th>
                         <th className="py-3.5 px-4 text-right">Revenue Contribution</th>
                       </tr>
                     </thead>
