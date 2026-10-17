@@ -4,9 +4,24 @@ import API from '../api';
 import { useBranch } from './BranchContext';
 import ManagementOperations from './ManagementOperations';
 import Reports from './Reports';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from 'recharts';
+
+const PAYMENT_COLORS = ['#10B981', '#6366F1', '#F59E0B', '#8B5CF6', '#EC4899'];
 
 /* =========================================================
-   HELPERS & CALCULATORS (ALIGNED WITH APP.JSX)
+   HELPERS & CALCULATORS
 ========================================================= */
 
 const toNumber = (value, fallback = 0) => {
@@ -667,7 +682,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     };
   }, [items]);
 
-  // Analytics Calculation for P&L and Sales Performance
+  // Analytics Calculation for Reports Tab
   const reportAnalytics = useMemo(() => {
     const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
@@ -732,6 +747,27 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       itemsPerformanceList,
     };
   }, [sales, expenses, effectiveRange]);
+
+  // Payment Breakdown Chart Data
+  const paymentBreakdownData = useMemo(() => {
+    return [
+      { name: 'M-Pesa / Mobile', value: paymentTotals.MPESA, fill: '#10B981' },
+      { name: 'Cash', value: paymentTotals.CASH, fill: '#6366F1' },
+      { name: 'Paybill / Till', value: paymentTotals.PAYBILL, fill: '#F59E0B' },
+      { name: 'Credit Owed', value: paymentTotals.CREDIT, fill: '#8B5CF6' },
+    ].filter((item) => item.value > 0);
+  }, [paymentTotals]);
+
+  // P&L Chart Data
+  const profitLossChartData = useMemo(() => {
+    return [
+      { name: 'Revenue', amount: reportAnalytics.totalRevenue, fill: '#4F46E5' },
+      { name: 'COGS', amount: reportAnalytics.totalCogs, fill: '#E11D48' },
+      { name: 'Gross Profit', amount: reportAnalytics.grossProfit, fill: '#10B981' },
+      { name: 'Expenses', amount: reportAnalytics.totalExpenses, fill: '#F59E0B' },
+      { name: 'Net Profit', amount: reportAnalytics.netProfit, fill: '#0EA5E9' },
+    ];
+  }, [reportAnalytics]);
 
   const summaryMetrics = useMemo(() => {
     const pending = requests.filter((r) => r.status?.toUpperCase().includes('PENDING')).length;
@@ -804,7 +840,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     <div className="min-h-screen relative w-full text-slate-900 p-3 sm:p-6 font-sans bg-slate-950/5">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
-        {/* HEADER & TOP NAVBAR */}
+        {/* HEADER & TOP NAVBAR (REPORTS MOVED TO END) */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 text-white shadow-lg">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -831,14 +867,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </select>
               </div>
 
+              {/* REPORTS IS NOW AT THE END OF THE TOP NAV */}
               <nav className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700">
                 {[
                   { id: 'OVERVIEW', label: 'Dashboard' },
                   { id: 'OPERATIONS', label: 'Operations' },
-                  { id: 'REPORTS', label: 'Reports' },
                   { id: 'REVIEWS', label: 'User Reviews', badge: summaryMetrics.pending },
                   { id: 'CASHBOOK', label: 'Cashbook' },
                   { id: 'BALANCE_SHEET', label: 'Balance Sheet' },
+                  { id: 'REPORTS', label: 'Reports' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1139,7 +1176,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         )}
 
-        {/* REPORTS TAB WITH EXPANDED REPORT SUB-PANELS */}
+        {/* REPORTS TAB WITH CHARTS & PAYMENT BREAKDOWN */}
         {activeTab === 'REPORTS' && (
           <div className="space-y-6">
             
@@ -1148,6 +1185,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               {[
                 { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
                 { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
+                { id: 'PAYMENT_BREAKDOWN', label: '💳 Payment Methods Breakdown' },
                 { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
@@ -1164,7 +1202,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               ))}
             </div>
 
-            {/* 1. PROFIT AND LOSS REPORT PANEL */}
+            {/* 1. PROFIT AND LOSS REPORT PANEL WITH CHARTS */}
             {reportSubTab === 'PROFIT_LOSS' && (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
                 <div className="border-b border-slate-100 pb-4">
@@ -1174,6 +1212,26 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   <p className="text-xs text-slate-500">
                     Statement of revenues, cost of goods sold, and operating expenditure for the period.
                   </p>
+                </div>
+
+                {/* VISUAL CHART */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase">Profitability Breakdown Chart</h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={profitLossChartData} margin={{ top: 15, right: 20, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600, fill: '#334155' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(v) => [formatCurrency(v), 'Amount']} />
+                        <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={40}>
+                          {profitLossChartData.map((entry, index) => (
+                            <Cell key={`pl-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1252,7 +1310,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             )}
 
-            {/* 2. SALES ANALYSIS REPORT PANEL */}
+            {/* 2. SALES ANALYSIS REPORT PANEL WITH VISUAL PROGRESS BARS */}
             {reportSubTab === 'SALES_ANALYSIS' && (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
                 <div className="border-b border-slate-100 pb-4">
@@ -1319,7 +1377,104 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             )}
 
-            {/* 3. SUMMARIZED COMPREHENSIVE REPORT (IMPORTED REPORTS.JSX) */}
+            {/* 3. PAYMENT METHODS BREAKDOWN PANEL */}
+            {reportSubTab === 'PAYMENT_BREAKDOWN' && (
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 font-sans">
+                <div className="border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
+                    Payment Methods Breakdown & Settlement Mix
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Detailed distribution across M-Pesa, Cash, Credit, and Paybill channels.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                  <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase">Settlement Mix Pie Chart</h3>
+                    <div className="h-64 w-full">
+                      {paymentBreakdownData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={paymentBreakdownData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              paddingAngle={4}
+                              dataKey="value"
+                            >
+                              {paymentBreakdownData.map((entry, index) => (
+                                <Cell key={`pie-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(v) => [formatCurrency(v), 'Amount']} />
+                            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                          No settlement transactions for selected horizon.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase block">M-Pesa / Mobile Money</span>
+                        <span className="text-base font-extrabold font-mono text-emerald-900">{formatCurrency(paymentTotals.MPESA)}</span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {paymentTotals.MPESA > 0 && reportAnalytics.totalRevenue > 0
+                          ? `${Math.round((paymentTotals.MPESA / reportAnalytics.totalRevenue) * 100)}%`
+                          : '0%'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-indigo-700 uppercase block">Cash Payments</span>
+                        <span className="text-base font-extrabold font-mono text-indigo-900">{formatCurrency(paymentTotals.CASH)}</span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300">
+                        {paymentTotals.CASH > 0 && reportAnalytics.totalRevenue > 0
+                          ? `${Math.round((paymentTotals.CASH / reportAnalytics.totalRevenue) * 100)}%`
+                          : '0%'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-700 uppercase block">Paybill / Till Transfer</span>
+                        <span className="text-base font-extrabold font-mono text-amber-900">{formatCurrency(paymentTotals.PAYBILL)}</span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                        {paymentTotals.PAYBILL > 0 && reportAnalytics.totalRevenue > 0
+                          ? `${Math.round((paymentTotals.PAYBILL / reportAnalytics.totalRevenue) * 100)}%`
+                          : '0%'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/60 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-purple-700 uppercase block">Credit / Debt Sales</span>
+                        <span className="text-base font-extrabold font-mono text-purple-900">{formatCurrency(paymentTotals.CREDIT)}</span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
+                        {paymentTotals.CREDIT > 0 && reportAnalytics.totalRevenue > 0
+                          ? `${Math.round((paymentTotals.CREDIT / reportAnalytics.totalRevenue) * 100)}%`
+                          : '0%'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. SUMMARIZED COMPREHENSIVE REPORT (IMPORTED REPORTS.JSX) */}
             {reportSubTab === 'SUMMARIZED_REPORT' && (
               <Reports items={items} />
             )}
