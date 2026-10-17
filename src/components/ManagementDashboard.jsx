@@ -532,8 +532,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               </div>
             </div>
 
-            {/* ROW 5: BALANCES BY ACCOUNT */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+            {/* SECTION 5: BALANCES BY ACCOUNT */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Balances by account
               </h2>
@@ -551,21 +551,21 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
                 <div className="py-3.5 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Bank accounts</h3>
-                    <p className="text-xs text-slate-500">All business accounts</p>
+                    <h3 className="text-sm font-bold text-slate-900">Paybill / Till</h3>
+                    <p className="text-xs text-slate-500">Business buy goods & paybills</p>
                   </div>
                   <span className="font-mono text-base font-bold text-teal-600">
-                    {dashboardCardsData?.account_balances?.bank_accounts_formatted || 'KSh 0'}
+                    {dashboardCardsData?.account_balances?.paybill_formatted || 'KSh 0'}
                   </span>
                 </div>
 
                 <div className="py-3.5 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">M-Pesa</h3>
-                    <p className="text-xs text-slate-500">Business tills and paybills</p>
+                    <h3 className="text-sm font-bold text-slate-900">Send Money</h3>
+                    <p className="text-xs text-slate-500">Direct phone transfers</p>
                   </div>
                   <span className="font-mono text-base font-bold text-teal-600">
-                    {dashboardCardsData?.account_balances?.mpesa_formatted || 'KSh 0'}
+                    {dashboardCardsData?.account_balances?.send_money_formatted || 'KSh 0'}
                   </span>
                 </div>
               </div>
