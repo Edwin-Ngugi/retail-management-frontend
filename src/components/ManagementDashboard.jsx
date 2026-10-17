@@ -909,12 +909,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* HEADER & TOP NAVBAR (REPORTS MOVED TO END) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 text-white shadow-lg">
+        <div className="sticky top-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 text-white shadow-xl">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex items-center gap-4">
               <img src="/logo.svg" alt="Melvex Business Solutions" className="h-12 sm:h-14 w-auto object-contain" />
               <div className="border-l border-slate-800 pl-4 hidden sm:block">
-                <h1 className="text-lg font-extrabold tracking-tight">Management Management dashboard</h1>
+                <h1 className="text-lg font-extrabold tracking-tight">Management Dashboard</h1>
                 <p className="text-xs text-slate-400">Branch performance, inventory, approvals and financial reports.</p>
               </div>
             </div>
@@ -944,6 +944,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   { id: 'CASHBOOK', label: 'Cashbook' },
                   { id: 'BALANCE_SHEET', label: 'Balance Sheet' },
                   { id: 'REPORTS', label: 'Reports' },
+                  { id: 'ACCOUNTS', label: 'Accounts' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -980,14 +981,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         <ManagementDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1 text-xs text-slate-500">
           <span>Reporting dates: <strong className="text-slate-700">{effectiveRange.effectiveStartDate || 'Start not set'} – {effectiveRange.effectiveEndDate || 'End not set'}</strong></span>
-          <span>{lastUpdated ? `Last refreshed ${lastUpdated.toLocaleTimeString()}` : 'Waiting for first successful refresh'}</span>
+          <span>{lastUpdated ? `Last refreshed ${lastUpdated.toLocaleTimeString()}` : 'Dashboard'}</span>
         </div>
-        {dashboardError && (
-          <div role="alert" className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-            <span>{dashboardError}</span>
-            <button type="button" onClick={() => { setDashboardError(''); fetchItems(); fetchRequests(); computeDashboardMetricsDirectly(); }} className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold hover:bg-rose-100">Refresh data</button>
-          </div>
-        )}
+
 
         {/* OVERVIEW TAB */}
         {activeTab === 'OVERVIEW' && (
@@ -1263,10 +1259,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             {/* SUB-NAVIGATOR FOR REPORTS */}
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
               {[
-                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
-                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
-                { id: 'PAYMENT_BREAKDOWN', label: '💳 Payment Methods Breakdown' },
-                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
+                { id: 'PROFIT_LOSS', label: ' Profit & Loss Statement' },
+                { id: 'SALES_ANALYSIS', label: ' Sales Performance Analysis' },
+                { id: 'PAYMENT_BREAKDOWN', label: ' Payment Methods Breakdown' },
+                { id: 'SUMMARIZED_REPORT', label: ' Comprehensive Executive Report' },
               ].map((sub) => (
                 <button
                   key={sub.id}
@@ -1560,6 +1556,39 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             )}
 
           </div>
+        )}
+
+        {/* ACCOUNTS TAB */}
+        {activeTab === 'ACCOUNTS' && (
+          <section className="mx-auto max-w-5xl space-y-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex flex-col gap-2 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">User account</p>
+                  <h2 className="mt-1 text-2xl font-bold text-slate-900">Account details</h2>
+                  <p className="mt-1 text-sm text-slate-500">Signed-in user information and assigned access role.</p>
+                </div>
+                <span className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Signed in</span>
+              </div>
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {[
+                  { label: 'Username', value: currentUser?.username || currentUser?.user_name || currentUser?.name || 'Not provided' },
+                  { label: 'Email address', value: currentUser?.email || currentUser?.user?.email || 'Not provided by server' },
+                  { label: 'Role', value: currentUser?.role || currentUser?.user_role || currentUser?.group_name || currentUser?.user?.role || (Array.isArray(currentUser?.groups) ? currentUser.groups.map((g) => typeof g === 'string' ? g : g?.name).filter(Boolean).join(', ') : '') || 'Not provided by server' },
+                  { label: 'Branch', value: selectedBranch?.name || selectedBranch?.branch_name || branches.find((b) => String(b.id || b.code) === String(branchKey))?.name || (typeof selectedBranch === 'string' ? selectedBranch : 'Not selected') },
+                ].map((field) => (
+                  <div key={field.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{field.label}</p>
+                    <p className="mt-2 break-words text-base font-semibold text-slate-900">{field.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 rounded-lg bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">Account details are displayed from information available in the current session. If email or role is missing, update the management-login API to return those fields; the dashboard will not guess them.</p>
+              <div className="mt-5 flex justify-end">
+                <button type="button" onClick={handleLogout} className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50">Sign out</button>
+              </div>
+            </div>
+          </section>
         )}
 
         {/* OPERATIONS TAB */}
