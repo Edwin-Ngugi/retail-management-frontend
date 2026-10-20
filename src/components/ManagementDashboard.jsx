@@ -76,6 +76,17 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
 
+  /* =========================================================
+     CHANGE PASSWORD STATE
+  ========================================================= */
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
+
   useEffect(() => {
     localStorage.setItem('mgmt_active_tab', activeTab);
   }, [activeTab]);
@@ -116,7 +127,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setLoginLoading(true);
 
     try {
-      // Updated endpoint path to match backend routes
       const res = await API.post('management/login/', {
         username: loginForm.username.trim(),
         password: loginForm.password,
@@ -141,6 +151,46 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       );
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMsg({ type: '', text: '' });
+
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'Please complete all password fields.' });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      await API.post('auth/change-password/', {
+        old_password: passwordForm.oldPassword,
+        new_password: passwordForm.newPassword,
+      });
+
+      setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error('Password change error:', err);
+      setPasswordMsg({
+        type: 'error',
+        text: err.response?.data?.detail || err.response?.data?.error || 'Failed to update password. Please check your current password.',
+      });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -321,7 +371,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       {/* MAIN CONTAINER */}
       <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col">
 
-        {/* RESTYLIZED TOP HEADER BAR (DARK SLATE WITH ENLARGED LOGO) */}
+        {/* RESTYLIZED TOP HEADER BAR */}
         <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white px-6 py-3 flex items-center justify-between shadow-md gap-4">
           
           {/* LEFT: BRANCH SELECTION */}
@@ -643,22 +693,101 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             <ReportsView branchId={branchKey} />
           )}
 
-          {/* ACCOUNTS TAB */}
+          {/* ACCOUNTS TAB WITH CHANGE PASSWORD SECTION */}
           {activeTab === 'ACCOUNTS' && (
-            <section className="w-full max-w-5xl space-y-5">
+            <section className="w-full max-w-5xl space-y-6">
+              
+              {/* ACCOUNT DETAILS CARD */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-                <h2 className="text-2xl font-black text-slate-900">Account Details</h2>
-                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-3">
+                  Account Details
+                </h2>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase">Username</p>
-                    <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.username || 'N/A'}</p>
+                    <p className="mt-1 text-base font-bold text-teal-800">{currentUser?.username || 'N/A'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase">Role</p>
-                    <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.role || 'Manager'}</p>
+                    <p className="mt-1 text-base font-bold text-teal-800">{currentUser?.role || 'Manager'}</p>
                   </div>
                 </div>
               </div>
+
+              {/* CHANGE PASSWORD CARD */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+                <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-3">
+                  Security & Password
+                </h2>
+
+                {passwordMsg.text && (
+                  <div
+                    className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between ${
+                      passwordMsg.type === 'success'
+                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border border-rose-200 text-rose-800'
+                    }`}
+                  >
+                    <span>{passwordMsg.text}</span>
+                    <button onClick={() => setPasswordMsg({ type: '', text: '' })} className="ml-2 font-black">
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                <form onSubmit={handleChangePassword} className="space-y-4 max-w-xl">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.oldPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-teal-600 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-teal-600 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-teal-600 transition"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {passwordLoading ? 'Updating Password...' : 'Update Password'}
+                  </button>
+                </form>
+              </div>
+
             </section>
           )}
 
