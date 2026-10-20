@@ -1,6 +1,8 @@
+// src/components/ManagementDashboard.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 import { useBranch } from './BranchContext';
+import ManagementLogin from './ManagementLogin';
 import SalesView from './SalesView';
 import PurchaseView from './PurchaseView';
 import InventoryView from './InventoryView';
@@ -19,7 +21,6 @@ import {
 /* =========================================================
    HELPERS & FORMATTERS
 ========================================================= */
-
 const toNumber = (value, fallback = 0) => {
   if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
@@ -68,16 +69,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return null;
   });
 
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
-
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
 
   /* =========================================================
-     CHANGE PASSWORD STATE
+     IN-APP CHANGE PASSWORD STATE (AUTHENTICATED)
   ========================================================= */
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
@@ -121,37 +118,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     if (typeof onLogout === 'function') onLogout();
   }, [onLogout]);
 
-  const handleManagementLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    setLoginLoading(true);
-
-    try {
-      const res = await API.post('management/login/', {
-        username: loginForm.username.trim(),
-        password: loginForm.password,
-      });
-
-      const token = res.data?.token || res.data?.access;
-      if (!token) throw new Error('No access token returned.');
-
-      localStorage.setItem('access_token', token);
-      localStorage.setItem('token', token);
-      const userObj = res.data?.user || { username: loginForm.username.trim() };
-      localStorage.setItem('user', JSON.stringify(userObj));
-
-      setCurrentUser(userObj);
-      setAuthToken(token);
-    } catch (err) {
-      console.error('Management login error:', err);
-      setLoginError(
-        err.response?.data?.error || 
-        err.response?.data?.detail || 
-        'Authentication failed. Please check your admin credentials.'
-      );
-    } finally {
-      setLoginLoading(false);
-    }
+  const handleLoginSuccess = (userObj) => {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    setCurrentUser(userObj);
+    setAuthToken(token);
   };
 
   const handleChangePassword = async (e) => {
@@ -181,13 +151,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         new_password: passwordForm.newPassword,
       });
 
-      setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
+      setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
       console.error('Password change error:', err);
       setPasswordMsg({
         type: 'error',
-        text: err.response?.data?.detail || err.response?.data?.error || 'Failed to update password. Please check your current password.',
+        text: err.response?.data?.detail || err.response?.data?.error || 'Failed to update password. Check your current password.',
       });
     } finally {
       setPasswordLoading(false);
@@ -261,59 +231,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchManagementAnalytics();
   }, [authToken, fetchManagementAnalytics]);
 
+  // SINGLE UNIFIED LOGIN SCREEN CALL
   if (!authToken) {
-    return (
-      <div className="min-h-screen relative w-full flex items-center justify-center p-4 font-sans text-slate-800 bg-slate-50">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xl space-y-6">
-          <div className="text-center space-y-3">
-            <div className="flex justify-center">
-              <img src="/logo.svg" alt="Melvex Business Solutions" className="h-14 w-auto object-contain" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-wide">Management Portal</h1>
-            <p className="text-xs text-slate-500">Sign in to access review portal and analytics.</p>
-          </div>
-
-          {loginError && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between">
-              <span>{loginError}</span>
-              <button onClick={() => setLoginError('')} className="text-rose-500 font-bold ml-2">✕</button>
-            </div>
-          )}
-
-          <form onSubmit={handleManagementLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase">Username</label>
-              <input
-                type="text"
-                required
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase">Password</label>
-              <input
-                type="password"
-                required
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loginLoading}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer"
-            >
-              {loginLoading ? 'Authenticating...' : 'Sign In to Management Portal'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+    return <ManagementLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
   const menuItems = [
@@ -371,10 +291,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       {/* MAIN CONTAINER */}
       <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col">
 
-        {/* RESTYLIZED TOP HEADER BAR */}
+        {/* TOP HEADER BAR */}
         <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white px-6 py-3 flex items-center justify-between shadow-md gap-4">
-          
-          {/* LEFT: BRANCH SELECTION */}
           <div className="flex items-center gap-2 min-w-[200px]">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">BRANCH:</span>
             <select
@@ -390,7 +308,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </select>
           </div>
 
-          {/* CENTER: ENLARGED BRAND LOGO */}
           <div className="flex items-center gap-3 justify-center">
             <img 
               src="/logo.svg" 
@@ -403,7 +320,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           </div>
 
-          {/* RIGHT: DATE FILTERS */}
           <div className="flex items-center gap-2 justify-end">
             <select
               value={dateFilter.filterMode}
@@ -468,9 +384,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </div>
         </header>
 
-        {/* FLUID INNER PAGE CONTENT */}
+        {/* PAGE CONTENT */}
         <div className="p-6 space-y-6 flex-1 w-full">
-
           {dashboardError && (
             <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex justify-between items-center shadow-xs">
               <span>{dashboardError}</span>
@@ -478,14 +393,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           )}
 
-          {/* OVERVIEW DASHBOARD SUMMARY */}
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-
-              {/* 4 CONSOLIDATED EXECUTIVE SUMMARY BLOCKS */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                
-                {/* 1. FINANCIAL PERFORMANCE */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Financial Performance</span>
@@ -513,7 +423,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                {/* 2. INVENTORY & SKUs */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Inventory & SKUs</span>
@@ -547,7 +456,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                {/* 3. DAILY MOVEMENT */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Daily Movement</span>
@@ -575,7 +483,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                {/* 4. CASH POSITION */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Cash Position</span>
@@ -591,10 +498,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                     Combined cash, bank accounts & mobile till balances
                   </p>
                 </div>
-
               </div>
 
-              {/* ACCOUNT BALANCES LEDGER */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
                   Balances by Account
@@ -633,7 +538,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
               </div>
 
-              {/* SALES PERFORMANCE GRAPH */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
                   Sales Performance Trajectory
@@ -664,36 +568,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </ResponsiveContainer>
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* SALES TAB */}
-          {activeTab === 'OPERATIONS' && (
-            <SalesView branchId={branchKey} />
-          )}
+          {activeTab === 'OPERATIONS' && <SalesView branchId={branchKey} />}
+          {activeTab === 'INVENTORY' && <InventoryView branchId={branchKey} />}
+          {activeTab === 'PURCHASES' && <PurchaseView branchId={branchKey} />}
+          {activeTab === 'CASH' && <CashView branchId={branchKey} />}
+          {activeTab === 'REPORTS' && <ReportsView branchId={branchKey} />}
 
-          {/* INVENTORY TAB */}
-          {activeTab === 'INVENTORY' && (
-            <InventoryView branchId={branchKey} />
-          )}
-
-          {/* PURCHASES TAB */}
-          {activeTab === 'PURCHASES' && (
-            <PurchaseView branchId={branchKey} />
-          )}
-
-          {/* CASH TAB */}
-          {activeTab === 'CASH' && (
-            <CashView branchId={branchKey} />
-          )}
-
-          {/* REPORTS TAB */}
-          {activeTab === 'REPORTS' && (
-            <ReportsView branchId={branchKey} />
-          )}
-
-          {/* ACCOUNTS TAB WITH CHANGE PASSWORD SECTION */}
+          {/* ACCOUNTS TAB WITH PROFILE & CHANGE PASSWORD SECTION */}
           {activeTab === 'ACCOUNTS' && (
             <section className="w-full max-w-5xl space-y-6">
               
@@ -717,7 +601,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               {/* CHANGE PASSWORD CARD */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
                 <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-3">
-                  Security & Password
+                  Security & Password Change
                 </h2>
 
                 {passwordMsg.text && (
@@ -790,9 +674,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
             </section>
           )}
-
         </div>
-
       </main>
     </div>
   );
