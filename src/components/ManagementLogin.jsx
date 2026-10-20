@@ -13,6 +13,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetStep, setResetStep] = useState(1);
   const [resetUsername, setResetUsername] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
@@ -72,8 +73,8 @@ export default function ManagementLogin({ onLoginSuccess }) {
     e.preventDefault();
     setResetMsg({ type: '', text: '' });
 
-    if (!resetUsername.trim()) {
-      setResetMsg({ type: 'error', text: 'Please enter your username.' });
+    if (!resetUsername.trim() || !resetEmail.trim()) {
+      setResetMsg({ type: 'error', text: 'Please enter both your username and email address.' });
       return;
     }
 
@@ -82,11 +83,12 @@ export default function ManagementLogin({ onLoginSuccess }) {
     try {
       const res = await API.post('auth/request-otp/', {
         username: resetUsername.trim(),
+        email: resetEmail.trim(),
       });
 
       setResetMsg({
         type: 'success',
-        text: res.data?.detail || 'An OTP code has been sent to your registered contacts.',
+        text: res.data?.detail || `An OTP code has been sent to ${resetEmail.trim()}.`,
       });
 
       setResetStep(2);
@@ -96,7 +98,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
         text:
           err.response?.data?.error ||
           err.response?.data?.detail ||
-          'Failed to send OTP code. Please check username.',
+          'Failed to send OTP code. Please verify your username and email.',
       });
     } finally {
       setResetLoading(false);
@@ -147,6 +149,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
     setResetStep(1);
     setResetMsg({ type: '', text: '' });
     setResetUsername('');
+    setResetEmail('');
     setOtpCode('');
     setResetNewPassword('');
   };
@@ -228,7 +231,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
               </button>
             </div>
 
-            {/* POSITIONED FORGOT PASSWORD LINK BELOW FIELD */}
+            {/* FORGOT PASSWORD LINK BELOW FIELD */}
             <div className="flex justify-end mt-1.5">
               <button
                 type="button"
@@ -267,7 +270,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
 
       </div>
 
-      {/* 2-STEP OTP RESET MODAL */}
+      {/* 2-STEP OTP RESET MODAL WITH EMAIL FIELD */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 relative z-20">
@@ -304,8 +307,22 @@ export default function ManagementLogin({ onLoginSuccess }) {
                     placeholder="Enter admin username"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 transition"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 transition"
+                  />
                   <p className="text-[10px] text-slate-500 font-medium mt-1">
-                    A 6-digit OTP code will be dispatched to your registered contacts.
+                    A 6-digit OTP code will be sent to this email address.
                   </p>
                 </div>
 
