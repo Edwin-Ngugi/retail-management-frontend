@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-// Detect environment dynamically or fall back to localhost during local development
+// Detect environment dynamically or fall back to production/localhost
 const getBaseURL = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+    let url = import.meta.env.VITE_API_BASE_URL;
+    return url.endsWith('/') ? url : `${url}/`;
   }
   const isLocal =
     window.location.hostname === 'localhost' ||
@@ -42,19 +43,27 @@ API.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized errors caused by expired access tokens
+    // Do NOT trigger refresh/redirect loops if the 401 occurred on a login or auth route
+    const isAuthRoute =
+      originalRequest.url.includes('auth/management-login') ||
+      originalRequest.url.includes('auth/login') ||
+      originalRequest.url.includes('auth/user-login') ||
+      originalRequest.url.includes('auth/admin-login') ||
+      originalRequest.url.includes('management/login');
+
     if (
       error.response &&
       error.response.status === 401 &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !isAuthRoute
     ) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refresh_token');
 
       if (refreshToken) {
         try {
-          // Dynamic endpoint refresh based on active BASE_URL
-          const res = await axios.post(`${BASE_URL}token/refresh/`, {
+          // Points to the correct Django auth/refresh/ endpoint
+          const res = await axios.post(`${BASE_URL}auth/refresh/`, {
             refresh: refreshToken,
           });
 
@@ -72,10 +81,13 @@ API.interceptors.response.use(
         }
       }
 
-      // If refresh fails or no refresh token exists, clear storage and redirect
+      // Clear local storage and redirect to portal root if refresh fails
       localStorage.clear();
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (
+        window.location.pathname !== '/login' &&
+        window.location.pathname !== '/management'
+      ) {
+        window.location.href = '/management';
       }
     }
 
