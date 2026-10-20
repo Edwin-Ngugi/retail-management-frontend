@@ -1,14 +1,13 @@
 import axios from 'axios';
 
-// Dynamically determine the API base URL for both online and local environments
 const getBaseURL = () => {
-  // 1. Environment variable override (highest priority)
+  // Priority 1: Vite Environment Variable
   if (import.meta.env?.VITE_API_BASE_URL) {
     const url = import.meta.env.VITE_API_BASE_URL;
     return url.endsWith('/') ? url : `${url}/`;
   }
 
-  // 2. Dynamic host detection for local development and LAN testing
+  // Priority 2: Localhost & LAN IP Detection
   const hostname = window.location.hostname;
   const isLocal =
     hostname === 'localhost' ||
@@ -18,27 +17,32 @@ const getBaseURL = () => {
     hostname.endsWith('.local');
 
   if (isLocal) {
-    // Uses standard local Django port 8000
     return 'http://127.0.0.1:8000/api/';
   }
 
-  // 3. Fallback to production domain
+  // Priority 3: Fallback Production API Domain
   return 'https://api.melvexbusinesssolutions.com/api/';
 };
 
-// Initialize Axios instance
+const BASE_URL = getBaseURL();
+
 const API = axios.create({
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request Interceptor: Dynamically attach Base URL and Bearer Token
+// Request Interceptor: Ensures bearer tokens and baseURL are always attached
 API.interceptors.request.use(
   (config) => {
-    // Compute current base URL dynamically on each request
-    const baseURL = getBaseURL();
-    config.baseURL = baseURL;
+    // Force baseURL to avoid falling back to window.location.origin
+    config.baseURL = BASE_URL;
+
+    // Prevent leading slashes in request URLs from stripping the /api/ prefix
+    if (config.url && config.url.startsWith('/')) {
+      config.url = config.url.substring(1);
+    }
 
     const token =
       localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -50,14 +54,13 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle token refresh and auth exceptions
+// Response Interceptor: Handle Token Refresh & 401 Expirations
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    // Prevent redirect loops on login/authentication endpoints[cite: 7]
     const requestUrl = originalRequest?.url || '';
+
     const isAuthRoute =
       requestUrl.includes('auth/management-login') ||
       requestUrl.includes('auth/login') ||
@@ -76,9 +79,7 @@ API.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const activeBaseURL = getBaseURL();
-          // Points to Django auth/refresh/ endpoint[cite: 7]
-          const res = await axios.post(`${activeBaseURL}auth/refresh/`, {
+          const res = await axios.post(`${BASE_URL}auth/refresh/`, {
             refresh: refreshToken,
           });
 
@@ -87,16 +88,14 @@ API.interceptors.response.use(
             localStorage.setItem('access_token', newAccessToken);
             localStorage.setItem('token', newAccessToken);
 
-            // Retry original failed request with the new access token
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return API(originalRequest);
           }
         } catch (refreshErr) {
-          console.error('Session expired. Redirecting to login portal...', refreshErr);
+          console.error('Session expired. Redirecting to login...', refreshErr);
         }
       }
 
-      // Clear expired credentials and prevent redundant redirects
       localStorage.clear();
       if (
         window.location.pathname !== '/login' &&

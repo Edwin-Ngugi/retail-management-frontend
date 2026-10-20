@@ -8,25 +8,32 @@ export const BranchContext = createContext();
 export function BranchProvider({ children }) {
   const [branches, setBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState(
-    localStorage.getItem('selectedBranchId') || ''
+    () => localStorage.getItem('selectedBranchId') || ''
   );
   const [loadingBranches, setLoadingBranches] = useState(true);
+
+  // Helper for safe string comparison
+  const matchId = (a, b) => String(a ?? '') === String(b ?? '');
 
   // Fetch branches from backend
   const fetchBranches = useCallback(async () => {
     try {
       setLoadingBranches(true);
+      // Relative path guarantees concatenation with API.defaults.baseURL (/api/)
       const res = await API.get('branches/');
       const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
       setBranches(list);
 
       if (list.length > 0) {
-        const storedBranchExists = list.some((b) => b.id.toString() === selectedBranch.toString());
-        if (!selectedBranch || !storedBranchExists) {
-          const defaultId = list[0].id.toString();
-          setSelectedBranch(defaultId);
-          localStorage.setItem('selectedBranchId', defaultId);
-        }
+        setSelectedBranch((prevSelected) => {
+          const storedBranchExists = list.some((b) => matchId(b.id, prevSelected));
+          if (!prevSelected || !storedBranchExists) {
+            const defaultId = String(list[0].id);
+            localStorage.setItem('selectedBranchId', defaultId);
+            return defaultId;
+          }
+          return prevSelected;
+        });
       } else {
         setSelectedBranch('');
         localStorage.removeItem('selectedBranchId');
@@ -36,20 +43,20 @@ export function BranchProvider({ children }) {
     } finally {
       setLoadingBranches(false);
     }
-  }, [selectedBranch]);
+  }, []); // Empty dependency array prevents re-creation loops
 
   useEffect(() => {
     fetchBranches();
-  }, []);
+  }, [fetchBranches]);
 
   const changeBranch = (branchId) => {
-    const idString = branchId.toString();
+    const idString = String(branchId ?? '');
     setSelectedBranch(idString);
     localStorage.setItem('selectedBranchId', idString);
   };
 
   const activeBranchObject = useMemo(() => {
-    return branches.find((b) => b.id.toString() === selectedBranch.toString()) || null;
+    return branches.find((b) => matchId(b.id, selectedBranch)) || null;
   }, [branches, selectedBranch]);
 
   return (
