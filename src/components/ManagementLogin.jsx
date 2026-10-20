@@ -10,9 +10,11 @@ export default function ManagementLogin({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Password Reset Modal State (No Old Password required)
+  // Password Reset Modal State (2-Step OTP Reset)
   const [showResetModal, setShowResetModal] = useState(false);
+  const [resetStep, setResetStep] = useState(1);
   const [resetUsername, setResetUsername] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState({ type: '', text: '' });
@@ -75,20 +77,56 @@ export default function ManagementLogin({ onLoginSuccess }) {
     }
   };
 
-  const handleResetPassword = async (e) => {
+  const handleRequestOTP = async (e) => {
     e.preventDefault();
     setResetMsg({ type: '', text: '' });
 
-    if (!resetUsername.trim() || !resetNewPassword) {
-      setResetMsg({ type: 'error', text: 'Please fill in both username and new password.' });
+    if (!resetUsername.trim()) {
+      setResetMsg({ type: 'error', text: 'Please enter your username.' });
       return;
     }
 
     setResetLoading(true);
 
     try {
-      const res = await API.post('auth/reset-forgot-password/', {
+      const res = await API.post('auth/request-otp/', {
         username: resetUsername.trim(),
+      });
+
+      setResetMsg({
+        type: 'success',
+        text: res.data?.detail || 'An OTP code has been sent to your registered contacts.',
+      });
+
+      setResetStep(2);
+    } catch (err) {
+      setResetMsg({
+        type: 'error',
+        text:
+          err.response?.data?.error ||
+          err.response?.data?.detail ||
+          'Failed to send OTP code. Please check username.',
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyAndResetPassword = async (e) => {
+    e.preventDefault();
+    setResetMsg({ type: '', text: '' });
+
+    if (!otpCode.trim() || !resetNewPassword) {
+      setResetMsg({ type: 'error', text: 'Please enter both the OTP code and new password.' });
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const res = await API.post('auth/verify-otp-reset/', {
+        username: resetUsername.trim(),
+        otp_code: otpCode.trim(),
         new_password: resetNewPassword,
       });
 
@@ -98,10 +136,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
       });
 
       setTimeout(() => {
-        setShowResetModal(false);
-        setResetMsg({ type: '', text: '' });
-        setResetUsername('');
-        setResetNewPassword('');
+        closeResetModal();
       }, 2000);
     } catch (err) {
       setResetMsg({
@@ -109,52 +144,74 @@ export default function ManagementLogin({ onLoginSuccess }) {
         text:
           err.response?.data?.error ||
           err.response?.data?.detail ||
-          'Failed to reset password. Please check the username.',
+          'Invalid or expired OTP code. Please try again.',
       });
     } finally {
       setResetLoading(false);
     }
   };
 
+  const closeResetModal = () => {
+    setShowResetModal(false);
+    setResetStep(1);
+    setResetMsg({ type: '', text: '' });
+    setResetUsername('');
+    setOtpCode('');
+    setResetNewPassword('');
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100 relative">
-      <div className="absolute w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none -top-20 -left-20"></div>
+      {/* Background Glow */}
+      <div className="absolute w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none -top-20 -left-20"></div>
       <div className="absolute w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none -bottom-20 -right-20"></div>
 
-      <div className="w-full max-w-md bg-[#0e1626] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
+      <div className="w-full max-w-md bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
         
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto text-xl">
-            🛡️
+        {/* BRAND LOGO & HEADER */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <img 
+              src="/logo.svg" 
+              alt="Melvex Business Solutions Logo" 
+              className="h-14 w-auto object-contain bg-white/10 p-2 rounded-2xl border border-slate-700/80 shadow-md"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-wide">
-            Management Portal
-          </h1>
-          <p className="text-xs text-slate-400">
-            Sign in with executive administrative credentials to access reviews & financial statements.
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-widest uppercase">
+              MELVEX
+            </h1>
+            <p className="text-xs font-bold text-teal-400 uppercase tracking-wider mt-0.5">
+              Management Portal
+            </p>
+          </div>
+          <p className="text-xs text-slate-400 font-medium leading-relaxed">
+            Sign in with administrative credentials to access financial reports and analytics.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs flex items-start justify-between gap-2 animate-shake">
+          <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-200 text-xs flex items-start justify-between gap-2 shadow-sm">
             <div className="flex items-start gap-2">
               <span className="shrink-0 text-base">⚠️</span>
-              <span>{errorMessage}</span>
+              <span className="font-semibold">{errorMessage}</span>
             </div>
-            <button onClick={() => setErrorMessage('')} className="font-bold hover:text-white">✕</button>
+            <button onClick={() => setErrorMessage('')} className="font-black hover:text-white">✕</button>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* BRANCH SELECT */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-bold text-slate-200 mb-1.5 uppercase tracking-wider">
               Assigned Branch
             </label>
             <div className="relative">
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full bg-[#070a12] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 outline-none focus:border-indigo-500 transition appearance-none cursor-pointer"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white outline-none focus:border-teal-500 transition appearance-none cursor-pointer"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id} className="bg-slate-900 text-white">
@@ -162,12 +219,13 @@ export default function ManagementLogin({ onLoginSuccess }) {
                   </option>
                 ))}
               </select>
-              <div className="absolute right-3.5 top-3 pointer-events-none text-slate-400 text-xs">▼</div>
+              <div className="absolute right-3.5 top-3 pointer-events-none text-teal-400 text-xs">▼</div>
             </div>
           </div>
 
+          {/* ADMIN USERNAME */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-bold text-slate-200 mb-1.5 uppercase tracking-wider">
               Admin Username
             </label>
             <input
@@ -176,26 +234,30 @@ export default function ManagementLogin({ onLoginSuccess }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. edwin_admin"
-              className="w-full bg-[#070a12] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500 transition"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:border-teal-500 transition"
             />
           </div>
 
+          {/* ADMIN PASSWORD */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Password / Passcode
+              <label className="block text-xs font-bold text-slate-200 uppercase tracking-wider">
+                Password
               </label>
+              
+              {/* CLEAR & PROMINENT FORGOT PASSWORD BUTTON */}
               <button
                 type="button"
                 onClick={() => {
                   setResetUsername(username);
                   setShowResetModal(true);
                 }}
-                className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+                className="px-2.5 py-0.5 rounded-lg bg-teal-950 border border-teal-700 text-teal-300 text-[11px] font-extrabold hover:bg-teal-900 hover:text-white transition cursor-pointer"
               >
                 Forgot Password?
               </button>
             </div>
+
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -203,12 +265,12 @@ export default function ManagementLogin({ onLoginSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-[#070a12] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500 transition pr-10"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:border-teal-500 transition pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs transition"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-teal-300 text-xs transition"
               >
                 {showPassword ? '🙈' : '👁️'}
               </button>
@@ -218,7 +280,7 @@ export default function ManagementLogin({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer"
+            className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-teal-950 disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer uppercase tracking-wider"
           >
             {loading ? (
               <>
@@ -226,39 +288,28 @@ export default function ManagementLogin({ onLoginSuccess }) {
                 <span>Authenticating Admin...</span>
               </>
             ) : (
-              <>
-                <span>🔐</span>
-                <span>Enter Management Review Center</span>
-              </>
+              <span>Sign In to Management Portal</span>
             )}
           </button>
         </form>
 
         <div className="pt-2 border-t border-slate-800 text-center">
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] text-slate-400 font-semibold">
             Authorized Personnel Only • Encrypted Executive Access Session
           </p>
         </div>
 
       </div>
 
-      {/* FORGOT PASSWORD MODAL */}
+      {/* 2-STEP OTP RESET MODAL */}
       {showResetModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0e1626] border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 relative z-20">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-4 relative z-20">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                🔑 Reset Forgotten Password
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                🔑 Password Reset via OTP
               </h3>
-              <button
-                onClick={() => {
-                  setShowResetModal(false);
-                  setResetMsg({ type: '', text: '' });
-                }}
-                className="text-slate-400 hover:text-white font-bold"
-              >
-                ✕
-              </button>
+              <button onClick={closeResetModal} className="text-slate-400 hover:text-white font-bold">✕</button>
             </div>
 
             {resetMsg.text && (
@@ -273,55 +324,102 @@ export default function ManagementLogin({ onLoginSuccess }) {
               </div>
             )}
 
-            <form onSubmit={handleResetPassword} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
-                  Admin Username
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={resetUsername}
-                  onChange={(e) => setResetUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  className="w-full bg-[#070a12] border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-100 outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+            {resetStep === 1 && (
+              <form onSubmit={handleRequestOTP} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1">
+                    Admin Username
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={resetUsername}
+                    onChange={(e) => setResetUsername(e.target.value)}
+                    placeholder="Enter admin username"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold text-white outline-none focus:border-teal-500 transition"
+                  />
+                  <p className="text-[10px] text-slate-400 font-medium mt-1">
+                    A 6-digit OTP code will be dispatched to your registered contacts.
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={resetNewPassword}
-                  onChange={(e) => setResetNewPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full bg-[#070a12] border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-100 outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={closeResetModal}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {resetLoading ? 'Sending OTP...' : 'Send Reset OTP'}
+                  </button>
+                </div>
+              </form>
+            )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowResetModal(false);
-                    setResetMsg({ type: '', text: '' });
-                  }}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={resetLoading}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
-                >
-                  {resetLoading ? 'Resetting...' : 'Set New Password'}
-                </button>
-              </div>
-            </form>
+            {resetStep === 2 && (
+              <form onSubmit={handleVerifyAndResetPassword} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1">
+                    6-Digit OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength="6"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="123456"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono tracking-widest text-center outline-none focus:border-teal-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold text-white outline-none focus:border-teal-500 transition"
+                  />
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setResetStep(1)}
+                    className="text-[11px] text-teal-400 hover:text-teal-300 font-bold"
+                  >
+                    ← Back
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={closeResetModal}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {resetLoading ? 'Verifying...' : 'Verify OTP & Reset'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
