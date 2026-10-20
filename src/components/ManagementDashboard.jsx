@@ -116,12 +116,13 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setLoginLoading(true);
 
     try {
-      const res = await API.post('auth/management-login/', {
+      // Updated endpoint path to match backend routes
+      const res = await API.post('management/login/', {
         username: loginForm.username.trim(),
         password: loginForm.password,
       });
 
-      const token = res.data?.access || res.data?.token;
+      const token = res.data?.token || res.data?.access;
       if (!token) throw new Error('No access token returned.');
 
       localStorage.setItem('access_token', token);
@@ -132,7 +133,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setCurrentUser(userObj);
       setAuthToken(token);
     } catch (err) {
-      setLoginError(err.response?.data?.error || err.response?.data?.detail || 'Authentication failed.');
+      console.error('Management login error:', err);
+      setLoginError(
+        err.response?.data?.error || 
+        err.response?.data?.detail || 
+        'Authentication failed. Please check your admin credentials.'
+      );
     } finally {
       setLoginLoading(false);
     }
