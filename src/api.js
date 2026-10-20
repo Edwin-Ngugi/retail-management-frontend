@@ -1,8 +1,23 @@
-// src/api.js
 import axios from 'axios';
 
+// Detect environment dynamically or fall back to localhost during local development
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  return isLocal
+    ? 'http://127.0.0.1:8000/api/'
+    : 'https://api.melvexbusinesssolutions.com/api/';
+};
+
+const BASE_URL = getBaseURL();
+
 const API = axios.create({
-  baseURL: 'https://api.melvexbusinesssolutions.com/api/',
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -38,11 +53,10 @@ API.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          // Attempt silent token refresh
-          const res = await axios.post(
-            'https://api.melvexbusinesssolutions.com/api/token/refresh/',
-            { refresh: refreshToken }
-          );
+          // Dynamic endpoint refresh based on active BASE_URL
+          const res = await axios.post(`${BASE_URL}token/refresh/`, {
+            refresh: refreshToken,
+          });
 
           if (res.data && res.data.access) {
             const newAccessToken = res.data.access;

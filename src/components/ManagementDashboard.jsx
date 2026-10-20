@@ -1,11 +1,11 @@
-// src/components/ManagementDashboard.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 import { useBranch } from './BranchContext';
 import SalesView from './SalesView';
-import ManagementOperations from './ManagementOperations';
-import Reports from './Reports';
-import Cashbook from './Cashbook';
+import PurchaseView from './PurchaseView';
+import InventoryView from './InventoryView';
+import CashView from './CashView';
+import ReportsView from './ReportsView';
 import {
   BarChart,
   Bar,
@@ -76,18 +76,20 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
 
-  const [reportSubTab, setReportSubTab] = useState('PROFIT_LOSS');
-
   useEffect(() => {
     localStorage.setItem('mgmt_active_tab', activeTab);
   }, [activeTab]);
 
+  /* =========================================================
+     DATE FILTER STATE
+  ========================================================= */
   const [dateFilter, setDateFilter] = useState({
-    filterMode: 'MONTHLY',
+    filterMode: 'MONTHLY', 
     selectedDay: formatDateString(new Date()),
     selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    startDate: '',
-    endDate: '',
+    selectedYear: `${new Date().getFullYear()}`,
+    startDate: formatDateString(new Date()),
+    endDate: formatDateString(new Date()),
   });
 
   const [dashboardCardsData, setDashboardCardsData] = useState(null);
@@ -136,39 +138,40 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     }
   };
 
-  const effectiveRange = useMemo(() => {
-    const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
-    let start = '';
-    let end = '';
+  const effectiveQueryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (branchKey) {
+      params.set('branch_id', branchKey);
+    }
 
-    if (filterMode === 'DAILY' && selectedDay) {
-      start = selectedDay;
-      end = selectedDay;
-    } else if (filterMode === 'MONTHLY' && selectedMonth) {
-      const [y, m] = selectedMonth.split('-').map(Number);
-      if (y && m) {
-        start = formatDateString(new Date(y, m - 1, 1));
-        end = formatDateString(new Date(y, m, 0));
-      }
+    const { filterMode, selectedDay, selectedMonth, selectedYear, startDate, endDate } = dateFilter;
+
+    if (filterMode === 'CUSTOM') {
+      if (startDate) params.set('start_date', startDate);
+      if (endDate) params.set('end_date', endDate);
+    } else if (filterMode === 'DAILY' && selectedDay) {
+      params.set('start_date', selectedDay);
+      params.set('end_date', selectedDay);
     } else if (filterMode === 'THIS_WEEK') {
       const today = new Date();
       const dayOfWeek = today.getDay();
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + mondayOffset);
       const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-      start = formatDateString(monday);
-      end = formatDateString(sunday);
-    } else if (filterMode === 'THIS_YEAR') {
-      const year = new Date().getFullYear();
-      start = `${year}-01-01`;
-      end = `${year}-12-31`;
-    } else if (filterMode === 'CUSTOM') {
-      start = startDate;
-      end = endDate;
+      params.set('start_date', formatDateString(monday));
+      params.set('end_date', formatDateString(sunday));
+    } else if (filterMode === 'MONTHLY' && selectedMonth) {
+      const parts = selectedMonth.split('-');
+      if (parts.length === 2) {
+        params.set('year', parts[0]);
+        params.set('month', parts[1]);
+      }
+    } else if (filterMode === 'THIS_YEAR' && selectedYear) {
+      params.set('year', selectedYear);
     }
 
-    return { effectiveStartDate: start, effectiveEndDate: end };
-  }, [dateFilter]);
+    return params.toString();
+  }, [branchKey, dateFilter]);
 
   const fetchManagementAnalytics = useCallback(async () => {
     if (!authToken) return;
@@ -177,15 +180,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setDashboardError('');
 
     try {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (branchKey) {
-        urlParams.set('branch_id', branchKey);
-        urlParams.set('branch', branchKey);
-      }
-      if (effectiveRange.effectiveStartDate) urlParams.set('start_date', effectiveRange.effectiveStartDate);
-      if (effectiveRange.effectiveEndDate) urlParams.set('end_date', effectiveRange.effectiveEndDate);
-
-      const queryStr = urlParams.toString();
+      const queryStr = effectiveQueryParams;
 
       const [cardsRes, pnlRes, salesPerfRes] = await Promise.all([
         API.get(`management-analytics/dashboard-cards/?${queryStr}`),
@@ -203,23 +198,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } finally {
       setLoadingFinancials(false);
     }
-  }, [authToken, branchKey, effectiveRange, handleLogout]);
+  }, [authToken, effectiveQueryParams, handleLogout]);
 
   useEffect(() => {
     if (!authToken) return;
     fetchManagementAnalytics();
-  }, [authToken, branchKey, fetchManagementAnalytics, dateFilter.filterMode, dateFilter.selectedDay, dateFilter.selectedMonth, dateFilter.startDate, dateFilter.endDate]);
-
-  const profitLossChartData = useMemo(() => {
-    if (!pnlData) return [];
-    return [
-      { name: 'Revenue', amount: toNumber(pnlData.revenue), fill: '#0D9488' },
-      { name: 'COGS', amount: toNumber(pnlData.cost_of_goods_sold), fill: '#0F766E' },
-      { name: 'Gross Profit', amount: toNumber(pnlData.gross_profit), fill: '#14B8A6' },
-      { name: 'Expenses', amount: toNumber(pnlData.expenses), fill: '#2DD4BF' },
-      { name: 'Net Profit', amount: toNumber(pnlData.net_profit), fill: '#0D9488' },
-    ];
-  }, [pnlData]);
+  }, [authToken, fetchManagementAnalytics]);
 
   if (!authToken) {
     return (
@@ -268,7 +252,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
               disabled={loginLoading}
               className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-md cursor-pointer"
             >
-              {loginLoading ? 'Authenticating...' : '🔐 Sign In to Management Portal'}
+              {loginLoading ? 'Authenticating...' : 'Sign In to Management Portal'}
             </button>
           </form>
         </div>
@@ -279,42 +263,33 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const menuItems = [
     { id: 'OVERVIEW', label: 'Dashboard' },
     { id: 'OPERATIONS', label: 'Sales' },
-    { id: 'CASHBOOK', label: 'Purchases' },
-    { id: 'REVIEWS', label: 'Inventory' },
-    { id: 'BALANCE_SHEET', label: 'Cash & Bank' },
+    { id: 'PURCHASES', label: 'Purchases' },
+    { id: 'INVENTORY', label: 'Inventory' },
+    { id: 'CASH', label: 'Cash' },
     { id: 'ACCOUNTS', label: 'Accounts' },
     { id: 'REPORTS', label: 'Reports' },
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-100/70 text-slate-900 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-100/70 text-slate-900 font-sans">
 
-      {/* ELEGANT TEAL SIDEBAR WITH PROPER LOGO BRANDING */}
-      <aside className="w-60 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 min-h-screen shadow-lg">
+      {/* SIDEBAR NAVIGATION */}
+      <aside className="w-56 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 h-full shadow-lg z-50">
         <div>
-          {/* SIDEBAR LOGO & BRAND */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-6 border-b border-teal-900/80">
-            <img src="/logo.svg" alt="Company Logo" className="h-10 w-auto object-contain brightness-110" />
-            <div>
-              <h2 className="text-xs font-black text-white tracking-widest uppercase">MELVEX</h2>
-              <span className="text-[10px] text-teal-400 font-bold tracking-wider uppercase">Management</span>
-            </div>
-          </div>
-
-          <div className="mb-3 px-2">
-            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">
+          <div className="px-2 py-3 mb-4 border-b border-teal-900/80">
+            <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-widest">
               MAIN NAVIGATION
             </span>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             {menuItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     isActive
                       ? 'bg-teal-900 text-white border-l-4 border-teal-400 shadow-sm'
                       : 'text-teal-200/80 hover:bg-teal-900/50 hover:text-white'
@@ -327,24 +302,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           </nav>
         </div>
 
-        <div className="space-y-3 pt-4 border-t border-teal-900">
-          <div className="px-2">
-            <label className="text-[10px] font-bold text-teal-400 uppercase block mb-1">
-              Branch
-            </label>
-            <select
-              value={branchKey}
-              onChange={(e) => setSelectedBranch?.(e.target.value)}
-              className="w-full bg-teal-900 border border-teal-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold outline-none cursor-pointer"
-            >
-              {branches.map((b) => (
-                <option key={b.id || b.code} value={b.id || b.code} className="bg-teal-950 text-white">
-                  {b.name || b.branch_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <div className="pt-4 border-t border-teal-900">
           <button
             onClick={handleLogout}
             className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
@@ -354,346 +312,351 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="min-w-0 flex-1 p-6 space-y-6 overflow-y-auto">
+      {/* MAIN CONTAINER */}
+      <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col">
 
-        {/* CONTENT HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Business performance overview
-            </p>
+        {/* RESTYLIZED TOP HEADER BAR (DARK SLATE WITH ENLARGED LOGO) */}
+        <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white px-6 py-3 flex items-center justify-between shadow-md gap-4">
+          
+          {/* LEFT: BRANCH SELECTION */}
+          <div className="flex items-center gap-2 min-w-[200px]">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">BRANCH:</span>
+            <select
+              value={branchKey}
+              onChange={(e) => setSelectedBranch?.(e.target.value)}
+              className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer hover:border-teal-500 transition"
+            >
+              {branches.map((b) => (
+                <option key={b.id || b.code} value={b.id || b.code}>
+                  {b.name || b.branch_name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* CENTER: ENLARGED BRAND LOGO */}
+          <div className="flex items-center gap-3 justify-center">
+            <img 
+              src="/logo.svg" 
+              alt="Melvex Logo" 
+              className="h-11 w-auto object-contain bg-white/10 p-1 rounded-xl border border-slate-700/60 shadow-xs" 
+            />
+            <div className="text-center hidden md:block">
+              <h1 className="text-base font-black tracking-widest uppercase leading-none text-white">MELVEX</h1>
+              <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-widest">Management Portal</span>
+            </div>
+          </div>
+
+          {/* RIGHT: DATE FILTERS */}
+          <div className="flex items-center gap-2 justify-end">
             <select
               value={dateFilter.filterMode}
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))
               }
-              className="bg-white border border-slate-300 rounded-xl px-3.5 py-1.5 text-xs font-bold text-slate-800 outline-none shadow-sm cursor-pointer"
+              className="bg-slate-800 text-white border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer"
             >
-              <option value="MONTHLY">This month</option>
-              <option value="DAILY">Today</option>
-              <option value="THIS_WEEK">This week</option>
-              <option value="THIS_YEAR">This year</option>
+              <option value="DAILY">Daily (Specific Date)</option>
+              <option value="THIS_WEEK">Weekly (This Week)</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="THIS_YEAR">Yearly</option>
+              <option value="CUSTOM">Custom Range</option>
             </select>
+
+            {dateFilter.filterMode === 'DAILY' && (
+              <input
+                type="date"
+                value={dateFilter.selectedDay}
+                onChange={(e) => setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))}
+                className="bg-slate-800 text-white border border-slate-700 rounded-xl px-2.5 py-1 text-xs font-semibold outline-none"
+              />
+            )}
+
+            {dateFilter.filterMode === 'MONTHLY' && (
+              <input
+                type="month"
+                value={dateFilter.selectedMonth}
+                onChange={(e) => setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))}
+                className="bg-slate-800 text-white border border-slate-700 rounded-xl px-2.5 py-1 text-xs font-semibold outline-none"
+              />
+            )}
+
+            {dateFilter.filterMode === 'THIS_YEAR' && (
+              <input
+                type="number"
+                min="2020"
+                max="2035"
+                value={dateFilter.selectedYear}
+                onChange={(e) => setDateFilter((prev) => ({ ...prev, selectedYear: e.target.value }))}
+                className="w-20 bg-slate-800 text-white border border-slate-700 rounded-xl px-2.5 py-1 text-xs font-semibold outline-none"
+              />
+            )}
+
+            {dateFilter.filterMode === 'CUSTOM' && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={dateFilter.startDate}
+                  onChange={(e) => setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className="bg-slate-800 text-white border border-slate-700 rounded-xl px-2 py-1 text-xs font-semibold outline-none"
+                />
+                <span className="text-xs font-bold text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={dateFilter.endDate}
+                  onChange={(e) => setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))}
+                  className="bg-slate-800 text-white border border-slate-700 rounded-xl px-2 py-1 text-xs font-semibold outline-none"
+                />
+              </div>
+            )}
           </div>
-        </div>
+        </header>
 
-        {dashboardError && (
-          <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex justify-between items-center shadow-sm">
-            <span>{dashboardError}</span>
-            <button onClick={() => setDashboardError('')} className="font-bold ml-2">✕</button>
-          </div>
-        )}
+        {/* FLUID INNER PAGE CONTENT */}
+        <div className="p-6 space-y-6 flex-1 w-full">
 
-        {/* OVERVIEW DASHBOARD METRICS */}
-        {activeTab === 'OVERVIEW' && (
-          <div className="space-y-6">
-
-            {/* ROW 1: PROFITABILITY HIGHLIGHTS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL SALES</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">GROSS PROFIT</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
-                  {dashboardCardsData?.profitability?.gross_margin_percentage || 0}% gross margin
-                </span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">OPERATING EXPENSES</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
-                  {dashboardCardsData?.profitability?.operating_expenses_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">This period</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">NET PROFIT</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Before tax, illustrative</span>
-              </div>
+          {dashboardError && (
+            <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex justify-between items-center shadow-xs">
+              <span>{dashboardError}</span>
+              <button onClick={() => setDashboardError('')} className="font-bold ml-2">✕</button>
             </div>
+          )}
 
-            {/* ROW 2: INVENTORY POSITION */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL STOCK VALUE</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">At cost price</span>
-              </div>
+          {/* OVERVIEW DASHBOARD SUMMARY */}
+          {activeTab === 'OVERVIEW' && (
+            <div className="space-y-6 max-w-7xl mx-auto">
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">PRODUCT ITEMS (SKUS)</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
-                  {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Active products</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">LOW-STOCK ITEMS</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-amber-600 tracking-tight">
-                  {dashboardCardsData?.inventory?.low_stock_items ?? 0}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">At or below reorder level</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">OUT OF STOCK</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
-                  {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Products with zero stock</span>
-              </div>
-            </div>
-
-            {/* ROW 3: DAILY STOCK MOVEMENTS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK RECEIVED TODAY</span>
-                <div className="text-lg font-bold font-mono text-slate-900">
-                  {dashboardCardsData?.inventory?.stock_received_today_formatted || 'KSh 0'}
-                </div>
-              </div>
-
-              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK ISSUED TODAY</span>
-                <div className="text-lg font-bold font-mono text-slate-900">
-                  {dashboardCardsData?.inventory?.stock_issued_today_formatted || 'KSh 0'}
-                </div>
-              </div>
-
-              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">PENDING TRANSFERS</span>
-                <div className="text-lg font-bold font-mono text-slate-900">
-                  {dashboardCardsData?.inventory?.pending_transfers || 0}
-                </div>
-              </div>
-
-              <div className="bg-slate-200/60 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">STOCK VARIANCES</span>
-                <div className="text-lg font-bold font-mono text-slate-900">
-                  {dashboardCardsData?.inventory?.stock_variances || 0} items
-                </div>
-              </div>
-            </div>
-
-            {/* ROW 4: CASH FLOW & LIQUIDITY */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TOTAL AVAILABLE FUNDS</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Cash + bank + M-Pesa</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TODAY'S RECEIPTS</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">TODAY'S PAYMENTS</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 tracking-tight">
-                  {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">All channels</span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase block tracking-wider">NET CASH MOVEMENT</span>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-teal-600 tracking-tight">
-                  {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 block">Receipts less payments</span>
-              </div>
-            </div>
-
-            {/* SECTION 5: BALANCES BY ACCOUNT */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Balances by account
-              </h2>
-
-              <div className="divide-y divide-slate-100">
-                <div className="py-3.5 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Cash at hand</h3>
-                    <p className="text-xs text-slate-500">Main cash till</p>
+              {/* 4 CONSOLIDATED EXECUTIVE SUMMARY BLOCKS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                
+                {/* 1. FINANCIAL PERFORMANCE */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Financial Performance</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">
-                    {dashboardCardsData?.account_balances?.cash_at_hand_formatted || 'KSh 0'}
-                  </span>
-                </div>
-
-                <div className="py-3.5 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Paybill / Till</h3>
-                    <p className="text-xs text-slate-500">Business buy goods & paybills</p>
+                    <span className="text-xs text-slate-500 font-medium">Total Sales</span>
+                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                      {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
+                    </div>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">
-                    {dashboardCardsData?.account_balances?.paybill_formatted || 'KSh 0'}
-                  </span>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Gross Profit</span>
+                      <span className="font-bold text-emerald-700">
+                        {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Net Profit</span>
+                      <span className="font-bold text-teal-800">
+                        {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="py-3.5 flex items-center justify-between">
+                {/* 2. INVENTORY & SKUs */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Inventory & SKUs</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                  </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Send Money</h3>
-                    <p className="text-xs text-slate-500">Direct phone transfers</p>
+                    <span className="text-xs text-slate-500 font-medium">Stock Value (At Cost)</span>
+                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                      {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
+                    </div>
                   </div>
-                  <span className="font-mono text-base font-bold text-teal-600">
-                    {dashboardCardsData?.account_balances?.send_money_formatted || 'KSh 0'}
-                  </span>
+                  <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-center">
+                    <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold">Active</span>
+                      <span className="font-extrabold text-slate-800 text-xs">
+                        {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
+                      </span>
+                    </div>
+                    <div className="bg-amber-50/80 p-1.5 rounded-lg border border-amber-100">
+                      <span className="text-[9px] text-amber-700 block uppercase font-bold">Low</span>
+                      <span className="font-extrabold text-amber-800 text-xs">
+                        {dashboardCardsData?.inventory?.low_stock_items ?? 0}
+                      </span>
+                    </div>
+                    <div className="bg-rose-50/80 p-1.5 rounded-lg border border-rose-100">
+                      <span className="text-[9px] text-rose-700 block uppercase font-bold">Out</span>
+                      <span className="font-extrabold text-rose-800 text-xs">
+                        {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* ROW 6: SALES PERFORMANCE GRAPH */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Sales performance
-              </h2>
-
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 bg-teal-500 rounded-full" />
-                <div>
-                  <span className="text-xs text-slate-500 block">Total Sales (Period)</span>
-                  <span className="text-lg font-extrabold font-mono text-slate-900">
-                    {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
-                  </span>
+                {/* 3. DAILY MOVEMENT */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Daily Movement</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-medium">Today's Receipts</span>
+                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                      {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Today's Payments</span>
+                      <span className="font-bold text-slate-800">
+                        {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Net Cash Flow</span>
+                      <span className="font-bold text-emerald-600">
+                        {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+
+                {/* 4. CASH POSITION */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Cash Position</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-medium">Available Funds</span>
+                    <div className="text-2xl font-black text-teal-800 tracking-tight">
+                      {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 leading-snug">
+                    Combined cash, bank accounts & mobile till balances
+                  </p>
+                </div>
+
               </div>
 
-              <div className="h-64 w-full pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={salesPerfData?.daily || []}
-                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
-                    <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
-                    <Bar dataKey="gross_sales" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={28} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* SALES TAB (RENDERS SalesView WITH 6 NAVIGATION MODULES) */}
-        {activeTab === 'OPERATIONS' && (
-          <SalesView
-            branchId={branchKey}
-            startDate={effectiveRange.effectiveStartDate}
-            endDate={effectiveRange.effectiveEndDate}
-          />
-        )}
-
-        {/* INVENTORY / REVIEWS TAB */}
-        {activeTab === 'REVIEWS' && (
-          <ManagementOperations
-            selectedBranch={branchKey}
-            effectiveRange={effectiveRange}
-            onBack={() => setActiveTab('OVERVIEW')}
-          />
-        )}
-
-        {/* CASHBOOK / PURCHASES TAB */}
-        {(activeTab === 'CASHBOOK' || activeTab === 'BALANCE_SHEET') && (
-          <Cashbook selectedBranch={branchKey} />
-        )}
-
-        {/* REPORTS TAB */}
-        {activeTab === 'REPORTS' && (
-          <div className="space-y-6">
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
-              {[
-                { id: 'PROFIT_LOSS', label: '📊 Profit & Loss Statement' },
-                { id: 'SALES_ANALYSIS', label: '📈 Sales Performance Analysis' },
-                { id: 'SUMMARIZED_REPORT', label: '📄 Comprehensive Executive Report' },
-              ].map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() => setReportSubTab(sub.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    reportSubTab === sub.id
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-
-            {reportSubTab === 'PROFIT_LOSS' && (
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
-                <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">
-                  Profit & Loss Statement (P&L)
+              {/* ACCOUNT BALANCES LEDGER */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
+                  Balances by Account
                 </h2>
-                <div className="h-64 w-full">
+
+                <div className="divide-y divide-slate-100">
+                  <div className="py-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800">Cash at hand</h3>
+                      <p className="text-[11px] text-slate-400">Main cash till</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold text-teal-700">
+                      {dashboardCardsData?.account_balances?.cash_at_hand_formatted || 'KSh 0.00'}
+                    </span>
+                  </div>
+
+                  <div className="py-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800">Paybill / Till</h3>
+                      <p className="text-[11px] text-slate-400">Business buy goods & paybills</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold text-teal-700">
+                      {dashboardCardsData?.account_balances?.paybill_formatted || 'KSh 0.00'}
+                    </span>
+                  </div>
+
+                  <div className="py-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800">Send Money</h3>
+                      <p className="text-[11px] text-slate-400">Direct phone transfers</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold text-teal-700">
+                      {dashboardCardsData?.account_balances?.send_money_formatted || 'KSh 0.00'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SALES PERFORMANCE GRAPH */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
+                  Sales Performance Trajectory
+                </h2>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 bg-teal-600 rounded-full" />
+                  <div>
+                    <span className="text-[11px] text-slate-400 block font-bold uppercase">Total Sales (Period)</span>
+                    <span className="text-lg font-black font-mono text-slate-900">
+                      {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-64 w-full pt-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={profitLossChartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v) => [formatCurrency(v), 'Amount']} />
-                      <Bar dataKey="amount" fill="#0D9488" radius={[6, 6, 0, 0]} barSize={40} />
+                    <BarChart
+                      data={salesPerfData?.daily || []}
+                      margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
+                      <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
+                      <Bar dataKey="gross_sales" fill="#0D9488" radius={[6, 6, 0, 0]} barSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-            )}
 
-            {reportSubTab === 'SUMMARIZED_REPORT' && <Reports items={[]} />}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* ACCOUNTS TAB */}
-        {activeTab === 'ACCOUNTS' && (
-          <section className="mx-auto max-w-5xl space-y-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900">Account Details</h2>
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Username</p>
-                  <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.username || 'N/A'}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase">Role</p>
-                  <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.role || 'Manager'}</p>
+          {/* SALES TAB */}
+          {activeTab === 'OPERATIONS' && (
+            <SalesView branchId={branchKey} />
+          )}
+
+          {/* INVENTORY TAB */}
+          {activeTab === 'INVENTORY' && (
+            <InventoryView branchId={branchKey} />
+          )}
+
+          {/* PURCHASES TAB */}
+          {activeTab === 'PURCHASES' && (
+            <PurchaseView branchId={branchKey} />
+          )}
+
+          {/* CASH TAB */}
+          {activeTab === 'CASH' && (
+            <CashView branchId={branchKey} />
+          )}
+
+          {/* REPORTS TAB */}
+          {activeTab === 'REPORTS' && (
+            <ReportsView branchId={branchKey} />
+          )}
+
+          {/* ACCOUNTS TAB */}
+          {activeTab === 'ACCOUNTS' && (
+            <section className="w-full max-w-5xl space-y-5">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+                <h2 className="text-2xl font-black text-slate-900">Account Details</h2>
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">Username</p>
+                    <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.username || 'N/A'}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">Role</p>
+                    <p className="mt-2 text-base font-semibold text-teal-700">{currentUser?.role || 'Manager'}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
+
+        </div>
 
       </main>
     </div>
