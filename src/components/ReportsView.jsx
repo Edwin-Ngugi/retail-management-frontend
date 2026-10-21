@@ -1,47 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import API from '../api';
 import Reports from './Reports';
+import SalesView from './SalesView';
+import InventoryView from './InventoryView';
+import PurchaseView from './PurchaseView';
+import CashView from './CashView';
 
 const REPORT_MODULES = [
-  {
-    id: 'profit',
-    title: 'Profit',
-    subtitle: 'Comprehensive Profit & Loss Statement (P&L) breakdown.',
-    endpoint: '/management-reports/profit-loss/',
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-      </svg>
-    )
-  },
-  {
-    id: 'cashflow',
-    title: 'Cash Flow',
-    subtitle: 'Operating, investing, and financing cash flow activities statement.',
-    endpoint: '/management-reports/cash-flow/',
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    )
-  },
-  {
-    id: 'balancesheet',
-    title: 'Balance Sheet',
-    subtitle: 'Financial position including Assets, Liabilities, and Capital / Equity.',
-    endpoint: '/management-reports/balance-sheet/',
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    )
-  },
   {
     id: 'sales',
     title: 'Sales',
     subtitle: 'Revenue performance trends, product lines, and payment channel split.',
-    endpoint: '/management-reports/sales-performance/',
+    endpoint: '/management-reports/sales/',
+    component: SalesView,
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -50,12 +21,37 @@ const REPORT_MODULES = [
   },
   {
     id: 'stock',
-    title: 'Stock',
+    title: 'Stock / Inventory',
     subtitle: 'Inventory valuation, stock movement history, and operational summary.',
     endpoint: '/management-reports/stock/',
+    component: InventoryView,
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    )
+  },
+  {
+    id: 'purchases',
+    title: 'Purchases',
+    subtitle: 'Supplier purchase orders, restock invoices, and accounts payable.',
+    endpoint: '/management-reports/purchases/',
+    component: PurchaseView,
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    )
+  },
+  {
+    id: 'cash',
+    title: 'Cash Operations',
+    subtitle: 'Daily tills, bank transactions, and mobile paybill receipts.',
+    endpoint: '/management-reports/cash-operations/',
+    component: CashView,
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
       </svg>
     )
   },
@@ -66,7 +62,7 @@ const REPORT_MODULES = [
     endpoint: '/management-reports/debts/',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     )
   },
@@ -95,7 +91,7 @@ const REPORT_MODULES = [
   },
   {
     id: 'summary',
-    title: 'Summary',
+    title: 'Executive Summary',
     subtitle: 'High-level executive overview of sales, gross profit, expenses, and net earnings.',
     endpoint: '/management-reports/summary/',
     icon: (
@@ -103,11 +99,38 @@ const REPORT_MODULES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
     )
+  },
+  {
+    id: 'profit',
+    title: 'Profit & Loss',
+    subtitle: 'Comprehensive Profit & Loss Statement (P&L) breakdown.',
+    endpoint: '/management-reports/profit-loss/',
+    icon: null
+  },
+  {
+    id: 'cashflow',
+    title: 'Cash Flow',
+    subtitle: 'Operating, investing, and financing cash flow activities statement.',
+    endpoint: '/management-reports/cash-flow/',
+    icon: null
+  },
+  {
+    id: 'balancesheet',
+    title: 'Balance Sheet',
+    subtitle: 'Financial position including Assets, Liabilities, and Capital / Equity.',
+    endpoint: '/management-reports/balance-sheet/',
+    icon: null
   }
 ];
 
-export default function ReportsView({ branchId, items = [] }) {
-  const [selectedModule, setSelectedModule] = useState(null);
+export default function ReportsView({ branchId, items = [], initialModule = null }) {
+  const [selectedModule, setSelectedModule] = useState(() => {
+    if (initialModule) {
+      return REPORT_MODULES.find(m => m.id === initialModule) || null;
+    }
+    return null;
+  });
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -120,7 +143,14 @@ export default function ReportsView({ branchId, items = [] }) {
   const activeYear = queryParams.get('year');
 
   useEffect(() => {
-    if (selectedModule && selectedModule.id !== 'summary') {
+    if (initialModule) {
+      const found = REPORT_MODULES.find(m => m.id === initialModule);
+      if (found) setSelectedModule(found);
+    }
+  }, [initialModule]);
+
+  useEffect(() => {
+    if (selectedModule && !selectedModule.component && selectedModule.id !== 'summary') {
       fetchReportData(selectedModule);
     }
   }, [selectedModule, activeBranch, activeStart, activeEnd, activeMonth, activeYear]);
@@ -156,6 +186,12 @@ export default function ReportsView({ branchId, items = [] }) {
   };
 
   const renderReportContent = () => {
+    // If a dedicated operational view component is assigned, render it directly
+    if (selectedModule?.component) {
+      const Component = selectedModule.component;
+      return <Component branchId={activeBranch} items={items} />;
+    }
+
     if (selectedModule?.id === 'summary') {
       return <Reports items={items} />;
     }
@@ -163,117 +199,97 @@ export default function ReportsView({ branchId, items = [] }) {
     if (!data) return null;
 
     switch (selectedModule.id) {
-      case 'sales':
+      case 'debts':
         return (
           <div className="space-y-6 max-w-6xl mx-auto pb-8">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
-                <span className="text-[10px] font-extrabold text-teal-700 uppercase tracking-wider">Total Sales Volume</span>
-                <div className="text-2xl font-black text-teal-900 mt-1">{fmtCurr(data.summary?.total_sales ?? data.total_sales)}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
+                <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Customer Debts (Receivables)</span>
+                <div className="text-2xl font-black text-rose-900 mt-1">{fmtCurr(data.total_customer_debts)}</div>
               </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                <span className="text-[10px] font-extrabold text-blue-700 uppercase tracking-wider">Transactions Count</span>
-                <div className="text-2xl font-black text-blue-900 mt-1">{data.summary?.total_transactions ?? data.transaction_count ?? 0} Orders</div>
-              </div>
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider">Avg Order Value (AOV)</span>
-                <div className="text-2xl font-black text-emerald-900 mt-1">{fmtCurr(data.summary?.average_order_value)}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
-                <span className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider">Debt Repayments Recv.</span>
-                <div className="text-2xl font-black text-purple-900 mt-1">{fmtCurr(data.summary?.total_credit_repayments)}</div>
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Supplier Debts (Payables)</span>
+                <div className="text-2xl font-black text-amber-900 mt-1">{fmtCurr(data.total_supplier_debts)}</div>
               </div>
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Revenue & Cash Collections Split
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-slate-500 font-semibold block">Cash Sales</span>
-                  <span className="text-slate-900 font-mono font-bold text-sm mt-0.5 block">{fmtCurr(data.payment_channels?.cash)}</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-slate-500 font-semibold block">M-Pesa Express</span>
-                  <span className="text-emerald-700 font-mono font-bold text-sm mt-0.5 block">{fmtCurr(data.payment_channels?.mpesa)}</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-slate-500 font-semibold block">Paybill / Bank</span>
-                  <span className="text-teal-700 font-mono font-bold text-sm mt-0.5 block">{fmtCurr(data.payment_channels?.paybill)}</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-slate-500 font-semibold block">Credit / Invoices Issued</span>
-                  <span className="text-amber-700 font-mono font-bold text-sm mt-0.5 block">{fmtCurr(data.payment_channels?.credit)}</span>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                  <span className="text-purple-700 font-semibold block">Debt Repayments Recv.</span>
-                  <span className="text-purple-900 font-mono font-bold text-sm mt-0.5 block">{fmtCurr(data.payment_channels?.credit_repayments)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                  Top Selling Products
-                </h3>
-                <div className="divide-y divide-slate-100 text-xs">
-                  {data.top_products?.length > 0 ? (
-                    data.top_products.map((prod, idx) => (
-                      <div key={idx} className="py-2.5 flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-slate-800">{prod.name}</p>
-                          <p className="text-[10px] text-slate-500">{prod.quantity} units sold</p>
-                        </div>
-                        <span className="font-mono font-bold text-teal-800">{fmtCurr(prod.revenue)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-slate-400 text-xs py-4 text-center">No sales records found for this period.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-                <h3 className="text-xs font-black text-purple-900 uppercase tracking-wider border-b border-purple-100 pb-2">
-                  Customer Debt Repayments Received
-                </h3>
-                <div className="divide-y divide-slate-100 text-xs">
-                  {data.recent_repayments?.length > 0 ? (
-                    data.recent_repayments.map((rep) => (
-                      <div key={rep.id} className="py-2 flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-slate-800">{rep.customer} <span className="text-[10px] text-purple-600 font-normal">({rep.payment_method})</span></p>
-                          <p className="text-[10px] text-slate-500">{rep.date} {rep.receipt_number ? `• Inv: ${rep.receipt_number}` : ''}</p>
-                        </div>
-                        <span className="font-mono font-bold text-purple-800">{fmtCurr(rep.amount)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-slate-400 text-xs py-4 text-center">No debt repayments received in this period.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Recent Sales Transactions Log
+                Customer Debtors Ledger
               </h3>
               <div className="divide-y divide-slate-100 text-xs">
-                {data.recent_sales?.length > 0 ? (
-                  data.recent_sales.map((sale) => (
-                    <div key={sale.id} className="py-2.5 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
+                {data.customer_debtors?.length > 0 ? (
+                  data.customer_debtors.map((debtor) => (
+                    <div key={debtor.customer_id} className="py-2.5 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
                       <div>
-                        <p className="font-bold text-slate-800">{sale.receipt_number} <span className="text-[10px] text-slate-500 font-normal">({sale.payment_method})</span></p>
-                        <p className="text-[10px] text-slate-500">{sale.customer} • {sale.date} • {sale.branch}</p>
+                        <p className="font-bold text-slate-800">{debtor.customer_name}</p>
+                        <p className="text-[10px] text-slate-500">{debtor.phone || 'No Phone'}</p>
                       </div>
-                      <span className="font-mono font-bold text-slate-900">{fmtCurr(sale.amount)}</span>
+                      <span className="font-mono font-bold text-rose-700">{fmtCurr(debtor.outstanding_balance)}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-slate-400 text-xs py-4 text-center">No recent transactions.</p>
+                  <p className="text-slate-400 text-xs py-4 text-center">No outstanding customer debts.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'expenses':
+        return (
+          <div className="space-y-6 max-w-6xl mx-auto pb-8">
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-center max-w-md mx-auto">
+              <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Total Operating Expenses</span>
+              <div className="text-3xl font-black text-rose-900 mt-1">{fmtCurr(data.total_expenses)}</div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+                Expenses Audit Log
+              </h3>
+              <div className="divide-y divide-slate-100 text-xs">
+                {data.expenses?.length > 0 ? (
+                  data.expenses.map((exp) => (
+                    <div key={exp.id} className="py-2.5 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
+                      <div>
+                        <p className="font-bold text-slate-800">{exp.description}</p>
+                        <p className="text-[10px] text-slate-500">{exp.date}</p>
+                      </div>
+                      <span className="font-mono font-bold text-rose-700">{fmtCurr(exp.amount)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-400 text-xs py-4 text-center">No expense logs found for this period.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'branches':
+        return (
+          <div className="space-y-6 max-w-6xl mx-auto pb-8">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+                Multi-Branch Performance Overview
+              </h3>
+              <div className="divide-y divide-slate-100 text-xs">
+                {data.branches?.length > 0 ? (
+                  data.branches.map((b) => (
+                    <div key={b.branch_id} className="py-3 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
+                      <div>
+                        <p className="font-bold text-slate-800">{b.branch_name}</p>
+                        <p className="text-[10px] text-slate-500">Revenue: {fmtCurr(b.revenue)} • Expenses: {fmtCurr(b.expenses)}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Net Contribution</span>
+                        <span className="font-mono font-bold text-teal-800 text-sm">{fmtCurr(b.net_contribution)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-400 text-xs py-4 text-center">No branch performance data available.</p>
                 )}
               </div>
             </div>
@@ -345,28 +361,6 @@ export default function ReportsView({ branchId, items = [] }) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider">
-                  Investing activities
-                </div>
-                <div className="divide-y divide-slate-100 text-xs">
-                  <div className="flex justify-between py-2 text-rose-600"><span>Equipment purchased</span><span className="font-mono">{fmtCurr(data.investing_activities?.equipment_purchased)}</span></div>
-                  <div className="flex justify-between py-2 font-bold text-teal-800 bg-slate-50 px-2 rounded"><span>Net investing cash</span><span className="font-mono">{fmtCurr(data.investing_activities?.net_investing_cash)}</span></div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider">
-                  Financing activities
-                </div>
-                <div className="divide-y divide-slate-100 text-xs">
-                  <div className="flex justify-between py-2"><span>Capital + loan received</span><span className="font-mono">{fmtCurr(data.financing_activities?.capital_loan_received)}</span></div>
-                  <div className="flex justify-between py-2 text-rose-600"><span>Loan repayment</span><span className="font-mono">{fmtCurr(data.financing_activities?.loan_repayment)}</span></div>
-                  <div className="flex justify-between py-2 text-rose-600"><span>Drawings</span><span className="font-mono">{fmtCurr(data.financing_activities?.drawings)}</span></div>
-                  <div className="flex justify-between py-2 font-bold text-teal-800 bg-slate-50 px-2 rounded"><span>Net financing cash</span><span className="font-mono">{fmtCurr(data.financing_activities?.net_financing_cash)}</span></div>
-                </div>
-              </div>
-
               <div className="pt-4 border-t border-slate-200 space-y-2">
                 <div className="flex justify-between text-sm font-bold text-slate-800"><span>Net increase in cash</span><span className="font-mono text-emerald-700">{fmtCurr(data.net_increase_in_cash)}</span></div>
                 <div className="flex justify-between text-xs text-slate-500"><span>Opening cash</span><span className="font-mono">{fmtCurr(data.opening_cash)}</span></div>
@@ -429,114 +423,6 @@ export default function ReportsView({ branchId, items = [] }) {
           </div>
         );
 
-      case 'stock':
-        return (
-          <div className="space-y-6 max-w-6xl mx-auto pb-8">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
-                <span className="text-[10px] font-extrabold text-teal-700 uppercase tracking-wider">Total Inventory Valuation</span>
-                <div className="text-2xl font-black text-teal-900 mt-1">{fmtCurr(data.summary?.total_stock_value)}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                <span className="text-[10px] font-extrabold text-blue-700 uppercase tracking-wider">Unique Stock Items</span>
-                <div className="text-2xl font-black text-blue-900 mt-1">{data.summary?.total_items_count || 0} Products</div>
-              </div>
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider">Restock Purchases</span>
-                <div className="text-2xl font-black text-emerald-900 mt-1">+{data.summary?.restock_purchases_qty || 0} Units</div>
-              </div>
-              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
-                <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Damaged / Lost Stock</span>
-                <div className="text-2xl font-black text-rose-900 mt-1">-{data.summary?.damages_losses_qty || 0} Units</div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Stock Movements & Flow Summary
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                  <span className="text-emerald-700 font-semibold block">Stock In (Purchases)</span>
-                  <span className="text-emerald-900 font-mono font-bold text-sm mt-0.5 block">+{data.summary?.restock_purchases_qty || 0}</span>
-                </div>
-                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                  <span className="text-blue-700 font-semibold block">Stock Out (Sales)</span>
-                  <span className="text-blue-900 font-mono font-bold text-sm mt-0.5 block">-{data.summary?.sales_qty || 0}</span>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                  <span className="text-purple-700 font-semibold block">Customer Returns</span>
-                  <span className="text-purple-900 font-mono font-bold text-sm mt-0.5 block">+{data.summary?.customer_returns_qty || 0}</span>
-                </div>
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <span className="text-amber-700 font-semibold block">Supplier Returns</span>
-                  <span className="text-amber-900 font-mono font-bold text-sm mt-0.5 block">-{data.summary?.supplier_returns_qty || 0}</span>
-                </div>
-                <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                  <span className="text-indigo-700 font-semibold block">Transfers (In / Out)</span>
-                  <span className="text-indigo-900 font-mono font-bold text-sm mt-0.5 block">+{data.summary?.transfers_in_qty || 0} / -{data.summary?.transfers_out_qty || 0}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Current Inventory Valuation & Stock Levels
-              </h3>
-              <div className="divide-y divide-slate-100 text-xs">
-                {data.inventory_holdings?.length > 0 ? (
-                  data.inventory_holdings.map((item) => (
-                    <div key={item.id} className="py-2.5 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
-                      <div>
-                        <p className="font-bold text-slate-800">
-                          {item.item_name}
-                          {item.is_low_stock && (
-                            <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded font-normal text-[9px]">Low Stock</span>
-                          )}
-                        </p>
-                        <p className="text-[10px] text-slate-500">{item.branch_name} • Unit Cost: {fmtCurr(item.unit_cost)} • Selling: {fmtCurr(item.unit_selling)}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-slate-900 block">{item.quantity} units</span>
-                        <span className="text-[10px] text-teal-700 font-mono font-semibold">{fmtCurr(item.total_value)}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-400 text-xs py-4 text-center">No inventory records found.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Recent Stock Movements Audit Trail
-              </h3>
-              <div className="divide-y divide-slate-100 text-xs">
-                {data.recent_movements?.length > 0 ? (
-                  data.recent_movements.map((mov) => (
-                    <div key={mov.id} className="py-2.5 flex justify-between items-center hover:bg-slate-50 px-2 rounded-lg transition">
-                      <div>
-                        <p className="font-bold text-slate-800">
-                          {mov.item_name}
-                          <span className="ml-2 text-[10px] text-teal-700 font-semibold">[{mov.movement_type}]</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500">{mov.date} • Ref: {mov.reference} {mov.notes ? `(${mov.notes})` : ''}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-slate-900 block">{mov.quantity} units</span>
-                        <span className="text-[10px] text-slate-500 font-mono">@{fmtCurr(mov.unit_cost)}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-400 text-xs py-4 text-center">No recent stock movement logs found for this period.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
@@ -545,39 +431,41 @@ export default function ReportsView({ branchId, items = [] }) {
   if (selectedModule) {
     return (
       <div className="space-y-6 w-full flex-1 flex flex-col">
-        <div className="sticky top-0 z-30 bg-slate-100/95 backdrop-blur-md pb-2 border-b border-slate-200/80">
-          <div className="flex items-center justify-between bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => { setSelectedModule(null); setData(null); setError(null); }}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
-              >
-                ← Back to Reports
-              </button>
-              <div>
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">{selectedModule.title} Report</h2>
-                <p className="text-xs text-slate-500 mt-0.5">{selectedModule.subtitle}</p>
+        {!initialModule && (
+          <div className="sticky top-0 z-30 bg-slate-100/95 backdrop-blur-md pb-2 border-b border-slate-200/80">
+            <div className="flex items-center justify-between bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => { setSelectedModule(null); setData(null); setError(null); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  ← Back to Management Reports
+                </button>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">{selectedModule.title}</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">{selectedModule.subtitle}</p>
+                </div>
               </div>
-            </div>
 
-            {selectedModule.id !== 'summary' && (
-              <button
-                onClick={() => fetchReportData(selectedModule)}
-                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
-              >
-                Refresh Report
-              </button>
-            )}
+              {!selectedModule.component && selectedModule.id !== 'summary' && (
+                <button
+                  onClick={() => fetchReportData(selectedModule)}
+                  className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
+                >
+                  Refresh Report
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex-1 min-h-[calc(100vh-220px)] h-fit w-full">
-          {loading && selectedModule.id !== 'summary' ? (
+          {loading && !selectedModule.component && selectedModule.id !== 'summary' ? (
             <div className="flex flex-col items-center justify-center h-64 space-y-3">
               <div className="w-8 h-8 border-4 border-teal-700 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-xs font-semibold text-slate-500">Generating live {selectedModule.title} financial statement...</span>
+              <span className="text-xs font-semibold text-slate-500">Generating live {selectedModule.title} report...</span>
             </div>
-          ) : error && selectedModule.id !== 'summary' ? (
+          ) : error && !selectedModule.component && selectedModule.id !== 'summary' ? (
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-700">
               {error}
             </div>
@@ -599,7 +487,7 @@ export default function ReportsView({ branchId, items = [] }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        {REPORT_MODULES.map((item) => (
+        {REPORT_MODULES.filter(m => !['profit', 'cashflow', 'balancesheet'].includes(m.id)).map((item) => (
           <button
             key={item.id}
             onClick={() => setSelectedModule(item)}

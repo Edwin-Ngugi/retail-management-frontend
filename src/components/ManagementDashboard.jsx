@@ -18,9 +18,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-/* =========================================================
-   HELPERS & FORMATTERS
-========================================================= */
 const toNumber = (value, fallback = 0) => {
   if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
@@ -73,9 +70,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     return localStorage.getItem('mgmt_active_tab') || 'OVERVIEW';
   });
 
-  /* =========================================================
-     IN-APP CHANGE PASSWORD STATE (AUTHENTICATED)
-  ========================================================= */
+  const [finSubTab, setFinSubTab] = useState('PROFIT'); // PROFIT, CASHFLOW, BALANCESHEET
+
+  /* IN-APP CHANGE PASSWORD STATE */
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
     newPassword: '',
@@ -88,9 +85,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     localStorage.setItem('mgmt_active_tab', activeTab);
   }, [activeTab]);
 
-  /* =========================================================
-     DATE FILTER STATE
-  ========================================================= */
+  /* DATE FILTER STATE */
   const [dateFilter, setDateFilter] = useState({
     filterMode: 'MONTHLY', 
     selectedDay: formatDateString(new Date()),
@@ -231,19 +226,16 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     fetchManagementAnalytics();
   }, [authToken, fetchManagementAnalytics]);
 
-  // SINGLE UNIFIED LOGIN SCREEN CALL
   if (!authToken) {
     return <ManagementLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // UPDATED SIDEBAR MENU STRUCTURE
   const menuItems = [
     { id: 'OVERVIEW', label: 'Dashboard' },
-    { id: 'OPERATIONS', label: 'Sales' },
-    { id: 'PURCHASES', label: 'Purchases' },
-    { id: 'INVENTORY', label: 'Inventory' },
-    { id: 'CASH', label: 'Cash' },
-    { id: 'ACCOUNTS', label: 'Accounts' },
+    { id: 'FINANCIAL_STATEMENT', label: 'Financial Statement' },
     { id: 'REPORTS', label: 'Reports' },
+    { id: 'ACCOUNTS', label: 'Accounts' },
   ];
 
   return (
@@ -393,6 +385,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           )}
 
+          {/* DASHBOARD OVERVIEW */}
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -502,44 +495,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
-                  Balances by Account
-                </h2>
-
-                <div className="divide-y divide-slate-100">
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-800">Cash at hand</h3>
-                      <p className="text-[11px] text-slate-400">Main cash till</p>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-teal-700">
-                      {dashboardCardsData?.account_balances?.cash_at_hand_formatted || 'KSh 0.00'}
-                    </span>
-                  </div>
-
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-800">Paybill / Till</h3>
-                      <p className="text-[11px] text-slate-400">Business buy goods & paybills</p>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-teal-700">
-                      {dashboardCardsData?.account_balances?.paybill_formatted || 'KSh 0.00'}
-                    </span>
-                  </div>
-
-                  <div className="py-3 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-800">Send Money</h3>
-                      <p className="text-[11px] text-slate-400">Direct phone transfers</p>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-teal-700">
-                      {dashboardCardsData?.account_balances?.send_money_formatted || 'KSh 0.00'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-                <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
                   Sales Performance Trajectory
                 </h2>
 
@@ -571,17 +526,58 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           )}
 
-          {activeTab === 'OPERATIONS' && <SalesView branchId={branchKey} />}
-          {activeTab === 'INVENTORY' && <InventoryView branchId={branchKey} />}
-          {activeTab === 'PURCHASES' && <PurchaseView branchId={branchKey} />}
-          {activeTab === 'CASH' && <CashView branchId={branchKey} />}
+          {/* FINANCIAL STATEMENT MENU (PROFIT, CASH FLOW, BALANCE SHEET) */}
+          {activeTab === 'FINANCIAL_STATEMENT' && (
+            <div className="space-y-6 max-w-7xl mx-auto">
+              <div className="bg-teal-700 text-white rounded-xl p-3.5 flex items-center justify-between shadow-md">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h2 className="text-sm font-black tracking-widest uppercase">FINANCIAL STATEMENT</h2>
+                </div>
+
+                <div className="flex bg-teal-900/60 p-1 rounded-xl border border-teal-500/30 gap-1">
+                  <button
+                    onClick={() => setFinSubTab('PROFIT')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      finSubTab === 'PROFIT' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                    }`}
+                  >
+                    Profit & Loss
+                  </button>
+                  <button
+                    onClick={() => setFinSubTab('CASHFLOW')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      finSubTab === 'CASHFLOW' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                    }`}
+                  >
+                    Cash Flow
+                  </button>
+                  <button
+                    onClick={() => setFinSubTab('BALANCESHEET')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      finSubTab === 'BALANCESHEET' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                    }`}
+                  >
+                    Balance Sheet
+                  </button>
+                </div>
+              </div>
+
+              {/* RENDER SELECTED FINANCIAL STATEMENT */}
+              {finSubTab === 'PROFIT' && <ReportsView branchId={branchKey} initialModule="profit" />}
+              {finSubTab === 'CASHFLOW' && <ReportsView branchId={branchKey} initialModule="cashflow" />}
+              {finSubTab === 'BALANCESHEET' && <ReportsView branchId={branchKey} initialModule="balancesheet" />}
+            </div>
+          )}
+
+          {/* MANAGEMENT REPORTS (SALES, PURCHASES, INVENTORY, CASH, ETC) */}
           {activeTab === 'REPORTS' && <ReportsView branchId={branchKey} />}
 
-          {/* ACCOUNTS TAB WITH PROFILE & CHANGE PASSWORD SECTION */}
+          {/* ACCOUNTS TAB */}
           {activeTab === 'ACCOUNTS' && (
             <section className="w-full max-w-5xl space-y-6">
-              
-              {/* ACCOUNT DETAILS CARD */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
                 <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-3">
                   Account Details
@@ -598,7 +594,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
               </div>
 
-              {/* CHANGE PASSWORD CARD */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
                 <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-3">
                   Security & Password Change
@@ -671,7 +666,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </button>
                 </form>
               </div>
-
             </section>
           )}
         </div>

@@ -18,7 +18,7 @@ const CASH_MODULES = [
     id: 'receipts',
     title: 'Cash Receipts',
     subtitle: 'Inbound payments from cash sales, customer repayments, and direct deposits.',
-    endpoint: '/management-analytics/cash-receipts/',
+    endpoint: '/management-analytics/cash-inflows/',
     badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -30,7 +30,7 @@ const CASH_MODULES = [
     id: 'payments',
     title: 'Cash Payments',
     subtitle: 'Outbound cash disbursements, operational expenses, and vendor payouts.',
-    endpoint: '/management-analytics/cash-payments/',
+    endpoint: '/management-analytics/cash-expenses/',
     badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -66,7 +66,7 @@ const CASH_MODULES = [
     id: 'mpesa',
     title: 'M-Pesa Accounts',
     subtitle: 'Mobile money transactions, Paybill collections, and Till allocations.',
-    endpoint: '/management-analytics/mpesa-accounts/',
+    endpoint: '/management-analytics/sales-collections/',
     badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,7 +102,7 @@ const CASH_MODULES = [
     id: 'petty_cash',
     title: 'Petty Cash',
     subtitle: 'Minor day-to-day office disbursements, floats, and replenishment logs.',
-    endpoint: '/management-analytics/petty-cash/',
+    endpoint: '/management-analytics/cash-expenses/',
     badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +114,7 @@ const CASH_MODULES = [
     id: 'reports',
     title: 'Cash Reports',
     subtitle: 'Cash flow statements, liquidity analysis, and channel performance.',
-    endpoint: '/management-analytics/cash-reports/',
+    endpoint: '/management-analytics/cash-overview/',
     badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -150,6 +150,7 @@ export default function CashView({ branchId }) {
       const response = await API.get(moduleItem.endpoint, {
         params: { 
           branch_id: activeBranch,
+          branch: activeBranch,
           start_date: activeStart,
           end_date: activeEnd,
           month: activeMonth,
@@ -170,22 +171,25 @@ export default function CashView({ branchId }) {
   const renderModuleContent = () => {
     if (!data) return null;
 
+    const listEntries = data.entries || data.results || [];
+
     switch (selectedModule.id) {
       case 'overview':
+      case 'reports':
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
                 <span className="text-[10px] font-bold text-teal-600 uppercase">Total Cash Inflows</span>
-                <div className="text-xl font-black text-teal-900 mt-1">{fmtCurr(data.summary?.total_cash_inflows)}</div>
+                <div className="text-xl font-black text-teal-900 mt-1">{fmtCurr(data.total_cash_inflows ?? data.summary?.total_cash_inflows)}</div>
               </div>
               <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
                 <span className="text-[10px] font-bold text-rose-600 uppercase">Total Outflows & Expenses</span>
-                <div className="text-xl font-black text-rose-900 mt-1">{fmtCurr(data.summary?.total_cash_outflows)}</div>
+                <div className="text-xl font-black text-rose-900 mt-1">{fmtCurr(data.total_cash_outflows ?? data.summary?.total_cash_outflows)}</div>
               </div>
               <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
                 <span className="text-[10px] font-bold text-emerald-700 uppercase">Net Liquidity / Cash Flow</span>
-                <div className="text-xl font-black text-emerald-900 mt-1">{fmtCurr(data.summary?.net_cash_flow)}</div>
+                <div className="text-xl font-black text-emerald-900 mt-1">{fmtCurr(data.net_cash_flow ?? data.summary?.net_cash_flow)}</div>
               </div>
             </div>
           </div>
@@ -194,48 +198,30 @@ export default function CashView({ branchId }) {
       case 'mpesa':
         return (
           <div className="space-y-6">
-            {/* M-Pesa Channel Metrics Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase">Total M-Pesa Collections</span>
-                <div className="text-xl font-black text-emerald-900 mt-1">{fmtCurr(data.summary?.total_mpesa_collections)}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
-                <span className="text-[10px] font-bold text-teal-600 uppercase">Paybill Total</span>
-                <div className="text-lg font-bold text-teal-900 mt-1">{fmtCurr(data.summary?.paybill_total)}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-cyan-50 border border-cyan-200">
-                <span className="text-[10px] font-bold text-cyan-600 uppercase">Send Money / Till</span>
-                <div className="text-lg font-bold text-cyan-900 mt-1">{fmtCurr(data.summary?.send_money_total)}</div>
+                <span className="text-[10px] font-bold text-emerald-600 uppercase">Total Collections</span>
+                <div className="text-xl font-black text-emerald-900 mt-1">{fmtCurr(data.total_collections)}</div>
               </div>
             </div>
 
-            {/* M-Pesa Transactions Table */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-700 uppercase">Mobile Money Transactions ({data.count || 0})</h4>
+              <h4 className="text-xs font-bold text-slate-700 uppercase">Channel Collections Breakdown</h4>
               <div className="overflow-x-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="p-3">Reference</th>
-                      <th className="p-3">Date</th>
-                      <th className="p-3">Description</th>
                       <th className="p-3">Channel</th>
-                      <th className="p-3">Amount Collected</th>
+                      <th className="p-3">Total Amount</th>
+                      <th className="p-3">Percentage Split</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {data.results?.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-bold text-teal-700">{row.reference}</td>
-                        <td className="p-3 text-slate-500">{row.date}</td>
-                        <td className="p-3 font-bold text-slate-900">{row.description}</td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {row.channel}
-                          </span>
-                        </td>
+                    {data.breakdown?.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-bold text-teal-700">{row.channel}</td>
                         <td className="p-3 font-black text-emerald-700">{fmtCurr(row.amount)}</td>
+                        <td className="p-3 font-bold text-slate-700">{row.percentage}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -248,9 +234,27 @@ export default function CashView({ branchId }) {
       case 'receipts':
       case 'payments':
       case 'cashbook':
+      default:
         return (
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-slate-700 uppercase">Cash Ledger Entries ({data.count || 0})</h4>
+            {data.summary && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase">Total Inflows</span>
+                  <div className="text-lg font-black text-emerald-900 mt-0.5">{fmtCurr(data.summary.total_inflow)}</div>
+                </div>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-rose-700 uppercase">Total Outflows</span>
+                  <div className="text-lg font-black text-rose-900 mt-0.5">{fmtCurr(data.summary.total_outflow)}</div>
+                </div>
+                <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-teal-700 uppercase">Net Position</span>
+                  <div className="text-lg font-black text-teal-900 mt-0.5">{fmtCurr(data.summary.net_cash_flow)}</div>
+                </div>
+              </div>
+            )}
+
+            <h4 className="text-xs font-bold text-slate-700 uppercase">Cash Ledger Records ({data.count || listEntries.length})</h4>
             <div className="overflow-x-auto border border-slate-200 rounded-xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
@@ -264,28 +268,30 @@ export default function CashView({ branchId }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.results?.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50">
-                      <td className="p-3 font-mono font-bold text-teal-700">{row.reference}</td>
-                      <td className="p-3 text-slate-500">{row.date}</td>
-                      <td className="p-3 font-bold text-slate-900">{row.description}</td>
-                      <td className="p-3 font-semibold text-slate-600">{row.payment_method}</td>
-                      <td className="p-3 font-bold text-emerald-600">{row.inflow > 0 ? fmtCurr(row.inflow) : '-'}</td>
-                      <td className="p-3 font-bold text-rose-600">{row.outflow > 0 ? fmtCurr(row.outflow) : '-'}</td>
+                  {listEntries.length > 0 ? (
+                    listEntries.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-bold text-teal-700">{row.reference}</td>
+                        <td className="p-3 text-slate-500">{row.date}</td>
+                        <td className="p-3 font-bold text-slate-900">{row.description}</td>
+                        <td className="p-3 font-semibold text-slate-600">{row.payment_method}</td>
+                        <td className="p-3 font-bold text-emerald-600">{row.inflow > 0 || row.type === 'INFLOW' ? fmtCurr(row.inflow || row.amount) : '-'}</td>
+                        <td className="p-3 font-bold text-rose-600">{row.outflow > 0 || row.type === 'OUTFLOW' ? fmtCurr(row.outflow || row.amount) : '-'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="p-4 text-center text-slate-400 italic">No ledger entries found for this period.</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         );
-
-      default:
-        return null;
     }
   };
 
-  // FULL-SCREEN DEDICATED WORKSPACE
   if (selectedModule) {
     return (
       <div className="space-y-6 w-full flex-1 flex flex-col">
@@ -344,7 +350,6 @@ export default function CashView({ branchId }) {
     );
   }
 
-  // 2-COLUMN GRID PORTAL MATCHING YOUR EXACT IMAGE
   return (
     <div className="w-full flex-1 flex flex-col space-y-6">
       <div className="bg-teal-700 text-white rounded-xl p-3.5 flex items-center gap-3 shadow-md">
