@@ -71,6 +71,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   });
 
   const [finSubTab, setFinSubTab] = useState('PROFIT'); // PROFIT, CASHFLOW, BALANCESHEET
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   /* IN-APP CHANGE PASSWORD STATE */
   const [passwordForm, setPasswordForm] = useState({
@@ -204,9 +205,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       const queryStr = effectiveQueryParams;
 
       const [cardsRes, pnlRes, salesPerfRes] = await Promise.all([
-        API.get(`management-analytics/dashboard-cards/?${queryStr}`),
-        API.get(`management-analytics/profit-loss/?${queryStr}`),
-        API.get(`management-analytics/sales-performance/?${queryStr}`),
+        API.get(`/management-analytics/dashboard-cards/?${queryStr}`),
+        API.get(`/management-analytics/profit-loss/?${queryStr}`),
+        API.get(`/management-analytics/sales-performance/?${queryStr}`),
       ]);
 
       setDashboardCardsData(cardsRes.data);
@@ -222,15 +223,48 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   }, [authToken, effectiveQueryParams, handleLogout]);
 
   useEffect(() => {
-    if (!authToken) return;
-    fetchManagementAnalytics();
-  }, [authToken, fetchManagementAnalytics]);
+    if (activeTab === 'OVERVIEW') {
+      fetchManagementAnalytics();
+    }
+  }, [activeTab, fetchManagementAnalytics]);
 
-  if (!authToken) {
-    return <ManagementLogin onLoginSuccess={handleLoginSuccess} />;
-  }
+  /* PDF DOWNLOAD HANDLER FOR FINANCIAL STATEMENTS */
+  const handleDownloadPDF = async (statementType) => {
+    setDownloadingPDF(true);
+    try {
+      const endpoints = {
+        PROFIT: 'management-analytics/export-profit-loss-pdf/',
+        CASHFLOW: 'management-analytics/export-cash-flow-pdf/',
+        BALANCESHEET: 'management-analytics/export-balance-sheet-pdf/'
+      };
 
-  // UPDATED SIDEBAR MENU STRUCTURE
+      const endpoint = endpoints[statementType];
+      const queryStr = effectiveQueryParams;
+
+      // Ensure endpoint starts with '/' and ends with '/'
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+      const response = await API.get(`${cleanEndpoint}?${queryStr}`, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${statementType.toLowerCase()}_statement.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+      alert('Unable to generate PDF statement. Please try again.');
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
   const menuItems = [
     { id: 'OVERVIEW', label: 'Dashboard' },
     { id: 'FINANCIAL_STATEMENT', label: 'Financial Statement' },
@@ -529,7 +563,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           {/* FINANCIAL STATEMENT MENU (PROFIT, CASH FLOW, BALANCE SHEET) */}
           {activeTab === 'FINANCIAL_STATEMENT' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="bg-teal-700 text-white rounded-xl p-3.5 flex items-center justify-between shadow-md">
+              <div className="bg-teal-700 text-white rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
                 <div className="flex items-center gap-3">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -537,31 +571,44 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   <h2 className="text-sm font-black tracking-widest uppercase">FINANCIAL STATEMENT</h2>
                 </div>
 
-                <div className="flex bg-teal-900/60 p-1 rounded-xl border border-teal-500/30 gap-1">
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setFinSubTab('PROFIT')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      finSubTab === 'PROFIT' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
-                    }`}
+                    onClick={() => handleDownloadPDF(finSubTab)}
+                    disabled={downloadingPDF}
+                    className="flex items-center gap-2 px-3.5 py-1.5 bg-teal-900 hover:bg-teal-950 text-teal-100 hover:text-white border border-teal-500/40 text-xs font-bold rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
                   >
-                    Profit & Loss
+                    <svg className="w-4 h-4 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {downloadingPDF ? 'Generating PDF...' : `Export ${finSubTab.replace('CASHFLOW', 'CASH FLOW').replace('BALANCESHEET', 'BALANCE SHEET')} PDF`}
                   </button>
-                  <button
-                    onClick={() => setFinSubTab('CASHFLOW')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      finSubTab === 'CASHFLOW' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
-                    }`}
-                  >
-                    Cash Flow
-                  </button>
-                  <button
-                    onClick={() => setFinSubTab('BALANCESHEET')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      finSubTab === 'BALANCESHEET' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
-                    }`}
-                  >
-                    Balance Sheet
-                  </button>
+
+                  <div className="flex bg-teal-900/60 p-1 rounded-xl border border-teal-500/30 gap-1">
+                    <button
+                      onClick={() => setFinSubTab('PROFIT')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        finSubTab === 'PROFIT' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                      }`}
+                    >
+                      Profit & Loss
+                    </button>
+                    <button
+                      onClick={() => setFinSubTab('CASHFLOW')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        finSubTab === 'CASHFLOW' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                      }`}
+                    >
+                      Cash Flow
+                    </button>
+                    <button
+                      onClick={() => setFinSubTab('BALANCESHEET')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        finSubTab === 'BALANCESHEET' ? 'bg-white text-teal-950 shadow-xs' : 'text-teal-200 hover:text-white'
+                      }`}
+                    >
+                      Balance Sheet
+                    </button>
+                  </div>
                 </div>
               </div>
 
