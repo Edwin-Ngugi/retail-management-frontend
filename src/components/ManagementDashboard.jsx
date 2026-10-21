@@ -241,7 +241,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       const endpoint = endpoints[statementType];
       const queryStr = effectiveQueryParams;
 
-      // Ensure endpoint starts with '/' and ends with '/'
       const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
       const response = await API.get(`${cleanEndpoint}?${queryStr}`, {
@@ -273,7 +272,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100/70 text-slate-900 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-white text-slate-900 font-sans">
 
       {/* SIDEBAR NAVIGATION */}
       <aside className="w-56 bg-teal-950 text-teal-100 flex flex-col justify-between p-4 shrink-0 border-r border-teal-900 h-full shadow-lg z-50">
@@ -315,7 +314,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       </aside>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col">
+      <main className="flex-1 h-full min-w-0 overflow-y-auto flex flex-col bg-white">
 
         {/* TOP HEADER BAR */}
         <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white px-6 py-3 flex items-center justify-between shadow-md gap-4">
@@ -411,7 +410,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
         </header>
 
         {/* PAGE CONTENT */}
-        <div className="p-6 space-y-6 flex-1 w-full">
+        <div className="p-6 space-y-6 flex-1 w-full bg-white">
           {dashboardError && (
             <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex justify-between items-center shadow-xs">
               <span>{dashboardError}</span>
