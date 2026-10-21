@@ -82,6 +82,26 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
 
+  /* ENFORCED LOGOUT HANDLER FOR TOKEN EXPIRATION */
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('user_data');
+    setAuthToken(null);
+    setCurrentUser(null);
+    if (typeof onLogout === 'function') onLogout();
+  }, [onLogout]);
+
+  /* AUTHENTICATION TOKEN AUTO-CHECK ON MOUNT */
+  useEffect(() => {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    if (!token) {
+      handleLogout();
+    }
+  }, [handleLogout]);
+
   useEffect(() => {
     localStorage.setItem('mgmt_active_tab', activeTab);
   }, [activeTab]);
@@ -102,17 +122,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('user_data');
-    setAuthToken(null);
-    setCurrentUser(null);
-    if (typeof onLogout === 'function') onLogout();
-  }, [onLogout]);
 
   const handleLoginSuccess = (userObj) => {
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -151,6 +160,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
       console.error('Password change error:', err);
+      if (err.response?.status === 401) {
+        handleLogout();
+        return;
+      }
       setPasswordMsg({
         type: 'error',
         text: err.response?.data?.detail || err.response?.data?.error || 'Failed to update password. Check your current password.',
@@ -196,7 +209,10 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   }, [branchKey, dateFilter]);
 
   const fetchManagementAnalytics = useCallback(async () => {
-    if (!authToken) return;
+    if (!authToken) {
+      handleLogout();
+      return;
+    }
 
     setLoadingFinancials(true);
     setDashboardError('');
@@ -215,8 +231,12 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setSalesPerfData(salesPerfRes.data);
     } catch (err) {
       console.error('Failed to fetch management analytics:', err);
+      // Force auto-logout if token is expired or unauthorized
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        handleLogout();
+        return;
+      }
       setDashboardError('Failed to load dashboard metrics. Check server connection.');
-      if (err.response?.status === 401) handleLogout();
     } finally {
       setLoadingFinancials(false);
     }
@@ -258,11 +278,20 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to download PDF:', err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        handleLogout();
+        return;
+      }
       alert('Unable to generate PDF statement. Please try again.');
     } finally {
       setDownloadingPDF(false);
     }
   };
+
+  /* Render ManagementLogin directly if no token/user present */
+  if (!authToken || !currentUser) {
+    return <ManagementLogin onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const menuItems = [
     { id: 'OVERVIEW', label: 'Dashboard' },
