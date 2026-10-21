@@ -220,10 +220,11 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     try {
       const queryStr = effectiveQueryParams;
 
+      // Remove leading slashes so axios appends cleanly to baseURL
       const [cardsRes, pnlRes, salesPerfRes] = await Promise.all([
-        API.get(`/management-analytics/dashboard-cards/?${queryStr}`),
-        API.get(`/management-analytics/profit-loss/?${queryStr}`),
-        API.get(`/management-analytics/sales-performance/?${queryStr}`),
+        API.get(`management-analytics/dashboard-cards/?${queryStr}`),
+        API.get(`management-analytics/profit-loss/?${queryStr}`),
+        API.get(`management-analytics/sales-performance/?${queryStr}`),
       ]);
 
       setDashboardCardsData(cardsRes.data);
@@ -231,7 +232,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       setSalesPerfData(salesPerfRes.data);
     } catch (err) {
       console.error('Failed to fetch management analytics:', err);
-      // Force auto-logout if token is expired or unauthorized
       if (err.response?.status === 401 || err.response?.status === 403) {
         handleLogout();
         return;
@@ -240,7 +240,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     } finally {
       setLoadingFinancials(false);
     }
-  }, [authToken, effectiveQueryParams, handleLogout]);
+  }, [authToken, effectiveQueryParams, handleLogout]);           
 
   useEffect(() => {
     if (activeTab === 'OVERVIEW') {
@@ -261,7 +261,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
       const endpoint = endpoints[statementType];
       const queryStr = effectiveQueryParams;
 
-      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      // Ensure NO leading slash so it appends directly to API baseURL
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
 
       const response = await API.get(`${cleanEndpoint}?${queryStr}`, {
         responseType: 'blob'
