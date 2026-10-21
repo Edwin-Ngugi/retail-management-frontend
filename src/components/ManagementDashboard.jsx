@@ -233,9 +233,9 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setDownloadingPDF(true);
     try {
       const endpoints = {
-        PROFIT: 'management-analytics/export-profit-loss-pdf/',
-        CASHFLOW: 'management-analytics/export-cash-flow-pdf/',
-        BALANCESHEET: 'management-analytics/export-balance-sheet-pdf/'
+        PROFIT: 'management-reports/export-profit-loss-pdf/',
+        CASHFLOW: 'management-reports/export-cash-flow-pdf/',
+        BALANCESHEET: 'management-reports/export-balance-sheet-pdf/'
       };
 
       const endpoint = endpoints[statementType];
