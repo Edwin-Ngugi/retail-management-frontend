@@ -36,7 +36,7 @@ import ApprovalsDashboard from './components/ApprovalsDashboard';
 import { useAnalyticsSocket } from './components/useAnalyticsSocket';
 import RestockManagement from './components/RestockManagement';
 import StockOperations from './components/StockOperations';
-import LowStockAlerts from './components/LowStockAlerts';
+import LowStockAlerts from './components/LowStocksAlerts';
 
 /* =========================================================
    PORTAL-SPECIFIC ROUTE GUARDS
