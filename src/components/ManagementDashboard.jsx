@@ -8,6 +8,7 @@ import PurchaseView from './PurchaseView';
 import InventoryView from './InventoryView';
 import CashView from './CashView';
 import ReportsView from './ReportsView';
+import ApprovalsDashboard from './ApprovalsDashboard';
 import {
   BarChart,
   Bar,
@@ -73,11 +74,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [finSubTab, setFinSubTab] = useState('PROFIT'); // PROFIT, CASHFLOW, BALANCESHEET
   const [downloadingPDF, setDownloadingPDF] = useState(false);
 
-  /* APPROVALS STATE */
-  const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [loadingApprovals, setLoadingApprovals] = useState(false);
-  const [approvalActionLoading, setApprovalActionLoading] = useState(null);
-  const [rejectionReasonMap, setRejectionReasonMap] = useState({});
+  /* APPROVALS BADGE COUNT STATE */
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
   /* IN-APP CHANGE PASSWORD STATE */
   const [passwordForm, setPasswordForm] = useState({
@@ -134,43 +132,21 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
     setAuthToken(token);
   };
 
-  /* FETCH PENDING APPROVALS */
-  const fetchPendingApprovals = useCallback(async () => {
+  /* FETCH PENDING APPROVALS COUNT FOR BADGE */
+  const fetchPendingApprovalsCount = useCallback(async () => {
     if (!authToken) return;
-    setLoadingApprovals(true);
     try {
       const res = await API.get('pending-approvals/?status=PENDING');
-      setPendingApprovals(Array.isArray(res.data) ? res.data : res.data.results || []);
+      const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      setPendingApprovalsCount(list.length);
     } catch (err) {
-      console.error('Failed to fetch pending approvals:', err);
-    } finally {
-      setLoadingApprovals(false);
+      console.error('Failed to fetch pending approvals count:', err);
     }
   }, [authToken]);
 
   useEffect(() => {
-    fetchPendingApprovals();
-  }, [fetchPendingApprovals]);
-
-  /* APPROVE / REJECT HANDLER */
-  const handleReviewApproval = async (approvalId, statusAction) => {
-    setApprovalActionLoading(approvalId);
-    try {
-      const payload = { status: statusAction };
-      if (statusAction === 'REJECTED') {
-        payload.rejection_reason = rejectionReasonMap[approvalId] || 'Rejected by management.';
-      }
-
-      await API.patch(`pending-approvals/${approvalId}/`, payload);
-      setPendingApprovals((prev) => prev.filter((item) => item.id !== approvalId));
-      fetchManagementAnalytics();
-    } catch (err) {
-      console.error('Failed to update approval status:', err);
-      alert(err.response?.data?.detail || 'Error processing request.');
-    } finally {
-      setApprovalActionLoading(null);
-    }
-  };
+    fetchPendingApprovalsCount();
+  }, [fetchPendingApprovalsCount]);
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -334,7 +310,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
   const menuItems = [
     { id: 'OVERVIEW', label: 'Dashboard' },
-    { id: 'APPROVALS', label: 'Approvals', badge: pendingApprovals.length },
+    { id: 'APPROVALS', label: 'Approvals', badge: pendingApprovalsCount },
     { id: 'FINANCIAL_STATEMENT', label: 'Financial Statement' },
     { id: 'REPORTS', label: 'Reports' },
     { id: 'ACCOUNTS', label: 'Accounts' },
@@ -633,94 +609,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
             </div>
           )}
 
-          {/* APPROVALS MANAGEMENT */}
+          {/* APPROVALS MANAGEMENT PORTAL */}
           {activeTab === 'APPROVALS' && (
-            <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">
-                    Pending Management Approvals
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Review and authorize transactions and operational requests submitted by branch users.
-                  </p>
-                </div>
-                <button
-                  onClick={fetchPendingApprovals}
-                  className="px-3 py-1.5 bg-teal-800 text-white text-xs font-bold rounded-xl hover:bg-teal-900 transition"
-                >
-                  Refresh
-                </button>
-              </div>
-
-              {loadingApprovals ? (
-                <div className="text-center py-12 text-slate-400 text-xs font-bold">
-                  Loading pending approvals...
-                </div>
-              ) : pendingApprovals.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-12 text-center text-slate-400 text-xs font-bold">
-                  No pending approval requests.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {pendingApprovals.map((item) => {
-                    const isProcessing = approvalActionLoading === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col md:flex-row justify-between gap-4"
-                      >
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                              {item.request_type_display || item.request_type}
-                            </span>
-                            <span className="text-xs text-slate-400 font-medium">
-                              Submitted: {item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'}
-                            </span>
-                          </div>
-
-                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-mono text-slate-700 max-h-40 overflow-y-auto">
-                            <pre className="whitespace-pre-wrap">
-                              {JSON.stringify(item.payload, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col justify-between gap-3 w-full md:w-64 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
-                          <input
-                            type="text"
-                            placeholder="Rejection reason (optional)"
-                            value={rejectionReasonMap[item.id] || ''}
-                            onChange={(e) =>
-                              setRejectionReasonMap({ ...rejectionReasonMap, [item.id]: e.target.value })
-                            }
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 outline-none"
-                          />
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleReviewApproval(item.id, 'APPROVED')}
-                              disabled={isProcessing}
-                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleReviewApproval(item.id, 'REJECTED')}
-                              disabled={isProcessing}
-                              className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <ApprovalsDashboard
+              selectedBranch={branchKey}
+              onApprovalComplete={() => {
+                fetchPendingApprovalsCount();
+                fetchManagementAnalytics();
+              }}
+            />
           )}
 
           {/* FINANCIAL STATEMENT MENU (PROFIT, CASH FLOW, BALANCE SHEET) */}
