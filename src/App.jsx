@@ -35,6 +35,7 @@ import ReceiptsLogManagement from './components/ReceiptsLogManagement';
 import ApprovalsDashboard from './components/ApprovalsDashboard';
 import { useAnalyticsSocket } from './components/useAnalyticsSocket';
 import RestockManagement from './components/RestockManagement';
+import StockOperations from './components/StockOperations';
 
 /* =========================================================
    PORTAL-SPECIFIC ROUTE GUARDS
