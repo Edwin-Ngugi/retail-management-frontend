@@ -8,7 +8,7 @@ import PurchaseView from './PurchaseView';
 import InventoryView from './InventoryView';
 import CashView from './CashView';
 import ReportsView from './ReportsView';
-import ApprovalsDashboard from './ApprovalsDashboard';
+import StockActivityLog from './StockActivityLog';
 import {
   BarChart,
   Bar,

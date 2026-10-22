@@ -1,4 +1,4 @@
-// src/components/StockActivityLog_2.jsx
+// src/components/StockActivityLog.jsx
 import React, {
   useState,
   useEffect,
@@ -47,9 +47,13 @@ export default function StockActivityLog({
   // STATE
   // ============================================================
 
-  const [adjustmentType, setAdjustmentType] = useState('INCREASE');
+  // Operation categories: ADJUSTMENT | CUSTOMER_RETURN | SUPPLIER_RETURN | TRANSFER
+  const [operationCategory, setOperationCategory] = useState('ADJUSTMENT');
+  const [adjustmentType, setAdjustmentType] = useState('INCREASE'); // INCREASE | DECREASE
+  const [destinationBranchId, setDestinationBranchId] = useState('');
+
   const [selectedItemId, setSelectedItemId] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // Separate typed input state
+  const [searchQuery, setSearchQuery] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unitCost, setUnitCost] = useState('');
   const [notes, setNotes] = useState('');
@@ -69,7 +73,6 @@ export default function StockActivityLog({
     return item?.name || item?.item_name || `Item #${item?.id}`;
   }, []);
 
-  // Extract raw log ID
   const getItemId = useCallback((log) => {
     if (typeof log?.item === 'number') return log.item;
     if (typeof log?.item?.id === 'number') return log.item.id;
@@ -77,14 +80,12 @@ export default function StockActivityLog({
     return null;
   }, []);
 
-  // Helper to standardise price comparison
   const normalizeCost = useCallback((val) => {
     if (val === null || val === undefined || val === '') return null;
     const num = Number(val);
     return Number.isNaN(num) ? null : Number(num.toFixed(2));
   }, []);
 
-  // Extract cost across diverse nested or top-level API object signatures
   const extractLogCost = useCallback(
     (log) => {
       const rawCost =
@@ -106,7 +107,6 @@ export default function StockActivityLog({
     [normalizeCost]
   );
 
-  // Quick lookup map for current item baseline price
   const itemPriceMap = useMemo(() => {
     const map = new Map();
     items.forEach((item) => {
@@ -118,7 +118,6 @@ export default function StockActivityLog({
     return map;
   }, [items, extractLogCost]);
 
-  // Handle unit cost auto-fill on item selection
   useEffect(() => {
     if (!selectedItemId) {
       setUnitCost('');
@@ -130,7 +129,6 @@ export default function StockActivityLog({
     setUnitCost(baselinePrice !== null ? String(baselinePrice) : '');
   }, [selectedItemId, items, extractLogCost]);
 
-  // Handle typed input matching against item list
   const handleSearchChange = (val) => {
     setSearchQuery(val);
     const matchedItem = items.find(
@@ -255,10 +253,6 @@ export default function StockActivityLog({
     fetchLogs();
   }, [fetchLogs]);
 
-  // ============================================================
-  // VALIDATE DATE
-  // ============================================================
-
   const isValidDateString = (value) => {
     if (typeof value !== 'string' || !value) return false;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -274,7 +268,7 @@ export default function StockActivityLog({
   };
 
   // ============================================================
-  // SUBMIT STOCK ADJUSTMENT (DIRECT STOCK MOVEMENT)
+  // SUBMIT STOCK OPERATION / ADJUSTMENT / TRANSFER
   // ============================================================
 
   const handleSubmit = async (e) => {
@@ -284,17 +278,17 @@ export default function StockActivityLog({
     const branchId = getBranchId();
 
     if (!selectedItemId) {
-      setStatus({ type: 'error', text: 'Please select a valid item from suggestions.' });
+      setStatus({ type: 'error', text: 'Please select a valid item.' });
       return;
     }
 
     if (!quantity || Number(quantity) <= 0) {
-      setStatus({ type: 'error', text: 'Please enter a valid quantity.' });
+      setStatus({ type: 'error', text: 'Please enter a valid positive quantity.' });
       return;
     }
 
     if (!branchId) {
-      setStatus({ type: 'error', text: 'Active branch could not be determined.' });
+      setStatus({ type: 'error', text: 'Active source branch could not be determined.' });
       return;
     }
 
@@ -303,71 +297,82 @@ export default function StockActivityLog({
       return;
     }
 
+    if (operationCategory === 'TRANSFER') {
+      if (!destinationBranchId) {
+        setStatus({ type: 'error', text: 'Please select a destination branch for stock transfer.' });
+        return;
+      }
+      if (Number(destinationBranchId) === Number(branchId)) {
+        setStatus({ type: 'error', text: 'Source and destination branches must be different.' });
+        return;
+      }
+    }
+
     const itemId = Number(selectedItemId);
     const numericBranchId = Number(branchId);
     const numericQuantity = Number(quantity);
     const numericUnitCost = unitCost !== '' ? Number(unitCost) : null;
 
-    if (!Number.isInteger(itemId) || itemId <= 0) {
-      setStatus({ type: 'error', text: 'Invalid item selected.' });
-      return;
-    }
-
-    if (!Number.isInteger(numericBranchId) || numericBranchId <= 0) {
-      setStatus({ type: 'error', text: 'Invalid branch selected.' });
-      return;
-    }
-
-    if (!Number.isInteger(numericQuantity) || numericQuantity <= 0) {
-      setStatus({ type: 'error', text: 'Quantity must be a positive whole number.' });
-      return;
-    }
-
-    if (numericUnitCost !== null && (Number.isNaN(numericUnitCost) || numericUnitCost < 0)) {
-      setStatus({ type: 'error', text: 'Unit cost must be a non-negative number.' });
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const mappedMovementType =
-        adjustmentType === 'INCREASE' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+      if (operationCategory === 'TRANSFER') {
+        // Inter-branch Stock Transfer Endpoint
+        const transferPayload = {
+          from_branch: numericBranchId,
+          to_branch: Number(destinationBranchId),
+          item: itemId,
+          quantity: numericQuantity,
+          date: createdDate,
+          notes: notes.trim() || 'Branch Stock Transfer',
+        };
 
-      const uniqueReference = `ADJUST-${Date.now()}`;
+        await API.post('stock-transfers/', transferPayload);
+      } else if (operationCategory === 'CUSTOMER_RETURN') {
+        const returnPayload = {
+          branch: numericBranchId,
+          item: itemId,
+          quantity: numericQuantity,
+          reason: notes.trim() || 'Customer Return',
+          date: createdDate,
+        };
 
-      const formattedCost = numericUnitCost !== null ? numericUnitCost.toFixed(2) : '0.00';
+        await API.post('customer-returns/', returnPayload);
+      } else if (operationCategory === 'SUPPLIER_RETURN') {
+        const supplierPayload = {
+          branch: numericBranchId,
+          item: itemId,
+          quantity: numericQuantity,
+          reason: notes.trim() || 'Supplier Return',
+          date: createdDate,
+        };
 
-      const payload = {
-        item: itemId,
-        branch: numericBranchId,
-        movement_type: mappedMovementType,
-        adjustment_type: adjustmentType,
-        activity_type: mappedMovementType,
-        reference: uniqueReference,
-        quantity: numericQuantity,
-        unit_cost_price: formattedCost,
-        cost_price: formattedCost,
-        unit_cost: formattedCost,
-        date: createdDate,
-        notes: notes.trim() || 'stock adjustment',
-      };
+        await API.post('supplier-returns/', supplierPayload);
+      } else {
+        // Manual Stock Adjustment
+        const mappedMovementType =
+          adjustmentType === 'INCREASE' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
 
-      const response = await API.post('stock-movements/', payload);
+        const formattedCost = numericUnitCost !== null ? numericUnitCost.toFixed(2) : '0.00';
 
-      if (response?.data?.date && response.data.date !== createdDate) {
-        console.warn('Date Mismatch Detected:', {
-          sent: createdDate,
-          returned: response.data.date,
-        });
+        const payload = {
+          item: itemId,
+          branch: numericBranchId,
+          movement_type: mappedMovementType,
+          adjustment_type: adjustmentType,
+          reference: `ADJUST-${Date.now()}`,
+          quantity: numericQuantity,
+          unit_cost_price: formattedCost,
+          date: createdDate,
+          notes: notes.trim() || 'stock adjustment',
+        };
+
+        await API.post('stock-movements/', payload);
       }
 
       setStatus({
         type: 'success',
-        text:
-          response?.data?.date && response.data.date !== createdDate
-            ? `Stock adjustment saved, but backend recorded date as ${response.data.date}.`
-            : 'Stock movement saved and activity recorded successfully.',
+        text: 'Stock operation recorded successfully.',
       });
 
       setSelectedItemId('');
@@ -375,6 +380,7 @@ export default function StockActivityLog({
       setQuantity('');
       setUnitCost('');
       setNotes('');
+      setDestinationBranchId('');
       setCreatedDate(getTodayFormatted());
 
       await fetchLogs();
@@ -383,10 +389,10 @@ export default function StockActivityLog({
         onStockUpdated();
       }
     } catch (error) {
-      console.error('Stock adjustment submission error:', error);
+      console.error('Stock operation submission error:', error);
 
       const responseData = error?.response?.data;
-      let errorDetail = 'Failed to record stock adjustment.';
+      let errorDetail = 'Failed to record stock operation.';
 
       if (responseData) {
         if (typeof responseData === 'string') {
@@ -410,10 +416,6 @@ export default function StockActivityLog({
       setSubmitting(false);
     }
   };
-
-  // ============================================================
-  // FORMAT LOG DATE
-  // ============================================================
 
   const formatLogDate = (log) => {
     const rawDate = log?.date ?? log?.transaction_date ?? log?.created_at ?? null;
@@ -442,10 +444,6 @@ export default function StockActivityLog({
     return String(rawDate).split('T')[0].trim();
   };
 
-  // ============================================================
-  // GET ITEM NAME
-  // ============================================================
-
   const getItemName = (log) => {
     if (typeof log?.item === 'string') return log.item;
     if (log?.item_name) return log.item_name;
@@ -463,10 +461,6 @@ export default function StockActivityLog({
     return 'Unknown';
   };
 
-  // ============================================================
-  // GET ACTIVITY TYPE LABEL
-  // ============================================================
-
   const getTypeLabel = (log) => {
     const rawType =
       log?.activity_type ||
@@ -479,6 +473,11 @@ export default function StockActivityLog({
 
     const uppercaseType = String(rawType).toUpperCase().trim();
 
+    if (uppercaseType.includes('TRANSFER_IN')) return 'TRANSFER IN (+)';
+    if (uppercaseType.includes('TRANSFER_OUT')) return 'TRANSFER OUT (-)';
+    if (uppercaseType.includes('CUSTOMER_RETURN')) return 'CUSTOMER RETURN (+)';
+    if (uppercaseType.includes('SUPPLIER_RETURN')) return 'SUPPLIER RETURN (-)';
+
     if (uppercaseType.includes('ADJUSTMENT')) {
       if (
         uppercaseType.includes('DECREASE') ||
@@ -490,29 +489,17 @@ export default function StockActivityLog({
       return 'ADJUSTMENT (INCREASE)';
     }
 
-    if (
-      uppercaseType.includes('DEC') ||
-      uppercaseType.includes('SALE') ||
-      uppercaseType === 'OUT' ||
-      uppercaseType.includes('REDUCE')
-    ) {
-      return 'DECREASE';
-    }
-
-    return 'INCREASE';
+    return uppercaseType.replace(/_/g, ' ');
   };
 
   const isIncreaseType = (typeLabel) => {
     return (
-      typeLabel === 'INCREASE' ||
-      typeLabel === 'ADJUSTMENT (INCREASE)' ||
+      typeLabel.includes('INCREASE') ||
+      typeLabel.includes('IN') ||
+      typeLabel.includes('CUSTOMER RETURN') ||
       typeLabel.includes('PURCHASE')
     );
   };
-
-  // ============================================================
-  // FILTERED LOGS BY DATE RANGE
-  // ============================================================
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -526,26 +513,14 @@ export default function StockActivityLog({
     });
   }, [logs, startDateFilter, endDateFilter]);
 
-  // Check if restock has a changed cost price relative to default baseline price
-  const checkIsPriceChanged = (log) => {
-    const logCost = extractLogCost(log);
-    if (logCost === null) return false;
-
-    const itemId = getItemId(log);
-    if (!itemId) return false;
-
-    const currentSystemPrice = itemPriceMap.get(itemId);
-    if (currentSystemPrice === undefined || currentSystemPrice === null) return false;
-
-    return logCost !== currentSystemPrice;
-  };
+  const currentBranchId = getBranchId();
 
   return (
     <div className="space-y-6 text-slate-900 font-sans">
       {/* FORM CONTAINER */}
       <div className="bg-white border border-slate-300 p-5 rounded-xl shadow-sm">
         <h3 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">
-          Record Stock Activity & Cost Adjustment
+          Stock Operations & Inter-Branch Adjustments
         </h3>
 
         {/* STATUS ALERT */}
@@ -570,20 +545,62 @@ export default function StockActivityLog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* ADJUSTMENT TYPE */}
+            {/* OPERATION CATEGORY */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Adjustment Type *
+                Operation Type *
               </label>
               <select
-                value={adjustmentType}
-                onChange={(e) => setAdjustmentType(e.target.value)}
+                value={operationCategory}
+                onChange={(e) => setOperationCategory(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
               >
-                <option value="INCREASE">Increase Stock (+)</option>
-                <option value="DECREASE">Decrease Stock (-)</option>
+                <option value="ADJUSTMENT">Manual Stock Adjustment</option>
+                <option value="CUSTOMER_RETURN">Customer Return (+ Stock)</option>
+                <option value="SUPPLIER_RETURN">Supplier Return (- Stock)</option>
+                <option value="TRANSFER">Stock Transfer (Branch-to-Branch)</option>
               </select>
             </div>
+
+            {/* ADJUSTMENT DIRECTION OR TRANSFER DESTINATION */}
+            {operationCategory === 'ADJUSTMENT' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Adjustment Direction *
+                </label>
+                <select
+                  value={adjustmentType}
+                  onChange={(e) => setAdjustmentType(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                >
+                  <option value="INCREASE">Increase Stock (+)</option>
+                  <option value="DECREASE">Decrease Stock (-)</option>
+                </select>
+              </div>
+            )}
+
+            {operationCategory === 'TRANSFER' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Destination Branch *
+                </label>
+                <select
+                  value={destinationBranchId}
+                  onChange={(e) => setDestinationBranchId(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  required
+                >
+                  <option value="">-- Select Destination Branch --</option>
+                  {branches
+                    .filter((b) => Number(b.id) !== Number(currentBranchId))
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
 
             {/* ITEM SEARCH INPUT WITH DATALIST */}
             <div>
@@ -603,12 +620,14 @@ export default function StockActivityLog({
               <datalist id="stock-activity-item-list-2">
                 {items.map((item) => (
                   <option key={item.id} value={getItemDisplayName(item)}>
-                    {item.unit_cost_price || item.unit_cost ? `Cost: KSh ${item.unit_cost_price || item.unit_cost}` : ''}
+                    {item.remaining_stock !== undefined ? `In Stock: ${item.remaining_stock}` : ''}
                   </option>
                 ))}
               </datalist>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* QUANTITY INPUT */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -625,13 +644,11 @@ export default function StockActivityLog({
                 required
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* RESTOCK PURCHASE COST */}
+            {/* COST PRICE */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Restock Purchase Cost (Unit) *
+                Unit Cost Price (KSh)
               </label>
               <input
                 type="number"
@@ -641,7 +658,6 @@ export default function StockActivityLog({
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
-                required
               />
             </div>
 
@@ -663,11 +679,11 @@ export default function StockActivityLog({
           {/* NOTES INPUT */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Notes / Reason
+              Notes / Reason / Reference
             </label>
             <input
               type="text"
-              placeholder="e.g., Restock with updated purchase price"
+              placeholder="e.g., Damaged item return or Stock transfer note"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full p-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -687,7 +703,7 @@ export default function StockActivityLog({
               }
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
             >
-              {submitting ? 'Saving Record...' : 'Submit Activity Record'}
+              {submitting ? 'Processing...' : 'Submit Operation'}
             </button>
           </div>
         </form>
@@ -695,18 +711,16 @@ export default function StockActivityLog({
 
       {/* ACTIVITY HISTORY CONTAINER */}
       <div className="space-y-4">
-        {/* HEADER & DATE RANGE FILTER BAR */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 border border-slate-300 rounded-xl shadow-sm">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Stock Activity & Adjustment History
+              Stock Activity & Transfer History
             </h3>
             <p className="text-xs text-slate-600">
-              Filter records by date or track restocks that adjust weighted cost.
+              Complete movement history for current branch.
             </p>
           </div>
 
-          {/* FILTERS */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
               <span className="text-[11px] font-semibold text-slate-600 block mb-0.5">
@@ -765,7 +779,7 @@ export default function StockActivityLog({
                 <th className="p-3">Item</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Quantity</th>
-                <th className="p-3">Reference / Target</th>
+                <th className="p-3">Reference / Destination</th>
                 <th className="p-3">Notes</th>
               </tr>
             </thead>
@@ -781,7 +795,6 @@ export default function StockActivityLog({
                 filteredLogs.map((log) => {
                   const label = getTypeLabel(log);
                   const isPositive = isIncreaseType(label);
-                  const isPriceChanged = checkIsPriceChanged(log);
 
                   const keyId =
                     log.id ??
@@ -793,14 +806,7 @@ export default function StockActivityLog({
                     ].join('-');
 
                   return (
-                    <tr
-                      key={keyId}
-                      className={`hover:bg-slate-50 transition-colors ${
-                        isPriceChanged && isPositive
-                          ? 'bg-amber-50/60 font-medium'
-                          : ''
-                      }`}
-                    >
+                    <tr key={keyId} className="hover:bg-slate-50 transition-colors">
                       <td className="p-3 text-slate-600 whitespace-nowrap">
                         {formatLogDate(log)}
                       </td>
@@ -808,25 +814,15 @@ export default function StockActivityLog({
                         {getItemName(log)}
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
-                              isPositive
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : 'bg-rose-100 text-rose-800 border-rose-300'
-                            }`}
-                          >
-                            {label}
-                          </span>
-                          {isPriceChanged && isPositive && (
-                            <span
-                              title="Restock logged with a cost price different from prior WAC baseline"
-                              className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 whitespace-nowrap"
-                            >
-                              New Cost Input
-                            </span>
-                          )}
-                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
+                            isPositive
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              : 'bg-rose-100 text-rose-800 border-rose-300'
+                          }`}
+                        >
+                          {label}
+                        </span>
                       </td>
                       <td className="p-3 font-medium text-slate-800">
                         {log.quantity ?? log.quantity_level ?? '-'}
