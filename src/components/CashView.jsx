@@ -153,6 +153,14 @@ export default function CashView({ branchId }) {
   const activeMonth = queryParams.get('month');
   const activeYear = queryParams.get('year');
 
+  // When loaded embedded in ReportsView, auto-select "reports" module if no selection exists
+  useEffect(() => {
+    if (!selectedModule) {
+      const defaultMod = CASH_MODULES.find(m => m.id === 'reports') || CASH_MODULES[0];
+      setSelectedModule(defaultMod);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedModule) {
       fetchModuleData(selectedModule);
@@ -196,15 +204,38 @@ export default function CashView({ branchId }) {
     switch (selectedModule.id) {
       case 'overview':
       case 'reports':
-        const summary = data?.summary || {};
-        const channels = data?.channels || {};
-        const outflows = data?.outflows_breakdown || {};
+        // Universal fallbacks for all JSON structures returned by backend endpoints
+        const totalInflows = data.summary?.total_inflows ?? data.total_cash_inflows ?? data.summary?.total_inflow ?? data.total_inflows ?? 0;
+        const totalOutflows = data.summary?.total_outflows ?? data.total_cash_outflows ?? data.summary?.total_outflow ?? data.total_outflows ?? 0;
+        const netCashFlow = data.summary?.net_cash_flow ?? data.net_cash_flow ?? data.summary?.net_position ?? (totalInflows - totalOutflows);
+
+        const channels = data.channels || {
+          cash: data.cash_inflows || 0,
+          mpesa: data.mpesa_inflows || 0,
+          paybill: data.paybill_inflows || 0,
+        };
+
+        const outflows = data.outflows_breakdown || {
+          supplier_payments: data.supplier_outflows || 0,
+          operating_expenses: data.operating_expenses || 0,
+          salaries_and_wages: data.salaries_and_wages || 0,
+        };
 
         const channelChartData = [
-          { name: 'Cash', value: channels.cash || 0 },
-          { name: 'M-Pesa / Till', value: channels.mpesa || 0 },
-          { name: 'Paybill / Bank', value: channels.paybill || 0 },
+          { name: 'Cash', value: Number(channels.cash || 0) },
+          { name: 'M-Pesa / Till', value: Number(channels.mpesa || 0) },
+          { name: 'Paybill / Bank', value: Number(channels.paybill || 0) },
         ].filter((item) => item.value > 0);
+
+        const trajectoryData = Array.isArray(data.trajectory) && data.trajectory.length > 0
+          ? data.trajectory
+          : Array.isArray(data.results)
+          ? data.results.map(r => ({
+              date: r.date || 'Period',
+              inflow: Number(r.inflow || r.amount || 0),
+              outflow: Number(r.outflow || 0),
+            }))
+          : [];
 
         return (
           <div className="space-y-6 font-sans">
@@ -215,7 +246,7 @@ export default function CashView({ branchId }) {
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Cash Inflows</span>
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                 </div>
-                <div className="text-2xl font-black text-emerald-800 tracking-tight">{fmtCurr(summary.total_inflows ?? data.total_cash_inflows)}</div>
+                <div className="text-2xl font-black text-emerald-800 tracking-tight">{fmtCurr(totalInflows)}</div>
                 <p className="text-[11px] text-slate-400 pt-1">Sales cash, mobile till & debt collections</p>
               </div>
 
@@ -224,7 +255,7 @@ export default function CashView({ branchId }) {
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Outflows & Expenses</span>
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
                 </div>
-                <div className="text-2xl font-black text-rose-700 tracking-tight">{fmtCurr(summary.total_outflows ?? data.total_cash_outflows)}</div>
+                <div className="text-2xl font-black text-rose-700 tracking-tight">{fmtCurr(totalOutflows)}</div>
                 <p className="text-[11px] text-slate-400 pt-1">Supplier restocks, wages & operating overheads</p>
               </div>
 
@@ -233,7 +264,7 @@ export default function CashView({ branchId }) {
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Net Liquidity / Cash Flow</span>
                   <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
                 </div>
-                <div className="text-2xl font-black text-teal-900 tracking-tight">{fmtCurr(summary.net_cash_flow ?? data.net_cash_flow)}</div>
+                <div className="text-2xl font-black text-teal-900 tracking-tight">{fmtCurr(netCashFlow)}</div>
                 <p className="text-[11px] text-slate-400 pt-1">Surplus liquid position for the period</p>
               </div>
             </div>
@@ -250,7 +281,7 @@ export default function CashView({ branchId }) {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={channelChartData.length > 0 ? channelChartData : [{ name: 'No Data', value: 1 }]}
+                        data={channelChartData.length > 0 ? channelChartData : [{ name: 'Cash Inflow', value: Number(totalInflows) || 1 }]}
                         cx="50%"
                         cy="50%"
                         innerRadius={50}
@@ -258,7 +289,7 @@ export default function CashView({ branchId }) {
                         paddingAngle={4}
                         dataKey="value"
                       >
-                        {channelChartData.map((entry, index) => (
+                        {(channelChartData.length > 0 ? channelChartData : [1]).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
@@ -281,7 +312,7 @@ export default function CashView({ branchId }) {
                 </h2>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data?.trajectory || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <BarChart data={trajectoryData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
                       <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
