@@ -1,12 +1,28 @@
+// src/components/CashView.jsx
 import React, { useState, useEffect } from 'react';
 import API from '../api';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+
+const PIE_COLORS = ['#10B981', '#06B6D4', '#8B5CF6'];
 
 const CASH_MODULES = [
   {
     id: 'overview',
     title: 'Cash Overview',
     subtitle: 'Real-time liquidity, daily cash inflows/outflows, and channel balances.',
-    endpoint: '/management-analytics/cash-overview/',
+    endpoint: '/management-reports/cash-operations/',
     badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +130,7 @@ const CASH_MODULES = [
     id: 'reports',
     title: 'Cash Reports',
     subtitle: 'Cash flow statements, liquidity analysis, and channel performance.',
-    endpoint: '/management-analytics/cash-overview/',
+    endpoint: '/management-reports/cash-operations/',
     badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
     icon: (
       <svg className="w-6 h-6 text-teal-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,7 +182,11 @@ export default function CashView({ branchId }) {
     }
   };
 
-  const fmtCurr = (val) => `KSh ${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtCurr = (val) => {
+    const num = Number(val || 0);
+    if (num < 0) return `(KSh ${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    return `KSh ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   const renderModuleContent = () => {
     if (!data) return null;
@@ -176,20 +196,123 @@ export default function CashView({ branchId }) {
     switch (selectedModule.id) {
       case 'overview':
       case 'reports':
+        const summary = data?.summary || {};
+        const channels = data?.channels || {};
+        const outflows = data?.outflows_breakdown || {};
+
+        const channelChartData = [
+          { name: 'Cash', value: channels.cash || 0 },
+          { name: 'M-Pesa / Till', value: channels.mpesa || 0 },
+          { name: 'Paybill / Bank', value: channels.paybill || 0 },
+        ].filter((item) => item.value > 0);
+
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
-                <span className="text-[10px] font-bold text-teal-600 uppercase">Total Cash Inflows</span>
-                <div className="text-xl font-black text-teal-900 mt-1">{fmtCurr(data.total_cash_inflows ?? data.summary?.total_cash_inflows)}</div>
+          <div className="space-y-6 font-sans">
+            {/* 1. EXECUTIVE KPI SUMMARY CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Cash Inflows</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                </div>
+                <div className="text-2xl font-black text-emerald-800 tracking-tight">{fmtCurr(summary.total_inflows ?? data.total_cash_inflows)}</div>
+                <p className="text-[11px] text-slate-400 pt-1">Sales cash, mobile till & debt collections</p>
               </div>
-              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
-                <span className="text-[10px] font-bold text-rose-600 uppercase">Total Outflows & Expenses</span>
-                <div className="text-xl font-black text-rose-900 mt-1">{fmtCurr(data.total_cash_outflows ?? data.summary?.total_cash_outflows)}</div>
+
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Outflows & Expenses</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                </div>
+                <div className="text-2xl font-black text-rose-700 tracking-tight">{fmtCurr(summary.total_outflows ?? data.total_cash_outflows)}</div>
+                <p className="text-[11px] text-slate-400 pt-1">Supplier restocks, wages & operating overheads</p>
               </div>
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase">Net Liquidity / Cash Flow</span>
-                <div className="text-xl font-black text-emerald-900 mt-1">{fmtCurr(data.net_cash_flow ?? data.summary?.net_cash_flow)}</div>
+
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Net Liquidity / Cash Flow</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                </div>
+                <div className="text-2xl font-black text-teal-900 tracking-tight">{fmtCurr(summary.net_cash_flow ?? data.net_cash_flow)}</div>
+                <p className="text-[11px] text-slate-400 pt-1">Surplus liquid position for the period</p>
+              </div>
+            </div>
+
+            {/* 2. CHARTS SECTION */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* PAYMENT CHANNEL DISTRIBUTION PIE CHART */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Inflow Payment Channels
+                </h2>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={channelChartData.length > 0 ? channelChartData : [{ name: 'No Data', value: 1 }]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {channelChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val) => fmtCurr(val)} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                  <div className="flex justify-between"><span className="text-slate-500">Physical Cash</span><span className="font-bold">{fmtCurr(channels.cash)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">M-Pesa / Till</span><span className="font-bold">{fmtCurr(channels.mpesa)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Paybill / Bank</span><span className="font-bold">{fmtCurr(channels.paybill)}</span></div>
+                </div>
+              </div>
+
+              {/* DAILY CASH FLOW TRAJECTORY BAR CHART */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 lg:col-span-2">
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Daily Cash Flow Trajectory
+                </h2>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.trajectory || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
+                      <Tooltip formatter={(val, name) => [fmtCurr(val), name]} />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      <Bar dataKey="inflow" name="Cash Inflow" fill="#10B981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="outflow" name="Cash Outflow" fill="#F43F5E" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. OUTFLOW ALLOCATION BREAKDOWN */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+                Outflow Allocation & Operational Expenditure
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-medium">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <span className="text-slate-400 block font-bold text-[10px] uppercase">Supplier Restocks</span>
+                  <span className="text-lg font-black text-slate-800">{fmtCurr(outflows.supplier_payments)}</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <span className="text-slate-400 block font-bold text-[10px] uppercase">Operating Overhead</span>
+                  <span className="text-lg font-black text-slate-800">{fmtCurr(outflows.operating_expenses)}</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <span className="text-slate-400 block font-bold text-[10px] uppercase">Salaries & Payroll</span>
+                  <span className="text-lg font-black text-slate-800">{fmtCurr(outflows.salaries_and_wages)}</span>
+                </div>
               </div>
             </div>
           </div>
