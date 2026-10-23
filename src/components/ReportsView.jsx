@@ -1,3 +1,4 @@
+// src/components/ReportsView.jsx
 import React, { useState, useEffect } from 'react';
 import API from '../api';
 import Reports from './Reports';
@@ -185,8 +186,18 @@ export default function ReportsView({ branchId, items = [], initialModule = null
     return `KSh ${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
+  const fmtValOutflow = (val, isOutflow = false) => {
+    const num = Number(val || 0);
+    if (isOutflow && num > 0) {
+      return `(${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})`;
+    }
+    if (num < 0) {
+      return `(${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})`;
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
   const renderReportContent = () => {
-    // If a dedicated operational view component is assigned, render it directly
     if (selectedModule?.component) {
       const Component = selectedModule.component;
       return <Component branchId={activeBranch} items={items} />;
@@ -340,33 +351,103 @@ export default function ReportsView({ branchId, items = [], initialModule = null
         );
 
       case 'cashflow':
+        const op = data?.operating_activities || {};
+        const inv = data?.investing_activities || {};
+        const fin = data?.financing_activities || {};
+
         return (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="bg-teal-800 text-white p-4 rounded-xl text-center shadow-md">
-              <h2 className="text-xl font-black tracking-tight">CASH FLOW STATEMENT</h2>
-              <p className="text-xs text-teal-100 mt-1">Period: {data.period || 'Current Financial Period'}</p>
+          <div className="max-w-2xl mx-auto space-y-6 text-xs font-sans">
+            {/* HEADER */}
+            <div className="bg-teal-900 text-white p-4 rounded-xl text-center space-y-1">
+              <h2 className="text-base font-black tracking-wider uppercase">CASH FLOW STATEMENT</h2>
+              <p className="text-xs text-teal-200 font-semibold">Period: {data?.period || 'October 2026'} · KSh</p>
             </div>
 
-            <div className="space-y-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="space-y-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              {/* 1. OPERATING ACTIVITIES */}
               <div className="space-y-2">
-                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider">
-                  Operating activities
+                <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                  <span className="text-[11px] font-bold text-teal-900 uppercase">Operating activities</span>
                 </div>
-                <div className="divide-y divide-slate-100 text-xs">
-                  <div className="flex justify-between py-2"><span>Customer receipts</span><span className="font-mono">{fmtCurr(data.operating_activities?.customer_receipts)}</span></div>
-                  <div className="flex justify-between py-2 text-rose-600"><span>Supplier payments</span><span className="font-mono">{fmtCurr(data.operating_activities?.supplier_payments)}</span></div>
-                  <div className="flex justify-between py-2 text-rose-600"><span>Operating expenses</span><span className="font-mono">{fmtCurr(data.operating_activities?.operating_expenses)}</span></div>
-                  <div className="flex justify-between py-2 text-rose-600"><span>Salaries & wages</span><span className="font-mono">{fmtCurr(data.operating_activities?.salaries_and_wages)}</span></div>
-                  <div className="flex justify-between py-2 font-bold text-teal-800 bg-slate-50 px-2 rounded"><span>Net operating cash</span><span className="font-mono">{fmtCurr(data.operating_activities?.net_operating_cash)}</span></div>
+                <div className="px-2 space-y-1.5 font-medium text-slate-800">
+                  <div className="flex justify-between">
+                    <span>Customer receipts</span>
+                    <span className="font-bold text-slate-900">{fmtValOutflow(op.customer_receipts)}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600">
+                    <span>Supplier payments</span>
+                    <span className="font-bold">{fmtValOutflow(op.supplier_payments, true)}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600">
+                    <span>Operating expenses</span>
+                    <span className="font-bold">{fmtValOutflow(op.operating_expenses, true)}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600">
+                    <span>Salaries & wages</span>
+                    <span className="font-bold">{fmtValOutflow(op.salaries_and_wages, true)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-slate-200 font-black text-teal-900 text-xs">
+                    <span>Net operating cash</span>
+                    <span>{fmtValOutflow(op.net_operating_cash)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-200 space-y-2">
-                <div className="flex justify-between text-sm font-bold text-slate-800"><span>Net increase in cash</span><span className="font-mono text-emerald-700">{fmtCurr(data.net_increase_in_cash)}</span></div>
-                <div className="flex justify-between text-xs text-slate-500"><span>Opening cash</span><span className="font-mono">{fmtCurr(data.opening_cash)}</span></div>
-                <div className="flex justify-between text-base font-black text-teal-900 bg-teal-100 p-3 rounded-xl border border-teal-200">
+              {/* 2. INVESTING ACTIVITIES */}
+              <div className="space-y-2">
+                <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                  <span className="text-[11px] font-bold text-teal-900 uppercase">Investing activities</span>
+                </div>
+                <div className="px-2 space-y-1.5 font-medium text-slate-800">
+                  <div className="flex justify-between text-rose-600">
+                    <span>Equipment purchased</span>
+                    <span className="font-bold">{fmtValOutflow(inv.equipment_purchased, true)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-slate-200 font-black text-teal-900 text-xs">
+                    <span>Net investing cash</span>
+                    <span className={inv.net_investing_cash < 0 ? "text-rose-600" : ""}>{fmtValOutflow(inv.net_investing_cash)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. FINANCING ACTIVITIES */}
+              <div className="space-y-2">
+                <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                  <span className="text-[11px] font-bold text-teal-900 uppercase">Financing activities</span>
+                </div>
+                <div className="px-2 space-y-1.5 font-medium text-slate-800">
+                  <div className="flex justify-between">
+                    <span>Capital + loan received</span>
+                    <span className="font-bold text-slate-900">{fmtValOutflow(fin.capital_plus_loan_received || fin.capital_loan_received)}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600">
+                    <span>Loan repayment</span>
+                    <span className="font-bold">{fmtValOutflow(fin.loan_repayment, true)}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600">
+                    <span>Drawings</span>
+                    <span className="font-bold">{fmtValOutflow(fin.drawings, true)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-slate-200 font-black text-teal-900 text-xs">
+                    <span>Net financing cash</span>
+                    <span>{fmtValOutflow(fin.net_financing_cash)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. SUMMARY */}
+              <div className="pt-3 border-t-2 border-slate-300 space-y-2 text-xs font-bold">
+                <div className="flex justify-between text-teal-900 font-black text-sm">
+                  <span>Net increase in cash</span>
+                  <span>{fmtValOutflow(data?.net_increase_in_cash)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Opening cash</span>
+                  <span>{fmtValOutflow(data?.opening_cash)}</span>
+                </div>
+                <div className="bg-teal-100/80 p-3 rounded-xl flex justify-between text-teal-950 font-black text-sm">
                   <span>CLOSING CASH</span>
-                  <span className="font-mono">{fmtCurr(data.closing_cash)}</span>
+                  <span>KSh {fmtValOutflow(data?.closing_cash)}</span>
                 </div>
               </div>
             </div>
