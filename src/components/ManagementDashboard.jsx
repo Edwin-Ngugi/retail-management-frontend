@@ -8,7 +8,7 @@ import PurchaseView from './PurchaseView';
 import InventoryView from './InventoryView';
 import CashView from './CashView';
 import ReportsView from './ReportsView';
-import StockActivityLog from './ApprovalsDashboard';
+import ApprovalsDashboard from './ApprovalsDashboard';
 import {
   BarChart,
   Bar,
@@ -16,6 +16,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -121,8 +122,6 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   });
 
   const [dashboardCardsData, setDashboardCardsData] = useState(null);
-  const [salesPerfData, setSalesPerfData] = useState(null);
-
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
 
@@ -238,14 +237,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
 
     try {
       const queryStr = effectiveQueryParams;
-
-      const [cardsRes, salesPerfRes] = await Promise.all([
-        API.get(`management-analytics/dashboard-cards/?${queryStr}`),
-        API.get(`management-analytics/sales-performance/?${queryStr}`),
-      ]);
-
+      const cardsRes = await API.get(`management-analytics/dashboard-cards/?${queryStr}`);
       setDashboardCardsData(cardsRes.data);
-      setSalesPerfData(salesPerfRes.data);
     } catch (err) {
       console.error('Failed to fetch management analytics:', err);
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -472,6 +465,8 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+                {/* 1. FINANCIAL PERFORMANCE CARD */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Financial Performance</span>
@@ -483,22 +478,29 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                  <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Gross Profit</span>
-                      <span className="font-bold text-emerald-700">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase">COGS</span>
+                      <span className="font-bold text-amber-600 text-xs">
+                        {dashboardCardsData?.profitability?.cogs_formatted || 'KSh 0.00'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Gross Profit</span>
+                      <span className="font-bold text-emerald-700 text-xs">
                         {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Net Profit</span>
-                      <span className="font-bold text-teal-800">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Net Profit</span>
+                      <span className="font-bold text-teal-800 text-xs">
                         {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                   </div>
                 </div>
 
+                {/* 2. INVENTORY & SKUs CARD */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Inventory & SKUs</span>
@@ -532,6 +534,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
+                {/* 3. DAILY MOVEMENT CARD */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Daily Movement</span>
@@ -551,14 +554,15 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Net Cash Flow</span>
-                      <span className="font-bold text-emerald-600">
-                        {dashboardCardsData?.cash_flow?.net_cash_movement_formatted || '+KSh 0.00'}
+                      <span className="text-slate-400 block text-[10px]">Purchases</span>
+                      <span className="font-bold text-blue-600">
+                        {dashboardCardsData?.cash_flow?.todays_purchases_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                   </div>
                 </div>
 
+                {/* 4. CASH POSITION CARD */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Cash Position</span>
@@ -576,6 +580,7 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                 </div>
               </div>
 
+              {/* SALES PERFORMANCE TRAJECTORY CHART */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
                 <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase border-b border-slate-100 pb-2">
                   Sales Performance Trajectory
@@ -591,17 +596,20 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                <div className="h-64 w-full pt-2">
+                <div className="h-72 w-full pt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={salesPerfData?.daily || []}
+                      data={dashboardCardsData?.trajectory || []}
                       margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
                       <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
-                      <Tooltip formatter={(v) => [formatCurrency(v), 'Sales']} />
-                      <Bar dataKey="gross_sales" fill="#0D9488" radius={[6, 6, 0, 0]} barSize={28} />
+                      <Tooltip formatter={(value, name) => [formatCurrency(value), name]} />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      <Bar dataKey="total_sales" name="Total Sales" fill="#0D9488" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="net_profit" name="Net Profit" fill="#10B981" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
