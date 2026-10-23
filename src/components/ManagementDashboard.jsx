@@ -125,6 +125,41 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
   const [loadingFinancials, setLoadingFinancials] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
 
+  /* DYNAMIC RECEIPT AND PAYMENT LABELS BASED ON FILTER MODE */
+  const dynamicReceiptsLabel = useMemo(() => {
+    switch (dateFilter.filterMode) {
+      case 'DAILY':
+        return "Today's Receipts";
+      case 'THIS_WEEK':
+        return "Weekly Receipts";
+      case 'MONTHLY':
+        return "Monthly Receipts";
+      case 'THIS_YEAR':
+        return "Yearly Receipts";
+      case 'CUSTOM':
+        return "Period Receipts";
+      default:
+        return "Receipts";
+    }
+  }, [dateFilter.filterMode]);
+
+  const dynamicPaymentsLabel = useMemo(() => {
+    switch (dateFilter.filterMode) {
+      case 'DAILY':
+        return "Today's Payments";
+      case 'THIS_WEEK':
+        return "Weekly Payments";
+      case 'MONTHLY':
+        return "Monthly Payments";
+      case 'THIS_YEAR':
+        return "Yearly Payments";
+      case 'CUSTOM':
+        return "Period Payments";
+      default:
+        return "Payments";
+    }
+  }, [dateFilter.filterMode]);
+
   const handleLoginSuccess = (userObj) => {
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     setCurrentUser(userObj);
@@ -534,29 +569,31 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                {/* 3. DAILY MOVEMENT CARD */}
+                {/* 3. CASH MOVEMENT CARD */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Daily Movement</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                      Cash Movement
+                    </span>
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 font-medium">Today's Receipts</span>
+                    <span className="text-xs text-slate-500 font-medium">{dynamicReceiptsLabel}</span>
                     <div className="text-2xl font-black text-slate-900 tracking-tight">
-                      {dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
+                      {dashboardCardsData?.cash_flow?.receipts_formatted || dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Today's Payments</span>
+                      <span className="text-slate-400 block text-[10px]">{dynamicPaymentsLabel}</span>
                       <span className="font-bold text-slate-800">
-                        {dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
+                        {dashboardCardsData?.cash_flow?.payments_formatted || dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[10px]">Purchases</span>
                       <span className="font-bold text-blue-600">
-                        {dashboardCardsData?.cash_flow?.todays_purchases_formatted || 'KSh 0.00'}
+                        {dashboardCardsData?.cash_flow?.purchases_formatted || dashboardCardsData?.cash_flow?.todays_purchases_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                   </div>
