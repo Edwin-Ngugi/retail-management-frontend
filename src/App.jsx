@@ -143,9 +143,6 @@ const getRecordDateStr = (record) => {
   }
 };
 
-/**
- * Normalizes payment methods aligned strictly with views.py FinancialReportViewSet
- */
 const normalizePaymentMethod = (methodName) => {
   if (!methodName) return 'CASH';
   const clean = String(methodName).trim().toUpperCase().replace(/[- ]/g, '_');
@@ -195,9 +192,6 @@ const normalizePaymentMethod = (methodName) => {
   return 'CASH';
 };
 
-/**
- * Helper to exhaustively fetch all pages from DRF paginated endpoints safely
- */
 const fetchPaginatedData = async (initialEndpoint) => {
   let results = [];
   let currentEndpoint = initialEndpoint;
@@ -263,9 +257,9 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 sm:p-6 font-sans">
+        <div className="min-h-screen flex items-center justify-center bg-teal-50/50 p-4 sm:p-6 font-sans">
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-rose-200 max-w-lg w-full text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-teal-950 tracking-tight mb-2">
               Something went wrong
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mb-6">
@@ -279,7 +273,7 @@ class ErrorBoundary extends React.Component {
             <button
               type="button"
               onClick={this.handleReload}
-              className="w-full bg-indigo-600 text-white py-3 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-500 transition-all shadow-md cursor-pointer"
+              className="w-full bg-teal-600 text-white py-3 rounded-xl text-xs sm:text-sm font-semibold hover:bg-teal-700 transition-all shadow-md cursor-pointer"
             >
               Reload Page
             </button>
@@ -299,10 +293,10 @@ function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
   const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
 
   return (
-    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3 mb-6">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-teal-100 shadow-sm space-y-3 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+          <h2 className="text-xs font-bold text-teal-900 uppercase tracking-wider">
             Active Analytics & Filter Horizon
           </h2>
           <p className="text-[11px] text-slate-500">
@@ -311,11 +305,11 @@ function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-700">Filter Period:</label>
+          <label className="text-xs font-bold text-teal-800">Filter Period:</label>
           <select
             value={filterMode}
             onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
-            className="bg-slate-100 border border-slate-300 font-bold text-xs text-slate-800 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="bg-teal-50/70 border border-teal-200 font-bold text-xs text-teal-900 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
           >
             <option value="DAILY">Daily Pick</option>
             <option value="THIS_WEEK">Weekly</option>
@@ -327,56 +321,56 @@ function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
       </div>
 
       {filterMode === 'DAILY' && (
-        <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <label className="font-bold text-slate-700">Choose Specific Day:</label>
+        <div className="flex items-center gap-3 pt-2 border-t border-teal-50 text-xs">
+          <label className="font-bold text-teal-800">Choose Specific Day:</label>
           <input
             type="date"
             value={selectedDay}
             onChange={(e) =>
               setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))
             }
-            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+            className="border border-teal-200 bg-teal-50/40 rounded-xl px-3 py-1.5 text-xs text-teal-950 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
           />
         </div>
       )}
 
       {filterMode === 'MONTHLY' && (
-        <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          <label className="font-bold text-slate-700">Choose Specific Month:</label>
+        <div className="flex items-center gap-3 pt-2 border-t border-teal-50 text-xs">
+          <label className="font-bold text-teal-800">Choose Specific Month:</label>
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) =>
               setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))
             }
-            className="border border-slate-300 bg-slate-50 rounded-xl px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold cursor-pointer"
+            className="border border-teal-200 bg-teal-50/40 rounded-xl px-3 py-1.5 text-xs text-teal-950 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
           />
         </div>
       )}
 
       {filterMode === 'CUSTOM' && (
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-teal-50 text-xs">
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">Start Date:</label>
+            <label className="font-bold text-teal-800">Start Date:</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))
               }
-              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="border border-teal-200 bg-teal-50/40 rounded-xl px-2.5 py-1.5 text-xs text-teal-900 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
             />
           </div>
 
           <div className="flex items-center gap-1.5">
-            <label className="font-bold text-slate-600">End Date:</label>
+            <label className="font-bold text-teal-800">End Date:</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) =>
                 setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))
               }
-              className="border border-slate-300 bg-slate-50 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="border border-teal-200 bg-teal-50/40 rounded-xl px-2.5 py-1.5 text-xs text-teal-900 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
             />
           </div>
         </div>
@@ -426,7 +420,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
       try {
         let summarySuccess = false;
 
-        // 1. Primary path: query backend report endpoint
         try {
           const reportParams = new URLSearchParams({ branch: selectedBranch });
 
@@ -469,12 +462,11 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             summarySuccess = true;
           }
         } catch (summaryErr) {
-          // Fall back to direct client computation
+          /* Fallback handling */
         }
 
         if (summarySuccess || !isMounted) return;
 
-        // 2. Direct Fallback Calculation
         const salesParams = new URLSearchParams({ branch: selectedBranch });
         const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
         const purchasesParams = new URLSearchParams({ branch: selectedBranch });
@@ -488,7 +480,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
         if (!isMounted) return;
 
-        // Map split payments by sale_id
         const splitMap = {};
         if (Array.isArray(rawSplitPayments)) {
           rawSplitPayments.forEach((sp) => {
@@ -503,7 +494,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         let totalCreditIssued = 0;
         const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
 
-        // Process Sales based strictly on sale creation date
         const sales = rawSales.filter((s) => {
           const dateStr = getRecordDateStr(s);
           if (!dateStr) return true;
@@ -580,7 +570,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           }
         });
 
-        // Filter and process Repayments strictly by repayment date
         let totalRecovered = 0;
         const repayments = rawRepayments.filter((r) => {
           const dateStr = getRecordDateStr(r);
@@ -612,7 +601,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           outstandingCredit: netCreditOutstanding,
         });
 
-        // Process Purchases
         const purchases = rawPurchases.filter((p) => {
           const dateStr = getRecordDateStr(p);
           if (!dateStr) return true;
@@ -688,23 +676,23 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'MPESA',
         amount: paymentTotals.MPESA,
         icon: '📱',
-        color: 'border-emerald-200 bg-emerald-50/50 text-emerald-900',
-        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+        color: 'border-teal-200 bg-teal-50/40 text-teal-950',
+        badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
       },
       {
         name: 'Cash Transactions',
         code: 'CASH',
         amount: paymentTotals.CASH,
         icon: '💵',
-        color: 'border-indigo-200 bg-indigo-50/50 text-indigo-900',
-        badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+        color: 'border-cyan-200 bg-cyan-50/40 text-cyan-950',
+        badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
       },
       {
         name: 'Credit / On Account',
         code: 'CREDIT',
         amount: paymentTotals.CREDIT,
         icon: '💳',
-        color: 'border-amber-200 bg-amber-50/50 text-amber-900',
+        color: 'border-amber-200 bg-amber-50/40 text-amber-950',
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       },
       {
@@ -712,8 +700,8 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'PAYBILL',
         amount: paymentTotals.PAYBILL,
         icon: '🏦',
-        color: 'border-purple-200 bg-purple-50/50 text-purple-900',
-        badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
+        color: 'border-emerald-200 bg-emerald-50/40 text-emerald-950',
+        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
     ];
   }, [paymentTotals]);
@@ -725,57 +713,58 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto font-sans">
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
+      {/* Hero Banner with Teal Theme Gradient */}
+      <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-teal-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-teal-300">
               Branch Overview
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Operational & COGS Analytics
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-md">
+            <p className="text-xs sm:text-sm text-teal-100/80 max-w-md">
               Real-time cost of goods sold, catalog metrics, and inventory ratios.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-slate-800/80 p-4 rounded-2xl border border-slate-700/80 backdrop-blur-sm">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-teal-900/60 p-4 rounded-2xl border border-teal-700/60 backdrop-blur-sm">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
                 Total Inventory Valuation (Cost)
               </span>
-              <span className="text-lg sm:text-xl font-bold font-mono text-indigo-400">
+              <span className="text-lg sm:text-xl font-bold font-mono text-teal-300">
                 {formatCurrency(metrics.totalCostValuation)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
                 Estimated Sales COGS
               </span>
-              <span className="text-lg sm:text-xl font-bold font-mono text-amber-400">
+              <span className="text-lg sm:text-xl font-bold font-mono text-amber-300">
                 {formatCurrency(metrics.totalEstimatedCOGS)}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-slate-800/80">
-          <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-teal-800/80">
+          <div className="bg-teal-900/40 p-3.5 rounded-2xl border border-teal-700/40">
+            <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
               Cataloged SKUs
             </span>
-            <span className="text-lg font-bold font-mono text-indigo-300">
+            <span className="text-lg font-bold font-mono text-teal-200">
               {safeItems.length} Products
             </span>
           </div>
 
-          <div className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/50">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+          <div className="bg-teal-900/40 p-3.5 rounded-2xl border border-teal-700/40">
+            <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
               Pending Management Sign-offs
             </span>
             <span
               className={`text-lg font-bold font-mono ${
-                pendingApprovalsCount > 0 ? 'text-purple-400' : 'text-slate-200'
+                pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-teal-100'
               }`}
             >
               {pendingApprovalsCount} Requests
@@ -785,10 +774,10 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
                 Customer Credit Summary
               </h2>
               <p className="text-xs text-slate-500">
@@ -808,11 +797,11 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               </span>
             </div>
 
-            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
-              <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">
+            <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200">
+              <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                 Recovered (Period)
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-emerald-700 block">
+              <span className="text-xs sm:text-sm font-bold font-mono text-teal-800 block">
                 {formatCurrency(creditSummary.totalRecovered)}
               </span>
             </div>
@@ -828,10 +817,10 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
                 Restocks & Supplier Payables
               </h2>
               <p className="text-xs text-slate-500">
@@ -842,11 +831,11 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
-              <span className="text-[9px] font-bold text-blue-600 uppercase block mb-1">
+            <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-200">
+              <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                 Total Restock Purchases
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-blue-900 block">
+              <span className="text-xs sm:text-sm font-bold font-mono text-teal-900 block">
                 {formatCurrency(restockSummary.totalRestocksValue)}
               </span>
             </div>
@@ -863,10 +852,10 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
               Payment & Settlement Channels
             </h2>
             <p className="text-xs text-slate-500">
@@ -874,7 +863,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             </p>
           </div>
           {loadingFinancials && (
-            <span className="text-[11px] font-semibold text-indigo-600 animate-pulse">
+            <span className="text-[11px] font-semibold text-teal-600 animate-pulse">
               Syncing analytics...
             </span>
           )}
@@ -892,8 +881,8 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 </span>
               </div>
               <div>
-                <h3 className="font-bold text-xs text-slate-700">{pm.name}</h3>
-                <span className="text-base font-bold font-mono text-slate-900 block mt-1">
+                <h3 className="font-bold text-xs text-teal-900/80">{pm.name}</h3>
+                <span className="text-base font-bold font-mono text-teal-950 block mt-1">
                   {formatCurrency(pm.amount)}
                 </span>
               </div>
@@ -902,9 +891,9 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
         <div>
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+          <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
             Inventory Health Ratio
           </h2>
           <p className="text-xs text-slate-500">
@@ -915,7 +904,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
           <div
             style={{ width: `${healthyPct}%` }}
-            className="bg-emerald-500 transition-all duration-500"
+            className="bg-teal-500 transition-all duration-500"
             title={`Healthy Stock: ${healthyPct}%`}
           />
           <div
@@ -931,11 +920,11 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
 
         <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
-          <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100">
-            <span className="block text-[10px] font-bold text-emerald-700 uppercase">
+          <div className="p-3 bg-teal-50/60 rounded-xl border border-teal-100">
+            <span className="block text-[10px] font-bold text-teal-700 uppercase">
               Optimal Stock
             </span>
-            <span className="text-base font-bold font-mono text-emerald-800">
+            <span className="text-base font-bold font-mono text-teal-800">
               {metrics.healthyCount} ({healthyPct}%)
             </span>
           </div>
@@ -1098,15 +1087,16 @@ function UserDashboard({ items, fetchItems }) {
     { key: 'receipts', label: 'Receipts & Sales Logs' },
     { key: 'credit', label: 'Credit Sales' },
     { key: 'stock_ops', label: 'Stock Operations' },
-    { key: 'approvals', label: 'Approvals & Requests', badge: pendingApprovalsCount, badgeColor: 'bg-indigo-500 text-white' },
+    { key: 'approvals', label: 'Approvals & Requests', badge: pendingApprovalsCount, badgeColor: 'bg-teal-500 text-white' },
     { key: 'alerts', label: 'Low Stock Alerts', badge: lowStockCount, badgeColor: 'bg-amber-500 text-white' },
     { key: 'restock', label: 'Restock' },
     { key: 'expenses', label: 'Expenses' },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col text-slate-900 font-sans">
-      <nav className="flex-none bg-slate-900 border-b border-slate-800 px-3 sm:px-6 lg:px-8 py-2.5 sticky top-0 z-30 shadow-md">
+    <div className="min-h-screen flex flex-col text-teal-950 font-sans bg-slate-50/50">
+      {/* Navigation Header in Dark Teal */}
+      <nav className="flex-none bg-teal-950 border-b border-teal-900 px-3 sm:px-6 lg:px-8 py-2.5 sticky top-0 z-30 shadow-md">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 sm:gap-4 max-w-[1600px] mx-auto w-full">
           <div className="flex flex-wrap items-center justify-between xl:justify-start gap-3 sm:gap-4">
             <div className="flex items-center gap-3">
@@ -1118,17 +1108,17 @@ function UserDashboard({ items, fetchItems }) {
               />
 
               {(currentUser.is_staff || currentUser.is_superuser) && (
-                <div className="hidden md:flex items-center gap-2 text-[10px] text-slate-400 border-l border-slate-700 pl-3">
-                  <span className="text-indigo-400 font-bold">Portals:</span>
-                  <button onClick={() => navigate('/')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/' ? 'text-indigo-300 font-bold' : ''}`}>User</button> •
-                  <button onClick={() => navigate('/management')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/management' ? 'text-indigo-300 font-bold' : ''}`}>Management</button> •
-                  <button onClick={() => navigate('/admin')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/admin' ? 'text-indigo-300 font-bold' : ''}`}>Admin</button>
+                <div className="hidden md:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-3">
+                  <span className="text-teal-300 font-bold">Portals:</span>
+                  <button onClick={() => navigate('/')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/' ? 'text-teal-200 font-bold' : ''}`}>User</button> •
+                  <button onClick={() => navigate('/management')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/management' ? 'text-teal-200 font-bold' : ''}`}>Management</button> •
+                  <button onClick={() => navigate('/admin')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/admin' ? 'text-teal-200 font-bold' : ''}`}>Admin</button>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl">
-              <label className="text-[10px] font-bold text-slate-300 uppercase">Branch:</label>
+            <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl">
+              <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
               <select
                 value={selectedBranch || ''}
                 onChange={(e) => setSelectedBranch(e.target.value)}
@@ -1136,27 +1126,27 @@ function UserDashboard({ items, fetchItems }) {
                 className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
               >
                 {branches.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-slate-900 text-white">{b.name}</option>
+                  <option key={b.id} value={b.id} className="bg-teal-950 text-white">{b.name}</option>
                 ))}
               </select>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 justify-between xl:justify-end overflow-hidden">
-            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-800/80 rounded-xl border border-slate-700 overflow-x-auto scrollbar-none max-w-full">
+            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-teal-900/60 rounded-xl border border-teal-800 overflow-x-auto scrollbar-none max-w-full">
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 ${
                     activeTab === tab.key
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'text-teal-100/80 hover:text-white hover:bg-teal-800/50'
                   }`}
                 >
                   {tab.label}
                   {tab.badge > 0 && (
-                    <span className={`ml-1.5 ${tab.badgeColor || 'bg-indigo-500 text-white'} text-[10px] font-extrabold px-1.5 py-0.2 rounded-full`}>
+                    <span className={`ml-1.5 ${tab.badgeColor || 'bg-teal-500 text-white'} text-[10px] font-extrabold px-1.5 py-0.2 rounded-full`}>
                       {tab.badge}
                     </span>
                   )}
@@ -1168,9 +1158,9 @@ function UserDashboard({ items, fetchItems }) {
               <button
                 type="button"
                 onClick={() => setShowAccountDropdown((prev) => !prev)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 hover:bg-slate-700 transition cursor-pointer"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold border border-teal-800 hover:bg-teal-800 transition cursor-pointer"
               >
-                <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
                   {currentUser.username ? currentUser.username.charAt(0) : 'A'}
                 </div>
                 <span className="hidden sm:inline">Account</span>
