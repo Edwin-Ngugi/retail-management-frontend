@@ -84,7 +84,7 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
     }
   }, [selectedBranch]);
 
-  // Fetch Credit Repayments Log
+  // Fetch Credit Repayments Log (Sanitized clean path)
   const fetchCreditRepayments = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -92,7 +92,8 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
         params.append("branch", selectedBranch);
       }
 
-      const response = await API.get(`credit-repayments/?${params.toString()}`);
+      const endpoint = `credit-repayments/?${params.toString()}`;
+      const response = await API.get(endpoint);
       
       const data = Array.isArray(response?.data)
         ? response.data
@@ -143,15 +144,25 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
       return acc + Number(sale.balance_due ?? sale.due_balance ?? 0);
     }, 0);
 
-    const totalRecovered = totalAmount - totalBalanceDue;
+    // Sum actual recorded repayments from the credit-repayments API response
+    const totalRecoveredFromLogs = (Array.isArray(repayments) ? repayments : []).reduce(
+      (acc, rep) => acc + Number(rep.amount || rep.amount_paid || 0),
+      0
+    );
+
+    // Fallback calculation in case repayments log array is empty
+    const derivedRecovered = Math.max(0, totalAmount - totalBalanceDue);
+
+    const totalRecovered =
+      totalRecoveredFromLogs > 0 ? totalRecoveredFromLogs : derivedRecovered;
 
     return {
       totalAmount,
       totalBalanceDue,
-      totalRecovered: totalRecovered > 0 ? totalRecovered : 0,
+      totalRecovered,
       count: filteredSales.length,
     };
-  }, [filteredSales]);
+  }, [filteredSales, repayments]);
 
   const handleOpenPaymentModal = (sale) => {
     const dueAmount = sale.balance_due ?? sale.due_balance ?? sale.total_amount ?? "";
