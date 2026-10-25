@@ -293,10 +293,10 @@ function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
   const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
 
   return (
-    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-teal-100 shadow-sm space-y-3 mb-6">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-teal-100/80 shadow-sm space-y-3 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xs font-bold text-teal-900 uppercase tracking-wider">
+          <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
             Active Analytics & Filter Horizon
           </h2>
           <p className="text-[11px] text-slate-500">
@@ -309,7 +309,7 @@ function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
           <select
             value={filterMode}
             onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
-            className="bg-teal-50/70 border border-teal-200 font-bold text-xs text-teal-900 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+            className="bg-teal-50/70 border border-teal-200 font-bold text-xs text-teal-900 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-xs"
           >
             <option value="DAILY">Daily Pick</option>
             <option value="THIS_WEEK">Weekly</option>
@@ -676,7 +676,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'MPESA',
         amount: paymentTotals.MPESA,
         icon: '📱',
-        color: 'border-teal-200 bg-teal-50/40 text-teal-950',
+        color: 'border-teal-200 bg-teal-50/50 text-teal-950',
         badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
       },
       {
@@ -684,7 +684,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'CASH',
         amount: paymentTotals.CASH,
         icon: '💵',
-        color: 'border-cyan-200 bg-cyan-50/40 text-cyan-950',
+        color: 'border-cyan-200 bg-cyan-50/50 text-cyan-950',
         badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
       },
       {
@@ -692,7 +692,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'CREDIT',
         amount: paymentTotals.CREDIT,
         icon: '💳',
-        color: 'border-amber-200 bg-amber-50/40 text-amber-950',
+        color: 'border-amber-200 bg-amber-50/50 text-amber-950',
         badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       },
       {
@@ -700,7 +700,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         code: 'PAYBILL',
         amount: paymentTotals.PAYBILL,
         icon: '🏦',
-        color: 'border-emerald-200 bg-emerald-50/40 text-emerald-950',
+        color: 'border-emerald-200 bg-emerald-50/50 text-emerald-950',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
     ];
@@ -714,13 +714,13 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
   return (
     <div className="space-y-6 max-w-6xl mx-auto font-sans">
       {/* Hero Banner with Teal Theme Gradient */}
-      <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-teal-800">
+      <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-teal-800/80">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-teal-300">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-teal-300 bg-teal-900/80 px-2.5 py-1 rounded-full border border-teal-700/60 inline-block">
               Branch Overview
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight pt-1">
               Operational & COGS Analytics
             </h1>
             <p className="text-xs sm:text-sm text-teal-100/80 max-w-md">
@@ -728,7 +728,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-teal-900/60 p-4 rounded-2xl border border-teal-700/60 backdrop-blur-sm">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-teal-900/60 p-4 rounded-2xl border border-teal-700/60 backdrop-blur-md shadow-inner">
             <div>
               <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
                 Total Inventory Valuation (Cost)
@@ -749,47 +749,53 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-teal-800/80">
-          <div className="bg-teal-900/40 p-3.5 rounded-2xl border border-teal-700/40">
-            <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-              Cataloged SKUs
-            </span>
-            <span className="text-lg font-bold font-mono text-teal-200">
-              {safeItems.length} Products
-            </span>
+          <div className="bg-teal-900/40 p-4 rounded-2xl border border-teal-700/40 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
+                Cataloged SKUs
+              </span>
+              <span className="text-lg font-bold font-mono text-teal-200">
+                {safeItems.length} Products
+              </span>
+            </div>
+            <span className="text-2xl">📦</span>
           </div>
 
-          <div className="bg-teal-900/40 p-3.5 rounded-2xl border border-teal-700/40">
-            <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-              Pending Management Sign-offs
-            </span>
-            <span
-              className={`text-lg font-bold font-mono ${
-                pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-teal-100'
-              }`}
-            >
-              {pendingApprovalsCount} Requests
-            </span>
+          <div className="bg-teal-900/40 p-4 rounded-2xl border border-teal-700/40 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
+                Pending Management Sign-offs
+              </span>
+              <span
+                className={`text-lg font-bold font-mono ${
+                  pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-teal-100'
+                }`}
+              >
+                {pendingApprovalsCount} Requests
+              </span>
+            </div>
+            <span className="text-2xl">⏳</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
-          <div className="flex justify-between items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center border-b border-teal-50 pb-3">
             <div>
-              <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
                 Customer Credit Summary
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Period credit activity & live total balance
               </p>
             </div>
-            <span className="text-2xl">💳</span>
+            <span className="p-2 bg-amber-50 rounded-xl border border-amber-100 text-xl">💳</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
                 Credit Issued (Period)
               </span>
               <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
@@ -797,7 +803,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               </span>
             </div>
 
-            <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200">
+            <div className="bg-teal-50/70 p-3 rounded-xl border border-teal-200/80">
               <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                 Recovered (Period)
               </span>
@@ -806,8 +812,8 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               </span>
             </div>
 
-            <div className="bg-rose-50 p-3 rounded-xl border border-rose-200">
-              <span className="text-[9px] font-bold text-rose-500 uppercase block mb-1">
+            <div className="bg-rose-50 p-3 rounded-xl border border-rose-200/80">
+              <span className="text-[9px] font-bold text-rose-600 uppercase block mb-1">
                 Live Total Debt Owed
               </span>
               <span className="text-xs sm:text-sm font-bold font-mono text-rose-700 block">
@@ -817,31 +823,31 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
-          <div className="flex justify-between items-center">
+        <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center border-b border-teal-50 pb-3">
             <div>
-              <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
                 Restocks & Supplier Payables
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Purchases valuation & outstanding supplier payables
               </p>
             </div>
-            <span className="text-2xl">📦</span>
+            <span className="p-2 bg-teal-50 rounded-xl border border-teal-100 text-xl">🚚</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-200">
+            <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200/80">
               <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
                 Total Restock Purchases
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-teal-900 block">
+              <span className="text-xs sm:text-sm font-bold font-mono text-teal-950 block">
                 {formatCurrency(restockSummary.totalRestocksValue)}
               </span>
             </div>
 
-            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
-              <span className="text-[9px] font-bold text-amber-600 uppercase block mb-1">
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200/80">
+              <span className="text-[9px] font-bold text-amber-700 uppercase block mb-1">
                 Supplier Owed Payables
               </span>
               <span className="text-xs sm:text-sm font-bold font-mono text-amber-800 block">
@@ -852,28 +858,28 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
+      <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-teal-50 pb-3">
           <div>
-            <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
               Payment & Settlement Channels
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] text-slate-500">
               Live settlement amounts processed per financial channel
             </p>
           </div>
           {loadingFinancials && (
-            <span className="text-[11px] font-semibold text-teal-600 animate-pulse">
+            <span className="text-[11px] font-semibold text-teal-600 animate-pulse bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
               Syncing analytics...
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {paymentBreakdown.map((pm, idx) => (
-            <div key={idx} className={`p-4 rounded-2xl border space-y-2 ${pm.color}`}>
+            <div key={idx} className={`p-4 rounded-2xl border space-y-2.5 transition-transform hover:-translate-y-0.5 ${pm.color}`}>
               <div className="flex items-center justify-between">
-                <span className="text-xl">{pm.icon}</span>
+                <span className="text-2xl">{pm.icon}</span>
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${pm.badgeColor}`}
                 >
@@ -881,7 +887,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 </span>
               </div>
               <div>
-                <h3 className="font-bold text-xs text-teal-900/80">{pm.name}</h3>
+                <h3 className="font-bold text-xs text-teal-950">{pm.name}</h3>
                 <span className="text-base font-bold font-mono text-teal-950 block mt-1">
                   {formatCurrency(pm.amount)}
                 </span>
@@ -891,12 +897,12 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-teal-100 shadow-sm space-y-4">
-        <div>
-          <h2 className="text-sm font-bold text-teal-950 uppercase tracking-wider">
+      <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4">
+        <div className="border-b border-teal-50 pb-3">
+          <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
             Inventory Health Ratio
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-[11px] text-slate-500">
             Proportion of optimal vs. threshold stock across registered items
           </p>
         </div>
@@ -919,28 +925,28 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
-          <div className="p-3 bg-teal-50/60 rounded-xl border border-teal-100">
-            <span className="block text-[10px] font-bold text-teal-700 uppercase">
+        <div className="grid grid-cols-3 gap-3 pt-1 text-center text-xs">
+          <div className="p-3 bg-teal-50/70 rounded-xl border border-teal-200/80">
+            <span className="block text-[10px] font-bold text-teal-800 uppercase mb-0.5">
               Optimal Stock
             </span>
-            <span className="text-base font-bold font-mono text-teal-800">
+            <span className="text-base font-bold font-mono text-teal-950">
               {metrics.healthyCount} ({healthyPct}%)
             </span>
           </div>
-          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100">
-            <span className="block text-[10px] font-bold text-amber-700 uppercase">
+          <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80">
+            <span className="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">
               Low Stock Threshold
             </span>
-            <span className="text-base font-bold font-mono text-amber-800">
+            <span className="text-base font-bold font-mono text-amber-900">
               {metrics.lowStockCount} ({lowStockPct}%)
             </span>
           </div>
-          <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100">
-            <span className="block text-[10px] font-bold text-rose-700 uppercase">
+          <div className="p-3 bg-rose-50/70 rounded-xl border border-rose-200/80">
+            <span className="block text-[10px] font-bold text-rose-800 uppercase mb-0.5">
               Out of Stock
             </span>
-            <span className="text-base font-bold font-mono text-rose-800">
+            <span className="text-base font-bold font-mono text-rose-900">
               {metrics.outOfStockCount} ({outOfStockPct}%)
             </span>
           </div>
