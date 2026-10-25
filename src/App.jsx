@@ -156,7 +156,7 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-teal-50/50 p-4 sm:p-6 font-sans">
+        <div className="min-h-screen flex items-center justify-center bg-white p-4 sm:p-6 font-sans">
           <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-rose-200 max-w-lg w-full text-center">
             <h2 className="text-xl sm:text-2xl font-bold text-teal-950 tracking-tight mb-2">
               Something went wrong
@@ -185,7 +185,7 @@ class ErrorBoundary extends React.Component {
 }
 
 /* =========================================================
-   PORTAL LANDING DASHBOARD
+   PORTAL LANDING DASHBOARD (FULL SCREEN WIDTH)
 ========================================================= */
 
 function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveRange, onNavigateTab }) {
@@ -294,9 +294,9 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
   }, [safeItems]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto font-sans">
+    <div className="space-y-6 w-full font-sans">
       {/* 1. Quick Actions Bar for POS Staff */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
             Quick POS Actions
@@ -306,22 +306,52 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </p>
         </div>
 
-        
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => onNavigateTab('sales')}
+            className="px-4 py-2 rounded-xl bg-[#005F73] hover:bg-teal-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>🛒</span>
+            <span>New Sale Entry</span>
+          </button>
 
-      {/* 2. Top Overview KPI Row - White Cards with Logo Color Numbers */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Inventory Cost Valuation Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <button
+            onClick={() => onNavigateTab('credit')}
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>💳</span>
+            <span>Record Repayment</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('stock_ops')}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>📦</span>
+            <span>Check Stock</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('expenses')}
+            className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>💸</span>
+            <span>Log Expense</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Top Overview KPI Row - Full Screen Layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
               Inventory Cost Value
             </span>
-            <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
-              
-            </div>
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-700">📊</div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-black font-mono text-[#005F73] block">
+            <span className="text-2xl sm:text-3xl font-black font-mono text-[#005F73] block">
               {formatCurrency(metrics.totalCostValuation)}
             </span>
             <span className="text-[11px] text-slate-500 font-medium mt-1 block">
@@ -330,18 +360,15 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        {/* Estimated COGS Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
               Sales COGS (Cost of Goods)
             </span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
-              🏷️
-            </div>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">🏷️</div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-black font-mono text-[#CA6702] block">
+            <span className="text-2xl sm:text-3xl font-black font-mono text-[#CA6702] block">
               {formatCurrency(metrics.totalEstimatedCOGS)}
             </span>
             <span className="text-[11px] text-slate-500 font-medium mt-1 block">
@@ -350,18 +377,15 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        {/* Live Total Debt Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
               Outstanding Debt Owed
             </span>
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-700">
-              ⚖️
-            </div>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-700">⚖️</div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-black font-mono text-[#9B2226] block">
+            <span className="text-2xl sm:text-3xl font-black font-mono text-[#9B2226] block">
               {formatCurrency(dashboardData.creditSummary.outstandingCredit)}
             </span>
             <span className="text-[11px] text-slate-500 font-medium mt-1 block">
@@ -370,18 +394,15 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        {/* Pending Approvals Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
               Pending Sign-Offs
             </span>
-            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-700">
-              
-            </div>
+            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-700">⏳</div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-black font-mono text-[#0A9396] block">
+            <span className="text-2xl sm:text-3xl font-black font-mono text-[#0A9396] block">
               {pendingApprovalsCount} Requests
             </span>
             <span className="text-[11px] text-slate-500 font-medium mt-1 block">
@@ -393,8 +414,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
       {/* 3. Middle Grid Section: Credit & Restocks Summaries */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Customer Credit Summary Card */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -439,8 +459,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
 
-        {/* Restocks & Supplier Payables Card */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -478,7 +497,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
       </div>
 
       {/* 4. Payment & Settlement Channels */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -503,7 +522,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 MPESA
               </span>
             </div>
-            <span className="text-lg font-bold font-mono text-[#005F73]">
+            <span className="text-xl font-bold font-mono text-[#005F73]">
               {formatCurrency(dashboardData.paymentTotals.MPESA)}
             </span>
           </div>
@@ -515,7 +534,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 CASH
               </span>
             </div>
-            <span className="text-lg font-bold font-mono text-[#0A9396]">
+            <span className="text-xl font-bold font-mono text-[#0A9396]">
               {formatCurrency(dashboardData.paymentTotals.CASH)}
             </span>
           </div>
@@ -527,7 +546,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 CREDIT
               </span>
             </div>
-            <span className="text-lg font-bold font-mono text-[#CA6702]">
+            <span className="text-xl font-bold font-mono text-[#CA6702]">
               {formatCurrency(dashboardData.paymentTotals.CREDIT)}
             </span>
           </div>
@@ -539,14 +558,31 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                 PAYBILL
               </span>
             </div>
-            <span className="text-lg font-bold font-mono text-emerald-800">
+            <span className="text-xl font-bold font-mono text-emerald-800">
               {formatCurrency(dashboardData.paymentTotals.PAYBILL)}
             </span>
           </div>
         </div>
       </div>
 
-
+      {/* 5. Recent Register Activity Feed */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Recent Register Activity
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Latest transactions recorded across POS register terminals
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateTab('receipts')}
+            className="text-xs font-bold text-[#005F73] hover:underline cursor-pointer"
+          >
+            View All Logs →
+          </button>
+        </div>
 
         {recentSales.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200/80">
@@ -560,7 +596,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
                   <th className="py-2.5 px-3">Receipt #</th>
                   <th className="py-2.5 px-3">Customer</th>
                   <th className="py-2.5 px-3">Method</th>
-                  <th className="py-2.5 px-3 font-right text-right">Amount</th>
+                  <th className="py-2.5 px-3 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -721,19 +757,19 @@ function UserDashboard({ items, fetchItems }) {
   const lowStockCount = safeItems.filter((item) => Boolean(item?.is_low_stock)).length;
 
   const tabs = [
-    { key: 'dashboard', label: 'Dashboard', icon: '' },
-    { key: 'sales', label: 'Sales Entry', icon: '' },
-    { key: 'receipts', label: 'Receipts & Sales Logs', icon: '' },
-    { key: 'credit', label: 'Credit Sales', icon: '' },
-    { key: 'stock_ops', label: 'Stock Operations', icon: '' },
-    { key: 'approvals', label: 'Approvals & Requests', icon: '', badge: pendingApprovalsCount, badgeColor: 'bg-[#005F73] text-white' },
-    { key: 'alerts', label: 'Low Stock Alerts', icon: '', badge: lowStockCount, badgeColor: 'bg-[#CA6702] text-white' },
-    { key: 'restock', label: 'Restock', icon: '' },
-    { key: 'expenses', label: 'Expenses', icon: '' },
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'sales', label: 'Sales Entry' },
+    { key: 'receipts', label: 'Receipts & Sales Logs' },
+    { key: 'credit', label: 'Credit Sales' },
+    { key: 'stock_ops', label: 'Stock Operations' },
+    { key: 'approvals', label: 'Approvals & Requests', badge: pendingApprovalsCount, badgeColor: 'bg-[#005F73] text-white' },
+    { key: 'alerts', label: 'Low Stock Alerts', badge: lowStockCount, badgeColor: 'bg-[#CA6702] text-white' },
+    { key: 'restock', label: 'Restock' },
+    { key: 'expenses', label: 'Expenses' },
   ];
 
   return (
-    <div className="min-h-screen flex text-teal-950 font-sans bg-slate-50/50">
+    <div className="min-h-screen flex text-teal-950 font-sans bg-white">
       {/* 1. LEFT SIDEBAR MENU */}
       <aside className="w-64 bg-teal-950 text-white flex flex-col fixed inset-y-0 left-0 z-40 border-r border-teal-900 shadow-xl">
         <div className="p-5 border-b border-teal-900 flex items-center justify-center">
@@ -757,7 +793,6 @@ function UserDashboard({ items, fetchItems }) {
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-base">{tab.icon}</span>
                 <span>{tab.label}</span>
               </div>
               {tab.badge > 0 && (
@@ -781,11 +816,10 @@ function UserDashboard({ items, fetchItems }) {
       </aside>
 
       {/* 2. MAIN CONTENT AREA WITH TOP BAR */}
-      <div className="flex-1 pl-64 flex flex-col min-w-0">
+      <div className="flex-1 pl-64 flex flex-col min-w-0 bg-white min-h-screen">
         {/* TOP BAR: Branch, Centered Logo, Date Selector & Account */}
         <header className="bg-teal-950 border-b border-teal-900 px-6 py-3 sticky top-0 z-30 shadow-md">
-          <div className="flex items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-            
+          <div className="flex items-center justify-between gap-4 w-full">
             {/* Left Controls: Branch & Portals */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1.5 rounded-xl">
@@ -824,7 +858,6 @@ function UserDashboard({ items, fetchItems }) {
 
             {/* Right Controls: Integrated Date Horizon Picker & Account */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Top Bar Integrated Date Filter Controls */}
               <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1 rounded-xl text-xs">
                 <span className="text-[10px] font-bold text-teal-300 uppercase hidden md:inline">Period:</span>
                 <select
@@ -884,12 +917,11 @@ function UserDashboard({ items, fetchItems }) {
                 <span className="hidden sm:inline">{currentUser.username}</span>
               </div>
             </div>
-
           </div>
         </header>
 
-        {/* MAIN BODY CONTENT */}
-        <main className="flex-1 p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+        {/* MAIN BODY CONTENT (FULL SCREEN WIDTH) */}
+        <main className="flex-1 p-6 lg:p-8 w-full bg-white">
           {activeTab === 'dashboard' && (
             <MainPortalDashboard
               items={safeItems}
