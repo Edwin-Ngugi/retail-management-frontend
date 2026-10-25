@@ -34,7 +34,6 @@ import ManagementLogin from './components/ManagementLogin';
 import AuthPage from './components/AuthPage';
 import ReceiptsLogManagement from './components/ReceiptsLogManagement';
 import ApprovalsDashboard from './components/ApprovalsDashboard';
-import { useAnalyticsSocket } from './components/useAnalyticsSocket';
 import RestockManagement from './components/RestockManagement';
 import StockOperations from './components/StockActivityLog';
 import LowStockAlerts from './components/LowStocksAlerts';
@@ -186,104 +185,10 @@ class ErrorBoundary extends React.Component {
 }
 
 /* =========================================================
-   GLOBAL DATE RANGE SELECTOR BAR (TOP BAR INTEGRATED)
-========================================================= */
-
-function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
-  const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
-
-  return (
-    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-sm space-y-3 mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
-            Active Analytics & Filter Horizon
-          </h2>
-          <p className="text-[11px] text-slate-500">
-            Selected date boundaries apply across Dashboard, Sales, Restocks, and Expenses
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-teal-800">Filter Period:</label>
-          <select
-            value={filterMode}
-            onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
-            className="bg-teal-50/70 border border-teal-200 font-bold text-xs text-teal-900 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-xs"
-          >
-            <option value="DAILY">Daily Pick</option>
-            <option value="THIS_WEEK">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="THIS_YEAR">Yearly</option>
-            <option value="CUSTOM">Custom Range</option>
-          </select>
-        </div>
-      </div>
-
-      {filterMode === 'DAILY' && (
-        <div className="flex items-center gap-3 pt-2 border-t border-teal-50 text-xs">
-          <label className="font-bold text-teal-800">Choose Specific Day:</label>
-          <input
-            type="date"
-            value={selectedDay}
-            onChange={(e) =>
-              setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))
-            }
-            className="border border-teal-200 bg-teal-50/40 rounded-xl px-3 py-1.5 text-xs text-teal-950 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
-          />
-        </div>
-      )}
-
-      {filterMode === 'MONTHLY' && (
-        <div className="flex items-center gap-3 pt-2 border-t border-teal-50 text-xs">
-          <label className="font-bold text-teal-800">Choose Specific Month:</label>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) =>
-              setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))
-            }
-            className="border border-teal-200 bg-teal-50/40 rounded-xl px-3 py-1.5 text-xs text-teal-950 outline-none focus:ring-2 focus:ring-teal-500 font-bold cursor-pointer"
-          />
-        </div>
-      )}
-
-      {filterMode === 'CUSTOM' && (
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-teal-50 text-xs">
-          <div className="flex items-center gap-1.5">
-            <label className="font-bold text-teal-800">Start Date:</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) =>
-                setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))
-              }
-              className="border border-teal-200 bg-teal-50/40 rounded-xl px-2.5 py-1.5 text-xs text-teal-900 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <label className="font-bold text-teal-800">End Date:</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) =>
-                setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))
-              }
-              className="border border-teal-200 bg-teal-50/40 rounded-xl px-2.5 py-1.5 text-xs text-teal-900 outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* =========================================================
    PORTAL LANDING DASHBOARD
 ========================================================= */
 
-function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveRange }) {
+function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveRange, onNavigateTab }) {
   const safeItems = Array.isArray(items) ? items : [];
   const branchContext = useBranch() || {};
   const { selectedBranch = null } = branchContext;
@@ -296,6 +201,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
     paymentTotals: { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 },
   });
 
+  const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -341,6 +247,16 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         }
       } catch (e) {
         console.warn("Falling back to local calculation for dashboard...", e);
+      }
+
+      try {
+        const salesRes = await API.get(`sales/?branch=${selectedBranch}&limit=5`);
+        const salesData = Array.isArray(salesRes?.data)
+          ? salesRes.data
+          : salesRes?.data?.results || [];
+        if (isMounted) setRecentSales(salesData.slice(0, 5));
+      } catch (e) {
+        console.warn("Failed to fetch recent sales", e);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -379,7 +295,53 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans">
-      {/* Top Overview KPI Row - White Cards with Logo Color Numbers */}
+      {/* 1. Quick Actions Bar for POS Staff */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+            Quick POS Actions
+          </h2>
+          <p className="text-[11px] text-slate-500">
+            Direct shortcuts for register, payments, and stock ops
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => onNavigateTab('sales')}
+            className="px-3.5 py-2 rounded-xl bg-[#005F73] hover:bg-teal-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>🛒</span>
+            <span>New Sale Entry</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('credit')}
+            className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>💳</span>
+            <span>Record Repayment</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('stock_ops')}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>📦</span>
+            <span>Check Stock</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('expenses')}
+            className="px-3.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>💸</span>
+            <span>Log Expense</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Top Overview KPI Row - White Cards with Logo Color Numbers */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Inventory Cost Valuation Card */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -462,7 +424,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      {/* Middle Grid Section: Credit & Restocks Summaries */}
+      {/* 3. Middle Grid Section: Credit & Restocks Summaries */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Customer Credit Summary Card */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
@@ -548,7 +510,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      {/* Payment & Settlement Channels */}
+      {/* 4. Payment & Settlement Channels */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
@@ -616,12 +578,71 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
       </div>
+
+      {/* 5. Recent Register Activity Feed */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Recent Register Activity
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Latest transactions recorded across POS register terminals
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateTab('receipts')}
+            className="text-xs font-bold text-[#005F73] hover:underline cursor-pointer"
+          >
+            View All Logs →
+          </button>
+        </div>
+
+        {recentSales.length === 0 ? (
+          <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200/80">
+            No sales recorded yet for this branch today.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-800">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                  <th className="py-2.5 px-3">Receipt #</th>
+                  <th className="py-2.5 px-3">Customer</th>
+                  <th className="py-2.5 px-3">Method</th>
+                  <th className="py-2.5 px-3 font-right text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {recentSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-3 font-mono font-bold text-[#005F73]">
+                      #{sale.receipt_number || sale.invoice_number || sale.id}
+                    </td>
+                    <td className="py-3 px-3 font-medium">
+                      {sale.customer_name || 'Walk-in Customer'}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-700 uppercase border border-slate-200">
+                        {sale.payment_method || 'CASH'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-right text-slate-900">
+                      {formatCurrency(sale.total_amount || sale.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 /* =========================================================
-   USER DASHBOARD PORTAL (SIDEBAR + TOPBAR LAYOUT)
+   USER DASHBOARD PORTAL (SIDEBAR + CENTERED TOPBAR LAYOUT)
 ========================================================= */
 
 function UserDashboard({ items, fetchItems }) {
@@ -765,13 +786,10 @@ function UserDashboard({ items, fetchItems }) {
     <div className="min-h-screen flex text-teal-950 font-sans bg-slate-50/50">
       {/* 1. LEFT SIDEBAR MENU */}
       <aside className="w-64 bg-teal-950 text-white flex flex-col fixed inset-y-0 left-0 z-40 border-r border-teal-900 shadow-xl">
-        <div className="p-5 border-b border-teal-900 flex items-center justify-between">
-          <img
-            src="/logo.svg"
-            alt="Melvex Business Solutions"
-            className="h-10 w-auto object-contain cursor-pointer"
-            onClick={() => setActiveTab('dashboard')}
-          />
+        <div className="p-5 border-b border-teal-900 flex items-center justify-center">
+          <span className="text-xs font-black tracking-widest text-teal-300 uppercase">
+            Navigation Menu
+          </span>
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -814,11 +832,12 @@ function UserDashboard({ items, fetchItems }) {
 
       {/* 2. MAIN CONTENT AREA WITH TOP BAR */}
       <div className="flex-1 pl-64 flex flex-col min-w-0">
-        {/* TOP BAR: Branch, Portals, Date Horizon & Account */}
+        {/* TOP BAR: Branch, Centered Logo, Date Selector & Account */}
         <header className="bg-teal-950 border-b border-teal-900 px-6 py-3 sticky top-0 z-30 shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
-            <div className="flex items-center gap-4">
-              {/* Branch Selector */}
+          <div className="flex items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            
+            {/* Left Controls: Branch & Portals */}
+            <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1.5 rounded-xl">
                 <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
                 <select
@@ -833,9 +852,8 @@ function UserDashboard({ items, fetchItems }) {
                 </select>
               </div>
 
-              {/* Portal Links */}
               {(currentUser.is_staff || currentUser.is_superuser) && (
-                <div className="hidden md:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-4">
+                <div className="hidden xl:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-3">
                   <span className="text-teal-300 font-bold">Portals:</span>
                   <button onClick={() => navigate('/')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/' ? 'text-teal-200 font-bold' : ''}`}>User</button> •
                   <button onClick={() => navigate('/management')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/management' ? 'text-teal-200 font-bold' : ''}`}>Management</button> •
@@ -844,27 +862,93 @@ function UserDashboard({ items, fetchItems }) {
               )}
             </div>
 
-            {/* Account Info */}
-            <div className="flex items-center gap-3">
+            {/* CENTERED LOGO */}
+            <div className="flex items-center justify-center shrink-0">
+              <img
+                src="/logo.svg"
+                alt="Melvex Business Solutions"
+                className="h-10 sm:h-12 w-auto object-contain cursor-pointer transition-transform hover:scale-105"
+                onClick={() => setActiveTab('dashboard')}
+              />
+            </div>
+
+            {/* Right Controls: Integrated Date Horizon Picker & Account */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Top Bar Integrated Date Filter Controls */}
+              <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1 rounded-xl text-xs">
+                <span className="text-[10px] font-bold text-teal-300 uppercase hidden md:inline">Period:</span>
+                <select
+                  value={dateFilter.filterMode}
+                  onChange={(e) => setDateFilter((prev) => ({ ...prev, filterMode: e.target.value }))}
+                  className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
+                >
+                  <option value="DAILY" className="bg-teal-950 text-white">Daily Pick</option>
+                  <option value="THIS_WEEK" className="bg-teal-950 text-white">Weekly</option>
+                  <option value="MONTHLY" className="bg-teal-950 text-white">Monthly</option>
+                  <option value="THIS_YEAR" className="bg-teal-950 text-white">Yearly</option>
+                  <option value="CUSTOM" className="bg-teal-950 text-white">Custom Range</option>
+                </select>
+
+                {dateFilter.filterMode === 'DAILY' && (
+                  <input
+                    type="date"
+                    value={dateFilter.selectedDay}
+                    onChange={(e) => setDateFilter((prev) => ({ ...prev, selectedDay: e.target.value }))}
+                    className="bg-teal-950 border border-teal-700 text-white rounded-lg px-2 py-0.5 text-xs outline-none cursor-pointer"
+                  />
+                )}
+
+                {dateFilter.filterMode === 'MONTHLY' && (
+                  <input
+                    type="month"
+                    value={dateFilter.selectedMonth}
+                    onChange={(e) => setDateFilter((prev) => ({ ...prev, selectedMonth: e.target.value }))}
+                    className="bg-teal-950 border border-teal-700 text-white rounded-lg px-2 py-0.5 text-xs outline-none cursor-pointer"
+                  />
+                )}
+
+                {dateFilter.filterMode === 'CUSTOM' && (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="date"
+                      value={dateFilter.startDate}
+                      onChange={(e) => setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))}
+                      className="bg-teal-950 border border-teal-700 text-white rounded-lg px-1.5 py-0.5 text-[11px] outline-none"
+                    />
+                    <span className="text-teal-300">-</span>
+                    <input
+                      type="date"
+                      value={dateFilter.endDate}
+                      onChange={(e) => setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))}
+                      className="bg-teal-950 border border-teal-700 text-white rounded-lg px-1.5 py-0.5 text-[11px] outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* User Avatar */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold border border-teal-800">
                 <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
                   {currentUser.username ? currentUser.username.charAt(0) : 'U'}
                 </div>
-                <span>{currentUser.username}</span>
+                <span className="hidden sm:inline">{currentUser.username}</span>
               </div>
             </div>
+
           </div>
         </header>
 
         {/* MAIN BODY CONTENT */}
         <main className="flex-1 p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
-          <GlobalDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
-
           {activeTab === 'dashboard' && (
             <MainPortalDashboard
               items={safeItems}
               pendingApprovalsCount={pendingApprovalsCount}
               effectiveRange={effectiveRange}
+              onNavigateTab={(tabKey) => {
+                setActiveTab(tabKey);
+                localStorage.setItem('user_active_tab', tabKey);
+              }}
             />
           )}
           {activeTab === 'sales' && (
