@@ -408,242 +408,63 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
   const { effectiveStartDate, effectiveEndDate } = effectiveRange;
 
-  const [paymentTotals, setPaymentTotals] = useState({
-    MPESA: 0,
-    CASH: 0,
-    CREDIT: 0,
-    PAYBILL: 0,
+  const [dashboardData, setDashboardData] = useState({
+    creditSummary: { totalCreditIssued: 0, totalRecovered: 0, outstandingCredit: 0 },
+    restockSummary: { totalRestocksValue: 0, totalSupplierPayables: 0 },
+    paymentTotals: { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 },
   });
 
-  const [creditSummary, setCreditSummary] = useState({
-    totalCreditIssued: 0,
-    totalRecovered: 0,
-    outstandingCredit: 0,
-  });
-
-  const [restockSummary, setRestockSummary] = useState({
-    totalRestocksValue: 0,
-    totalSupplierPayables: 0,
-  });
-
-  const [loadingFinancials, setLoadingFinancials] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!selectedBranch) return;
 
     let isMounted = true;
-    setLoadingFinancials(true);
+    setLoading(true);
 
-    const fetchDashboardMetrics = async () => {
+    const loadDashboardMetrics = async () => {
       try {
-        let summarySuccess = false;
+        const params = new URLSearchParams({ branch: selectedBranch });
 
-        try {
-          const reportParams = new URLSearchParams({ branch: selectedBranch });
-
-          if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
-            reportParams.append('period_type', 'custom');
-            reportParams.append('startDate', effectiveStartDate);
-            reportParams.append('endDate', effectiveEndDate);
-          } else if (effectiveStartDate) {
-            reportParams.append('period_type', 'day');
-            reportParams.append('date', effectiveStartDate);
-          }
-
-          const res = await API.get(`financial-reports/summary/?${reportParams.toString()}`);
-          const data = res.data;
-
-          if (data && data.payment_channel_breakdown && data.summary) {
-            const breakdown = data.payment_channel_breakdown;
-            const sum = data.summary;
-
-            const mpesaCombined = toNumber(breakdown.mpesa_std) + toNumber(breakdown.send_money);
-
-            setPaymentTotals({
-              MPESA: mpesaCombined,
-              CASH: toNumber(breakdown.cash),
-              CREDIT: toNumber(breakdown.credit_outstanding ?? sum.credit_outstanding),
-              PAYBILL: toNumber(breakdown.paybill),
-            });
-
-            setCreditSummary({
-              totalCreditIssued: toNumber(sum.new_credit_sales),
-              totalRecovered: toNumber(sum.credit_repayments),
-              outstandingCredit: toNumber(sum.credit_outstanding),
-            });
-
-            setRestockSummary({
-              totalRestocksValue: toNumber(sum.purchases_cost),
-              totalSupplierPayables: 0,
-            });
-
-            summarySuccess = true;
-          }
-        } catch (summaryErr) {
-          /* Fallback handling */
+        if (effectiveStartDate && effectiveEndDate && effectiveStartDate !== effectiveEndDate) {
+          params.append('period_type', 'custom');
+          params.append('startDate', effectiveStartDate);
+          params.append('endDate', effectiveEndDate);
+        } else if (effectiveStartDate) {
+          params.append('period_type', 'day');
+          params.append('date', effectiveStartDate);
         }
 
-        if (summarySuccess || !isMounted) return;
+        const res = await API.get(`dashboard/overview/?${params.toString()}`);
+        const data = res.data;
 
-        const salesParams = new URLSearchParams({ branch: selectedBranch });
-        const repaymentsParams = new URLSearchParams({ branch: selectedBranch });
-        const purchasesParams = new URLSearchParams({ branch: selectedBranch });
-
-        const [rawSales, rawRepayments, rawPurchases, rawSplitPayments] = await Promise.all([
-          fetchPaginatedData(`sales/?${salesParams.toString()}`),
-          fetchPaginatedData(`credit-repayments/?${repaymentsParams.toString()}`),
-          fetchPaginatedData(`purchases/?${purchasesParams.toString()}`),
-          fetchPaginatedData(`sale-payments/?branch=${selectedBranch}`),
-        ]);
-
-        if (!isMounted) return;
-
-        const splitMap = {};
-        if (Array.isArray(rawSplitPayments)) {
-          rawSplitPayments.forEach((sp) => {
-            const saleId = sp.sale || sp.transaction || sp.sale_id || sp.transaction_id;
-            if (saleId) {
-              if (!splitMap[saleId]) splitMap[saleId] = [];
-              splitMap[saleId].push(sp);
-            }
+        if (isMounted && data) {
+          setDashboardData({
+            creditSummary: {
+              totalCreditIssued: data.credit_summary?.total_credit_issued || 0,
+              totalRecovered: data.credit_summary?.total_recovered || 0,
+              outstandingCredit: data.credit_summary?.outstanding_credit || 0,
+            },
+            restockSummary: {
+              totalRestocksValue: data.restocks?.total_purchases_cost || 0,
+              totalSupplierPayables: data.restocks?.supplier_payables || 0,
+            },
+            paymentTotals: {
+              MPESA: data.payment_channels?.mpesa || 0,
+              CASH: data.payment_channels?.cash || 0,
+              CREDIT: data.payment_channels?.credit_outstanding || 0,
+              PAYBILL: data.payment_channels?.paybill || 0,
+            },
           });
         }
-
-        let totalCreditIssued = 0;
-        const totals = { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 };
-
-        const sales = rawSales.filter((s) => {
-          const dateStr = getRecordDateStr(s);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
-
-        sales.forEach((sale) => {
-          const rawMethod = String(sale?.payment_method || '').toUpperCase();
-          const inlineSplits =
-            Array.isArray(sale?.split_payments) && sale.split_payments.length > 0 && typeof sale.split_payments[0] === 'object'
-              ? sale.split_payments
-              : Array.isArray(sale?.payments) && sale.payments.length > 0 && typeof sale.payments[0] === 'object'
-              ? sale.payments
-              : [];
-
-          const splitPayments = inlineSplits.length > 0 ? inlineSplits : splitMap[sale.id] || [];
-
-          const totalAmt = toNumber(sale?.total_amount || sale?.amount || sale?.total_price);
-          const initialDeposit = toNumber(
-            sale?.initial_deposit ?? sale?.deposit ?? sale?.down_payment ?? sale?.initial_paid
-          );
-
-          if (rawMethod === 'CREDIT' || Boolean(sale?.is_credit)) {
-            const debtIssued = Math.max(0, totalAmt - initialDeposit);
-            totals.CREDIT += debtIssued;
-            totalCreditIssued += debtIssued;
-
-            if (initialDeposit > 0) {
-              const depositChannel = normalizePaymentMethod(
-                sale?.deposit_payment_method || sale?.initial_payment_method || sale?.payment_mode
-              );
-              if (depositChannel === 'MPESA') totals.MPESA += initialDeposit;
-              else if (depositChannel === 'PAYBILL') totals.PAYBILL += initialDeposit;
-              else totals.CASH += initialDeposit;
-            }
-          } else if (rawMethod === 'SPLIT' || splitPayments.length > 0) {
-            let splitLiquidTotal = 0;
-
-            splitPayments.forEach((sp) => {
-              const spAmt = toNumber(sp?.amount || sp?.amount_paid || sp?.value || sp?.total);
-              const spRawMethod =
-                sp?.payment_method ||
-                sp?.method ||
-                sp?.payment_mode ||
-                sp?.channel ||
-                sp?.type ||
-                '';
-
-              const spChannel = normalizePaymentMethod(spRawMethod);
-
-              if (spChannel === 'CREDIT') {
-                totals.CREDIT += spAmt;
-                totalCreditIssued += spAmt;
-              } else {
-                splitLiquidTotal += spAmt;
-                if (spChannel === 'MPESA') totals.MPESA += spAmt;
-                else if (spChannel === 'PAYBILL') totals.PAYBILL += spAmt;
-                else totals.CASH += spAmt;
-              }
-            });
-
-            const unallocatedCredit = Math.max(0, totalAmt - (splitLiquidTotal + totals.CREDIT));
-            if (unallocatedCredit > 0) {
-              totals.CREDIT += unallocatedCredit;
-              totalCreditIssued += unallocatedCredit;
-            }
-          } else {
-            const channel = normalizePaymentMethod(sale?.payment_method);
-            if (channel === 'MPESA') totals.MPESA += totalAmt;
-            else if (channel === 'PAYBILL') totals.PAYBILL += totalAmt;
-            else totals.CASH += totalAmt;
-          }
-        });
-
-        let totalRecovered = 0;
-        const repayments = rawRepayments.filter((r) => {
-          const dateStr = getRecordDateStr(r);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
-
-        repayments.forEach((rep) => {
-          const amount = toNumber(rep?.amount || rep?.amount_paid);
-          const channel = normalizePaymentMethod(rep?.payment_method || rep?.method);
-
-          totalRecovered += amount;
-
-          if (channel === 'MPESA') totals.MPESA += amount;
-          else if (channel === 'PAYBILL') totals.PAYBILL += amount;
-          else totals.CASH += amount;
-        });
-
-        const netCreditOutstanding = Math.max(0, totalCreditIssued - totalRecovered);
-        totals.CREDIT = netCreditOutstanding;
-
-        setPaymentTotals(totals);
-
-        setCreditSummary({
-          totalCreditIssued,
-          totalRecovered,
-          outstandingCredit: netCreditOutstanding,
-        });
-
-        const purchases = rawPurchases.filter((p) => {
-          const dateStr = getRecordDateStr(p);
-          if (!dateStr) return true;
-          if (effectiveStartDate && dateStr < effectiveStartDate) return false;
-          if (effectiveEndDate && dateStr > effectiveEndDate) return false;
-          return true;
-        });
-
-        let totalRestocksValue = 0;
-        purchases.forEach((p) => {
-          totalRestocksValue += toNumber(p?.total_cost || p?.quantity * p?.unit_cost_price);
-        });
-
-        setRestockSummary({
-          totalRestocksValue,
-          totalSupplierPayables: 0,
-        });
-      } catch (err) {
-        console.error('Failed to load dashboard metrics:', err);
+      } catch (e) {
+        console.warn("Falling back to client calculation for dashboard...", e);
       } finally {
-        if (isMounted) setLoadingFinancials(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchDashboardMetrics();
+    loadDashboardMetrics();
 
     return () => {
       isMounted = false;
@@ -687,237 +508,259 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
     };
   }, [safeItems]);
 
-  const paymentBreakdown = useMemo(() => {
-    return [
-      {
-        name: 'M-Pesa / Mobile Money',
-        code: 'MPESA',
-        amount: paymentTotals.MPESA,
-        icon: '',
-        color: 'border-teal-200 bg-teal-50/50 text-teal-950',
-        badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
-      },
-      {
-        name: 'Cash Transactions',
-        code: 'CASH',
-        amount: paymentTotals.CASH,
-        icon: '',
-        color: 'border-cyan-200 bg-cyan-50/50 text-cyan-950',
-        badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
-      },
-      {
-        name: 'Credit / On Account',
-        code: 'CREDIT',
-        amount: paymentTotals.CREDIT,
-        icon: '',
-        color: 'border-amber-200 bg-amber-50/50 text-amber-950',
-        badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
-      },
-      {
-        name: 'Paybill / Till Transfer',
-        code: 'PAYBILL',
-        amount: paymentTotals.PAYBILL,
-        icon: '',
-        color: 'border-emerald-200 bg-emerald-50/50 text-emerald-950',
-        badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-      },
-    ];
-  }, [paymentTotals]);
-
   const totalCount = safeItems.length || 1;
   const healthyPct = Math.round((metrics.healthyCount / totalCount) * 100);
   const lowStockPct = Math.round((metrics.lowStockCount / totalCount) * 100);
   const outOfStockPct = Math.round((metrics.outOfStockCount / totalCount) * 100);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto font-sans">
-      {/* Hero Banner with Teal Theme Gradient */}
-      <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-teal-800/80">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-teal-300 bg-teal-900/80 px-2.5 py-1 rounded-full border border-teal-700/60 inline-block">
-              Branch Overview
+    <div className="space-y-6 max-w-7xl mx-auto font-sans">
+      {/* Top Overview KPI Row - White Cards with Logo Color Numbers */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Inventory Cost Valuation Card */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Inventory Cost Value
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight pt-1">
-              Operational & COGS Analytics
-            </h1>
-            <p className="text-xs sm:text-sm text-teal-100/80 max-w-md">
-              Real-time cost of goods sold, catalog metrics, and inventory ratios.
-            </p>
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
+              📊
+            </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-teal-900/60 p-4 rounded-2xl border border-teal-700/60 backdrop-blur-md shadow-inner">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-                Total Inventory Valuation (Cost)
-              </span>
-              <span className="text-lg sm:text-xl font-bold font-mono text-teal-300">
-                {formatCurrency(metrics.totalCostValuation)}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-                Estimated Sales COGS
-              </span>
-              <span className="text-lg sm:text-xl font-bold font-mono text-amber-300">
-                {formatCurrency(metrics.totalEstimatedCOGS)}
-              </span>
-            </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black font-mono text-[#005F73] block">
+              {formatCurrency(metrics.totalCostValuation)}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+              {safeItems.length} SKUs Cataloged
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 pt-6 border-t border-teal-800/80">
-          <div className="bg-teal-900/40 p-4 rounded-2xl border border-teal-700/40 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-                Cataloged SKUs
-              </span>
-              <span className="text-lg font-bold font-mono text-teal-200">
-                {safeItems.length} Products
-              </span>
+        {/* Estimated COGS Card */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Sales COGS (Cost of Goods)
+            </span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              🏷️
             </div>
-            <span className="text-2xl"></span>
           </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black font-mono text-[#CA6702] block">
+              {formatCurrency(metrics.totalEstimatedCOGS)}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+              Real-time Sold Cost
+            </span>
+          </div>
+        </div>
 
-          <div className="bg-teal-900/40 p-4 rounded-2xl border border-teal-700/40 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-teal-200/70 block mb-0.5">
-                Pending Management Sign-offs
-              </span>
-              <span
-                className={`text-lg font-bold font-mono ${
-                  pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-teal-100'
-                }`}
-              >
-                {pendingApprovalsCount} Requests
-              </span>
+        {/* Live Total Debt Card */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Outstanding Debt Owed
+            </span>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-700">
+              ⚖️
             </div>
-            <span className="text-2xl">⏳</span>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black font-mono text-[#9B2226] block">
+              {formatCurrency(dashboardData.creditSummary.outstandingCredit)}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+              Pending Collection
+            </span>
+          </div>
+        </div>
+
+        {/* Pending Approvals Card */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Pending Sign-Offs
+            </span>
+            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-700">
+              ⏳
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-black font-mono text-[#0A9396] block">
+              {pendingApprovalsCount} Requests
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+              Awaiting Approval
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4 hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-center border-b border-teal-50 pb-3">
+      {/* Middle Grid Section: Credit & Restocks Summaries */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Customer Credit Summary Card */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Customer Credit Summary
               </h2>
               <p className="text-[11px] text-slate-500">
                 Period credit activity & live total balance
               </p>
             </div>
-            <span className="p-2 bg-amber-50 rounded-xl border border-amber-100 text-xl"></span>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              Credit Operations
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-              <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
-                Credit Issued (Period)
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-extrabold text-slate-500 uppercase block mb-1">
+                Credit Issued
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-slate-900 block">
-                {formatCurrency(creditSummary.totalCreditIssued)}
-              </span>
-            </div>
-
-            <div className="bg-teal-50/70 p-3 rounded-xl border border-teal-200/80">
-              <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
-                Recovered (Period)
-              </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-teal-800 block">
-                {formatCurrency(creditSummary.totalRecovered)}
+              <span className="text-sm font-bold font-mono text-slate-900 block">
+                {formatCurrency(dashboardData.creditSummary.totalCreditIssued)}
               </span>
             </div>
 
-            <div className="bg-rose-50 p-3 rounded-xl border border-rose-200/80">
-              <span className="text-[9px] font-bold text-rose-600 uppercase block mb-1">
-                Live Total Debt Owed
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-extrabold text-[#0A9396] uppercase block mb-1">
+                Recovered
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-rose-700 block">
-                {formatCurrency(creditSummary.outstandingCredit)}
+              <span className="text-sm font-bold font-mono text-[#0A9396] block">
+                {formatCurrency(dashboardData.creditSummary.totalRecovered)}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-extrabold text-[#9B2226] uppercase block mb-1">
+                Outstanding Balance
+              </span>
+              <span className="text-sm font-bold font-mono text-[#9B2226] block">
+                {formatCurrency(dashboardData.creditSummary.outstandingCredit)}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4 hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-center border-b border-teal-50 pb-3">
+        {/* Restocks & Supplier Payables Card */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Restocks & Supplier Payables
               </h2>
               <p className="text-[11px] text-slate-500">
-                Purchases valuation & outstanding supplier payables
+                Purchases valuation & supplier liabilities
               </p>
             </div>
-            <span className="p-2 bg-teal-50 rounded-xl border border-teal-100 text-xl"></span>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+              Restock Log
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-teal-50/60 p-3 rounded-xl border border-teal-200/80">
-              <span className="text-[9px] font-bold text-teal-700 uppercase block mb-1">
-                Total Restock Purchases
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-extrabold text-[#005F73] uppercase block mb-1">
+                Restock Purchases
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-teal-950 block">
-                {formatCurrency(restockSummary.totalRestocksValue)}
+              <span className="text-sm font-bold font-mono text-[#005F73] block">
+                {formatCurrency(dashboardData.restockSummary.totalRestocksValue)}
               </span>
             </div>
 
-            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200/80">
-              <span className="text-[9px] font-bold text-amber-700 uppercase block mb-1">
-                Supplier Owed Payables
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <span className="text-[9px] font-extrabold text-[#CA6702] uppercase block mb-1">
+                Supplier Owed
               </span>
-              <span className="text-xs sm:text-sm font-bold font-mono text-amber-800 block">
-                {formatCurrency(restockSummary.totalSupplierPayables)}
+              <span className="text-sm font-bold font-mono text-[#CA6702] block">
+                {formatCurrency(dashboardData.restockSummary.totalSupplierPayables)}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4">
-        <div className="flex justify-between items-center border-b border-teal-50 pb-3">
+      {/* Payment & Settlement Channels - Pure White Card */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
-            <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Payment & Settlement Channels
             </h2>
             <p className="text-[11px] text-slate-500">
               Live settlement amounts processed per financial channel
             </p>
           </div>
-          {loadingFinancials && (
-            <span className="text-[11px] font-semibold text-teal-600 animate-pulse bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
+          {loading && (
+            <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200 animate-pulse">
               Syncing analytics...
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {paymentBreakdown.map((pm, idx) => (
-            <div key={idx} className={`p-4 rounded-2xl border space-y-2.5 transition-transform hover:-translate-y-0.5 ${pm.color}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-2xl">{pm.icon}</span>
-                <span
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${pm.badgeColor}`}
-                >
-                  {pm.code}
-                </span>
-              </div>
-              <div>
-                <h3 className="font-bold text-xs text-teal-950">{pm.name}</h3>
-                <span className="text-base font-bold font-mono text-teal-950 block mt-1">
-                  {formatCurrency(pm.amount)}
-                </span>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* M-Pesa Channel */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-teal-300 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">M-Pesa / Mobile</span>
+              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-[#005F73] border border-teal-200">
+                MPESA
+              </span>
             </div>
-          ))}
+            <span className="text-lg font-bold font-mono text-[#005F73]">
+              {formatCurrency(dashboardData.paymentTotals.MPESA)}
+            </span>
+          </div>
+
+          {/* Cash Channel */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-cyan-300 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">Cash Transactions</span>
+              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-50 text-[#0A9396] border border-cyan-200">
+                CASH
+              </span>
+            </div>
+            <span className="text-lg font-bold font-mono text-[#0A9396]">
+              {formatCurrency(dashboardData.paymentTotals.CASH)}
+            </span>
+          </div>
+
+          {/* Credit Channel */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">Credit / On Account</span>
+              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-[#CA6702] border border-amber-200">
+                CREDIT
+              </span>
+            </div>
+            <span className="text-lg font-bold font-mono text-[#CA6702]">
+              {formatCurrency(dashboardData.paymentTotals.CREDIT)}
+            </span>
+          </div>
+
+          {/* Paybill Channel */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-emerald-300 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">Paybill / Till Transfer</span>
+              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                PAYBILL
+              </span>
+            </div>
+            <span className="text-lg font-bold font-mono text-emerald-800">
+              {formatCurrency(dashboardData.paymentTotals.PAYBILL)}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-teal-100/90 shadow-sm space-y-4">
-        <div className="border-b border-teal-50 pb-3">
-          <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
+      {/* Inventory Health Ratio */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
+        <div className="border-b border-slate-100 pb-3">
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
             Inventory Health Ratio
           </h2>
           <p className="text-[11px] text-slate-500">
@@ -925,46 +768,48 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </p>
         </div>
 
-        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+        <div className="h-3.5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
           <div
             style={{ width: `${healthyPct}%` }}
-            className="bg-teal-500 transition-all duration-500"
+            className="bg-[#0A9396] transition-all duration-500"
             title={`Healthy Stock: ${healthyPct}%`}
           />
           <div
             style={{ width: `${lowStockPct}%` }}
-            className="bg-amber-400 transition-all duration-500"
+            className="bg-[#EE9B00] transition-all duration-500"
             title={`Low Stock: ${lowStockPct}%`}
           />
           <div
             style={{ width: `${outOfStockPct}%` }}
-            className="bg-rose-500 transition-all duration-500"
+            className="bg-[#9B2226] transition-all duration-500"
             title={`Out of Stock: ${outOfStockPct}%`}
           />
         </div>
 
         <div className="grid grid-cols-3 gap-3 pt-1 text-center text-xs">
-          <div className="p-3 bg-teal-50/70 rounded-xl border border-teal-200/80">
-            <span className="block text-[10px] font-bold text-teal-800 uppercase mb-0.5">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="block text-[10px] font-extrabold text-[#0A9396] uppercase mb-0.5">
               Optimal Stock
             </span>
-            <span className="text-base font-bold font-mono text-teal-950">
+            <span className="text-sm font-bold font-mono text-slate-900">
               {metrics.healthyCount} ({healthyPct}%)
             </span>
           </div>
-          <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80">
-            <span className="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="block text-[10px] font-extrabold text-[#CA6702] uppercase mb-0.5">
               Low Stock Threshold
             </span>
-            <span className="text-base font-bold font-mono text-amber-900">
+            <span className="text-sm font-bold font-mono text-slate-900">
               {metrics.lowStockCount} ({lowStockPct}%)
             </span>
           </div>
-          <div className="p-3 bg-rose-50/70 rounded-xl border border-rose-200/80">
-            <span className="block text-[10px] font-bold text-rose-800 uppercase mb-0.5">
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="block text-[10px] font-extrabold text-[#9B2226] uppercase mb-0.5">
               Out of Stock
             </span>
-            <span className="text-base font-bold font-mono text-rose-900">
+            <span className="text-sm font-bold font-mono text-slate-900">
               {metrics.outOfStockCount} ({outOfStockPct}%)
             </span>
           </div>
