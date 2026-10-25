@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import API from "../api";
 
-export default function CreditSalesManagement({ selectedBranch, onTransactionComplete }) {
+export default function CreditSalesManagement({ selectedBranch, effectiveRange, onTransactionComplete }) {
   const [sales, setSales] = useState([]);
   const [repayments, setRepayments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +67,13 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
         params.append("branch", selectedBranch);
       }
 
+      if (effectiveRange?.effectiveStartDate) {
+        params.append("startDate", effectiveRange.effectiveStartDate);
+      }
+      if (effectiveRange?.effectiveEndDate) {
+        params.append("endDate", effectiveRange.effectiveEndDate);
+      }
+
       const response = await API.get(`sales/?${params.toString()}`);
       
       const data = Array.isArray(response?.data)
@@ -82,7 +89,7 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, effectiveRange]);
 
   // Fetch Credit Repayments Log (Sanitized clean path)
   const fetchCreditRepayments = useCallback(async () => {
@@ -90,6 +97,14 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
       const params = new URLSearchParams();
       if (selectedBranch) {
         params.append("branch", selectedBranch);
+      }
+
+      if (effectiveRange?.effectiveStartDate) {
+        params.append("startDate", effectiveRange.effectiveStartDate);
+        params.append("date", effectiveRange.effectiveStartDate);
+      }
+      if (effectiveRange?.effectiveEndDate) {
+        params.append("endDate", effectiveRange.effectiveEndDate);
       }
 
       const endpoint = `credit-repayments/?${params.toString()}`;
@@ -106,7 +121,7 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
       console.error("Error fetching credit repayments:", error);
       setRepayments([]);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, effectiveRange]);
 
   useEffect(() => {
     fetchCreditSales();
@@ -144,17 +159,11 @@ export default function CreditSalesManagement({ selectedBranch, onTransactionCom
       return acc + Number(sale.balance_due ?? sale.due_balance ?? 0);
     }, 0);
 
-    // Sum actual recorded repayments from the credit-repayments API response
-    const totalRecoveredFromLogs = (Array.isArray(repayments) ? repayments : []).reduce(
+    // Sum actual recorded repayments returned by API for the selected active period
+    const totalRecovered = (Array.isArray(repayments) ? repayments : []).reduce(
       (acc, rep) => acc + Number(rep.amount || rep.amount_paid || 0),
       0
     );
-
-    // Fallback calculation in case repayments log array is empty
-    const derivedRecovered = Math.max(0, totalAmount - totalBalanceDue);
-
-    const totalRecovered =
-      totalRecoveredFromLogs > 0 ? totalRecoveredFromLogs : derivedRecovered;
 
     return {
       totalAmount,
