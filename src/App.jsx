@@ -198,7 +198,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
   const [dashboardData, setDashboardData] = useState({
     creditSummary: { totalCreditIssued: 0, totalRecovered: 0, outstandingCredit: 0 },
     restockSummary: { totalRestocksValue: 0, totalSupplierPayables: 0 },
-    paymentTotals: { MPESA: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 },
+    paymentTotals: { SEND_MONEY: 0, CASH: 0, CREDIT: 0, PAYBILL: 0 },
   });
 
   const [loading, setLoading] = useState(false);
@@ -237,7 +237,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               totalSupplierPayables: data.restocks?.supplier_payables || 0,
             },
             paymentTotals: {
-              MPESA: data.payment_channels?.mpesa || 0,
+              SEND_MONEY: data.payment_channels?.send_money || data.payment_channels?.mpesa || 0,
               CASH: data.payment_channels?.cash || 0,
               CREDIT: data.payment_channels?.credit_outstanding || 0,
               PAYBILL: data.payment_channels?.paybill || 0,
@@ -291,7 +291,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Inventory Cost Value
             </span>
-            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-700">📊</div>
+            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-700"></div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#005F73] block">
@@ -308,7 +308,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Sales COGS (Cost of Goods)
             </span>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700">🏷️</div>
+            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700"></div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#CA6702] block">
@@ -325,7 +325,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Outstanding Debt Owed
             </span>
-            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700">⚖️</div>
+            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700"></div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#9B2226] block">
@@ -342,7 +342,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Pending Sign-Offs
             </span>
-            <div className="p-2.5 rounded-xl bg-cyan-50 text-cyan-700">⏳</div>
+            <div className="p-2.5 rounded-xl bg-cyan-50 text-cyan-700"></div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#0A9396] block">
@@ -460,13 +460,13 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-teal-300 transition-colors">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-slate-700">M-Pesa / Mobile</span>
+              <span className="text-xs font-bold text-slate-700">Send Money</span>
               <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-[#005F73] border border-teal-200">
-                MPESA
+                SEND_MONEY
               </span>
             </div>
             <span className="text-2xl font-bold font-mono text-[#005F73]">
-              {formatCurrency(dashboardData.paymentTotals.MPESA)}
+              {formatCurrency(dashboardData.paymentTotals.SEND_MONEY)}
             </span>
           </div>
 
@@ -496,7 +496,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-colors">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-slate-700">Paybill / Till Transfer</span>
+              <span className="text-xs font-bold text-slate-700">Paybill</span>
               <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                 PAYBILL
               </span>
