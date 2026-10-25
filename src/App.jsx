@@ -306,40 +306,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => onNavigateTab('sales')}
-            className="px-3.5 py-2 rounded-xl bg-[#005F73] hover:bg-teal-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <span>🛒</span>
-            <span>New Sale Entry</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('credit')}
-            className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <span>💳</span>
-            <span>Record Repayment</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('stock_ops')}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <span>📦</span>
-            <span>Check Stock</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('expenses')}
-            className="px-3.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-          >
-            <span>💸</span>
-            <span>Log Expense</span>
-          </button>
-        </div>
-      </div>
+        
 
       {/* 2. Top Overview KPI Row - White Cards with Logo Color Numbers */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -350,7 +317,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               Inventory Cost Value
             </span>
             <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
-              📊
+              
             </div>
           </div>
           <div className="mt-3">
@@ -410,7 +377,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
               Pending Sign-Offs
             </span>
             <div className="p-2 rounded-xl bg-cyan-50 text-cyan-700">
-              ⏳
+              
             </div>
           </div>
           <div className="mt-3">
@@ -579,24 +546,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      {/* 5. Recent Register Activity Feed */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-          <div>
-            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Recent Register Activity
-            </h2>
-            <p className="text-[11px] text-slate-500">
-              Latest transactions recorded across POS register terminals
-            </p>
-          </div>
-          <button
-            onClick={() => onNavigateTab('receipts')}
-            className="text-xs font-bold text-[#005F73] hover:underline cursor-pointer"
-          >
-            View All Logs →
-          </button>
-        </div>
+
 
         {recentSales.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200/80">
@@ -771,15 +721,15 @@ function UserDashboard({ items, fetchItems }) {
   const lowStockCount = safeItems.filter((item) => Boolean(item?.is_low_stock)).length;
 
   const tabs = [
-    { key: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { key: 'sales', label: 'Sales Entry', icon: '🛒' },
-    { key: 'receipts', label: 'Receipts & Sales Logs', icon: '📄' },
-    { key: 'credit', label: 'Credit Sales', icon: '💳' },
-    { key: 'stock_ops', label: 'Stock Operations', icon: '📦' },
-    { key: 'approvals', label: 'Approvals & Requests', icon: '⏳', badge: pendingApprovalsCount, badgeColor: 'bg-[#005F73] text-white' },
-    { key: 'alerts', label: 'Low Stock Alerts', icon: '⚠️', badge: lowStockCount, badgeColor: 'bg-[#CA6702] text-white' },
-    { key: 'restock', label: 'Restock', icon: '🔄' },
-    { key: 'expenses', label: 'Expenses', icon: '💸' },
+    { key: 'dashboard', label: 'Dashboard', icon: '' },
+    { key: 'sales', label: 'Sales Entry', icon: '' },
+    { key: 'receipts', label: 'Receipts & Sales Logs', icon: '' },
+    { key: 'credit', label: 'Credit Sales', icon: '' },
+    { key: 'stock_ops', label: 'Stock Operations', icon: '' },
+    { key: 'approvals', label: 'Approvals & Requests', icon: '', badge: pendingApprovalsCount, badgeColor: 'bg-[#005F73] text-white' },
+    { key: 'alerts', label: 'Low Stock Alerts', icon: '', badge: lowStockCount, badgeColor: 'bg-[#CA6702] text-white' },
+    { key: 'restock', label: 'Restock', icon: '' },
+    { key: 'expenses', label: 'Expenses', icon: '' },
   ];
 
   return (
