@@ -291,7 +291,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Inventory Cost Value
             </span>
-            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-700"></div>
+            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-700">📊</div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#005F73] block">
@@ -308,7 +308,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Sales COGS (Cost of Goods)
             </span>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700"></div>
+            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700">🏷️</div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#CA6702] block">
@@ -325,7 +325,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Outstanding Debt Owed
             </span>
-            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700"></div>
+            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700">⚖️</div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#9B2226] block">
@@ -342,7 +342,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
               Pending Sign-Offs
             </span>
-            <div className="p-2.5 rounded-xl bg-cyan-50 text-cyan-700"></div>
+            <div className="p-2.5 rounded-xl bg-cyan-50 text-cyan-700">⏳</div>
           </div>
           <div className="mt-4">
             <span className="text-2xl lg:text-3xl font-black font-mono text-[#0A9396] block">
@@ -539,13 +539,31 @@ function UserDashboard({ items, fetchItems }) {
     }
   });
 
-  const [dateFilter, setDateFilter] = useState({
-    filterMode: 'DAILY',
-    selectedDay: formatDateString(new Date()),
-    selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    startDate: '',
-    endDate: '',
+  const [dateFilter, setDateFilter] = useState(() => {
+    try {
+      const savedFilter = localStorage.getItem('user_date_filter');
+      if (savedFilter) {
+        return JSON.parse(savedFilter);
+      }
+    } catch (e) {
+      /* ignore error */
+    }
+    return {
+      filterMode: 'DAILY',
+      selectedDay: formatDateString(new Date()),
+      selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+      startDate: '',
+      endDate: '',
+    };
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('user_date_filter', JSON.stringify(dateFilter));
+    } catch (e) {
+      /* ignore */
+    }
+  }, [dateFilter]);
 
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
