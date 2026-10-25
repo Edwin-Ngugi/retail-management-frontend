@@ -30,6 +30,7 @@ import CreditSaleManagement from './components/CreditSalesManagement';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import ManagementDashboard from './components/ManagementDashboard';
+import ManagementLogin from './components/ManagementLogin';
 import AuthPage from './components/AuthPage';
 import ReceiptsLogManagement from './components/ReceiptsLogManagement';
 import ApprovalsDashboard from './components/ApprovalsDashboard';
@@ -42,6 +43,7 @@ import LowStockAlerts from './components/LowStocksAlerts';
    PORTAL-SPECIFIC ROUTE GUARDS
 ========================================================= */
 
+// 1. Standard POS User Route Guard
 const ProtectedRoute = () => {
   const token =
     localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -53,6 +55,7 @@ const ProtectedRoute = () => {
   return <Outlet />;
 };
 
+// 2. Admin Portal Route Guard
 const AdminRoute = ({ onItemsUpdated }) => {
   const token =
     localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -62,6 +65,18 @@ const AdminRoute = ({ onItemsUpdated }) => {
   }
 
   return <AdminDashboard onItemsUpdated={onItemsUpdated} />;
+};
+
+// 3. Management Portal Route Guard
+const ManagementRoute = () => {
+  const token =
+    localStorage.getItem('access_token') || localStorage.getItem('token');
+
+  if (!token) {
+    return <ManagementLogin />;
+  }
+
+  return <ManagementDashboard />;
 };
 
 /* =========================================================
@@ -196,7 +211,6 @@ const fetchPaginatedData = async (initialEndpoint) => {
   let results = [];
   let currentEndpoint = initialEndpoint;
 
-  // Retrieve access token from localStorage
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -215,7 +229,6 @@ const fetchPaginatedData = async (initialEndpoint) => {
     }
 
     try {
-      // Pass auth headers to avoid 401 Unauthorized errors
       const res = await API.get(cleanPath, { headers: authHeader });
       const data = res.data;
 
@@ -1246,12 +1259,20 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Standard User Auth */}
       <Route path="/login" element={<AuthPage />} />
-      <Route path="/management" element={<ManagementDashboard />} />
+
+      {/* Management Portal */}
+      <Route path="/management" element={<ManagementRoute />} />
+
+      {/* Admin Portal */}
       <Route path="/admin" element={<AdminRoute onItemsUpdated={fetchItems} />} />
+
+      {/* User POS Portal */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<UserDashboard items={items} fetchItems={fetchItems} />} />
       </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

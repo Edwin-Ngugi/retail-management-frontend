@@ -1,10 +1,8 @@
 import axios from 'axios';
 
-// Detect and normalize base URL to /apis/
 const getBaseURL = () => {
   let url = import.meta.env?.VITE_API_BASE_URL || 'https://api.melvexbusinesssolutions.com/apis/';
   
-  // Guarantee /apis/ path is present in production domain
   if (url.includes('api.melvexbusinesssolutions.com')) {
     url = 'https://api.melvexbusinesssolutions.com/apis/';
   }
@@ -32,25 +30,23 @@ const API = axios.create({
   },
 });
 
+// Request Interceptor: Attach Bearer token & sanitize URLs
 API.interceptors.request.use(
   (config) => {
     config.baseURL = BASE_URL;
 
-    // Remove leading slashes/prefixes from request URLs to prevent double slashes or route duplication
     if (config.url) {
       if (config.url.startsWith('http://') || config.url.startsWith('https://')) {
         const urlObj = new URL(config.url);
         config.url = urlObj.pathname + urlObj.search;
       }
       
-      // Clean leading slashes and duplicate api/apis prefixes
       config.url = config.url.replace(/^\/(apis|api)\//, '');
       if (config.url.startsWith('/')) {
         config.url = config.url.slice(1);
       }
     }
 
-    // Attach JWT Authorization Header dynamically
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -59,6 +55,41 @@ API.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Route 401s dynamically by portal
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear session storage
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('user');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+
+      const path = window.location.pathname;
+
+      // Smart Redirect based on current active portal
+      if (path.startsWith('/admin')) {
+        if (!path.includes('/admin/login')) {
+          window.location.href = '/admin'; // Triggers AdminLogin via App.jsx AdminRoute
+        }
+      } else if (path.startsWith('/management')) {
+        if (!path.includes('/management/login')) {
+          window.location.href = '/management'; // Triggers ManagementLogin via ManagementRoute
+        }
+      } else {
+        if (!path.includes('/login')) {
+          window.location.href = '/login'; // Triggers AuthPage via ProtectedRoute
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default API;
