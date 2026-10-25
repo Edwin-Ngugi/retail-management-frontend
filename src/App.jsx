@@ -43,7 +43,6 @@ import LowStockAlerts from './components/LowStocksAlerts';
    PORTAL-SPECIFIC ROUTE GUARDS
 ========================================================= */
 
-// 1. Standard POS User Route Guard
 const ProtectedRoute = () => {
   const token =
     localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -55,7 +54,6 @@ const ProtectedRoute = () => {
   return <Outlet />;
 };
 
-// 2. Admin Portal Route Guard
 const AdminRoute = ({ onItemsUpdated }) => {
   const token =
     localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -67,7 +65,6 @@ const AdminRoute = ({ onItemsUpdated }) => {
   return <AdminDashboard onItemsUpdated={onItemsUpdated} />;
 };
 
-// 3. Management Portal Route Guard
 const ManagementRoute = () => {
   const token =
     localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -135,121 +132,6 @@ const formatDateString = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const getRecordDateStr = (record) => {
-  const rawDate =
-    record?.date ||
-    record?.payment_date ||
-    record?.repayment_date ||
-    record?.created_at ||
-    record?.sale_date ||
-    record?.purchase_date ||
-    record?.timestamp;
-
-  if (!rawDate) return '';
-
-  if (typeof rawDate === 'string') {
-    return rawDate.split('T')[0];
-  }
-
-  try {
-    return new Date(rawDate).toISOString().split('T')[0];
-  } catch {
-    return '';
-  }
-};
-
-const normalizePaymentMethod = (methodName) => {
-  if (!methodName) return 'CASH';
-  const clean = String(methodName).trim().toUpperCase().replace(/[- ]/g, '_');
-
-  if (
-    clean.includes('PAYBILL') ||
-    clean.includes('PAY_BILL') ||
-    clean.includes('C2B')
-  ) {
-    return 'PAYBILL';
-  }
-
-  if (
-    clean.includes('SEND_MONEY') ||
-    clean.includes('SENDMONEY') ||
-    clean.includes('TILL') ||
-    clean.includes('BUY_GOODS') ||
-    clean.includes('BUYGOODS') ||
-    clean.includes('P2P') ||
-    clean.includes('MPESA') ||
-    clean.includes('M_PESA') ||
-    clean.includes('MOBILE')
-  ) {
-    return 'MPESA';
-  }
-
-  if (
-    clean.includes('CREDIT') ||
-    clean.includes('DEBT') ||
-    clean.includes('ON_ACCOUNT')
-  ) {
-    return 'CREDIT';
-  }
-
-  if (
-    clean.includes('BANK') ||
-    clean.includes('TRANSFER') ||
-    clean.includes('EFT')
-  ) {
-    return 'BANK_TRANSFER';
-  }
-
-  if (clean.includes('SPLIT')) {
-    return 'SPLIT';
-  }
-
-  return 'CASH';
-};
-
-const fetchPaginatedData = async (initialEndpoint) => {
-  let results = [];
-  let currentEndpoint = initialEndpoint;
-
-  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
-
-  while (currentEndpoint) {
-    let cleanPath = currentEndpoint;
-
-    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-      const urlObj = new URL(cleanPath);
-      cleanPath = urlObj.pathname + urlObj.search;
-    }
-
-    if (cleanPath.startsWith('/api/')) {
-      cleanPath = cleanPath.replace(/^\/api\//, '');
-    } else if (cleanPath.startsWith('/')) {
-      cleanPath = cleanPath.slice(1);
-    }
-
-    try {
-      const res = await API.get(cleanPath, { headers: authHeader });
-      const data = res.data;
-
-      if (Array.isArray(data)) {
-        results = results.concat(data);
-        break;
-      } else if (data?.results && Array.isArray(data.results)) {
-        results = results.concat(data.results);
-        currentEndpoint = data.next ? data.next : null;
-      } else {
-        break;
-      }
-    } catch (e) {
-      console.warn(`Failed fetching paginated path: ${cleanPath}`, e);
-      break;
-    }
-  }
-
-  return results;
-};
-
 /* =========================================================
    ERROR BOUNDARY CLASS COMPONENT
 ========================================================= */
@@ -304,14 +186,14 @@ class ErrorBoundary extends React.Component {
 }
 
 /* =========================================================
-   GLOBAL DATE RANGE SELECTOR BAR
+   GLOBAL DATE RANGE SELECTOR BAR (TOP BAR INTEGRATED)
 ========================================================= */
 
 function GlobalDateFilterBar({ dateFilter, setDateFilter }) {
   const { filterMode, selectedDay, selectedMonth, startDate, endDate } = dateFilter;
 
   return (
-    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-teal-100/80 shadow-sm space-y-3 mb-6">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-sm space-y-3 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xs font-bold text-teal-950 uppercase tracking-wider">
@@ -458,7 +340,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           });
         }
       } catch (e) {
-        console.warn("Falling back to client calculation for dashboard...", e);
+        console.warn("Falling back to local calculation for dashboard...", e);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -475,8 +357,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
     let totalCostValuation = 0;
     let totalRetailValuation = 0;
     let totalEstimatedCOGS = 0;
-    let lowStockCount = 0;
-    let outOfStockCount = 0;
 
     safeItems.forEach((item) => {
       const qty = getRemainingStock(item);
@@ -488,30 +368,14 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
 
       const totalUnitsSold = toNumber(item?.total_stock_sold || item?.quantity_sold || 0);
       totalEstimatedCOGS += totalUnitsSold * cost;
-
-      if (qty === 0) {
-        outOfStockCount++;
-      } else if (Boolean(item?.is_low_stock)) {
-        lowStockCount++;
-      }
     });
-
-    const healthyCount = Math.max(0, safeItems.length - lowStockCount - outOfStockCount);
 
     return {
       totalCostValuation,
       totalRetailValuation,
       totalEstimatedCOGS,
-      lowStockCount,
-      outOfStockCount,
-      healthyCount,
     };
   }, [safeItems]);
-
-  const totalCount = safeItems.length || 1;
-  const healthyPct = Math.round((metrics.healthyCount / totalCount) * 100);
-  const lowStockPct = Math.round((metrics.lowStockCount / totalCount) * 100);
-  const outOfStockPct = Math.round((metrics.outOfStockCount / totalCount) * 100);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans">
@@ -684,7 +548,7 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
       </div>
 
-      {/* Payment & Settlement Channels - Pure White Card */}
+      {/* Payment & Settlement Channels */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
@@ -703,7 +567,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* M-Pesa Channel */}
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-teal-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-700">M-Pesa / Mobile</span>
@@ -716,7 +579,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             </span>
           </div>
 
-          {/* Cash Channel */}
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-cyan-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-700">Cash Transactions</span>
@@ -729,7 +591,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             </span>
           </div>
 
-          {/* Credit Channel */}
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-amber-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-700">Credit / On Account</span>
@@ -742,7 +603,6 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
             </span>
           </div>
 
-          {/* Paybill Channel */}
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-emerald-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-slate-700">Paybill / Till Transfer</span>
@@ -756,71 +616,12 @@ function MainPortalDashboard({ items = [], pendingApprovalsCount = 0, effectiveR
           </div>
         </div>
       </div>
-
-      {/* Inventory Health Ratio */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="border-b border-slate-100 pb-3">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-            Inventory Health Ratio
-          </h2>
-          <p className="text-[11px] text-slate-500">
-            Proportion of optimal vs. threshold stock across registered items
-          </p>
-        </div>
-
-        <div className="h-3.5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-          <div
-            style={{ width: `${healthyPct}%` }}
-            className="bg-[#0A9396] transition-all duration-500"
-            title={`Healthy Stock: ${healthyPct}%`}
-          />
-          <div
-            style={{ width: `${lowStockPct}%` }}
-            className="bg-[#EE9B00] transition-all duration-500"
-            title={`Low Stock: ${lowStockPct}%`}
-          />
-          <div
-            style={{ width: `${outOfStockPct}%` }}
-            className="bg-[#9B2226] transition-all duration-500"
-            title={`Out of Stock: ${outOfStockPct}%`}
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 pt-1 text-center text-xs">
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-            <span className="block text-[10px] font-extrabold text-[#0A9396] uppercase mb-0.5">
-              Optimal Stock
-            </span>
-            <span className="text-sm font-bold font-mono text-slate-900">
-              {metrics.healthyCount} ({healthyPct}%)
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-            <span className="block text-[10px] font-extrabold text-[#CA6702] uppercase mb-0.5">
-              Low Stock Threshold
-            </span>
-            <span className="text-sm font-bold font-mono text-slate-900">
-              {metrics.lowStockCount} ({lowStockPct}%)
-            </span>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-            <span className="block text-[10px] font-extrabold text-[#9B2226] uppercase mb-0.5">
-              Out of Stock
-            </span>
-            <span className="text-sm font-bold font-mono text-slate-900">
-              {metrics.outOfStockCount} ({outOfStockPct}%)
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
 /* =========================================================
-   USER DASHBOARD PORTAL
+   USER DASHBOARD PORTAL (SIDEBAR + TOPBAR LAYOUT)
 ========================================================= */
 
 function UserDashboard({ items, fetchItems }) {
@@ -855,9 +656,7 @@ function UserDashboard({ items, fetchItems }) {
     endDate: '',
   });
 
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-  const dropdownRef = useRef(null);
 
   const branchContext = useBranch() || {};
   const {
@@ -951,33 +750,92 @@ function UserDashboard({ items, fetchItems }) {
   const lowStockCount = safeItems.filter((item) => Boolean(item?.is_low_stock)).length;
 
   const tabs = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'sales', label: 'Sales Entry' },
-    { key: 'receipts', label: 'Receipts & Sales Logs' },
-    { key: 'credit', label: 'Credit Sales' },
-    { key: 'stock_ops', label: 'Stock Operations' },
-    { key: 'approvals', label: 'Approvals & Requests', badge: pendingApprovalsCount, badgeColor: 'bg-teal-500 text-white' },
-    { key: 'alerts', label: 'Low Stock Alerts', badge: lowStockCount, badgeColor: 'bg-amber-500 text-white' },
-    { key: 'restock', label: 'Restock' },
-    { key: 'expenses', label: 'Expenses' },
+    { key: 'dashboard', label: 'Dashboard', icon: '🏠' },
+    { key: 'sales', label: 'Sales Entry', icon: '🛒' },
+    { key: 'receipts', label: 'Receipts & Sales Logs', icon: '📄' },
+    { key: 'credit', label: 'Credit Sales', icon: '💳' },
+    { key: 'stock_ops', label: 'Stock Operations', icon: '📦' },
+    { key: 'approvals', label: 'Approvals & Requests', icon: '⏳', badge: pendingApprovalsCount, badgeColor: 'bg-[#005F73] text-white' },
+    { key: 'alerts', label: 'Low Stock Alerts', icon: '⚠️', badge: lowStockCount, badgeColor: 'bg-[#CA6702] text-white' },
+    { key: 'restock', label: 'Restock', icon: '🔄' },
+    { key: 'expenses', label: 'Expenses', icon: '💸' },
   ];
 
   return (
-    <div className="min-h-screen flex flex-col text-teal-950 font-sans bg-slate-50/50">
-      {/* Navigation Header in Dark Teal */}
-      <nav className="flex-none bg-teal-950 border-b border-teal-900 px-3 sm:px-6 lg:px-8 py-2.5 sticky top-0 z-30 shadow-md">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 sm:gap-4 max-w-[1600px] mx-auto w-full">
-          <div className="flex flex-wrap items-center justify-between xl:justify-start gap-3 sm:gap-4">
-            <div className="flex items-center gap-3">
-              <img
-                src="/logo.svg"
-                alt="Melvex Business Solutions"
-                className="h-10 sm:h-12 xl:h-14 w-auto object-contain cursor-pointer transition-transform duration-200 hover:scale-105"
-                onClick={() => setActiveTab('dashboard')}
-              />
+    <div className="min-h-screen flex text-teal-950 font-sans bg-slate-50/50">
+      {/* 1. LEFT SIDEBAR MENU */}
+      <aside className="w-64 bg-teal-950 text-white flex flex-col fixed inset-y-0 left-0 z-40 border-r border-teal-900 shadow-xl">
+        <div className="p-5 border-b border-teal-900 flex items-center justify-between">
+          <img
+            src="/logo.svg"
+            alt="Melvex Business Solutions"
+            className="h-10 w-auto object-contain cursor-pointer"
+            onClick={() => setActiveTab('dashboard')}
+          />
+        </div>
 
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key);
+                localStorage.setItem('user_active_tab', tab.key);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                activeTab === tab.key
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'text-teal-100/80 hover:text-white hover:bg-teal-900/60'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </div>
+              {tab.badge > 0 && (
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tab.badgeColor}`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-teal-900 bg-teal-900/40">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-900/40 hover:bg-rose-800 text-rose-200 text-xs font-bold border border-rose-700/50 transition cursor-pointer"
+          >
+            <span>🚪</span>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. MAIN CONTENT AREA WITH TOP BAR */}
+      <div className="flex-1 pl-64 flex flex-col min-w-0">
+        {/* TOP BAR: Branch, Portals, Date Horizon & Account */}
+        <header className="bg-teal-950 border-b border-teal-900 px-6 py-3 sticky top-0 z-30 shadow-md">
+          <div className="flex flex-wrap items-center justify-between gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-4">
+              {/* Branch Selector */}
+              <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1.5 rounded-xl">
+                <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
+                <select
+                  value={selectedBranch || ''}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  disabled={loadingBranches || !branches.length}
+                  className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id} className="bg-teal-950 text-white">{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Portal Links */}
               {(currentUser.is_staff || currentUser.is_superuser) && (
-                <div className="hidden md:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-3">
+                <div className="hidden md:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-4">
                   <span className="text-teal-300 font-bold">Portals:</span>
                   <button onClick={() => navigate('/')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/' ? 'text-teal-200 font-bold' : ''}`}>User</button> •
                   <button onClick={() => navigate('/management')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/management' ? 'text-teal-200 font-bold' : ''}`}>Management</button> •
@@ -986,92 +844,53 @@ function UserDashboard({ items, fetchItems }) {
               )}
             </div>
 
-            <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl">
-              <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
-              <select
-                value={selectedBranch || ''}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                disabled={loadingBranches || !branches.length}
-                className="bg-transparent text-white text-xs font-semibold outline-none cursor-pointer"
-              >
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-teal-950 text-white">{b.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 justify-between xl:justify-end overflow-hidden">
-            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-teal-900/60 rounded-xl border border-teal-800 overflow-x-auto scrollbar-none max-w-full">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 ${
-                    activeTab === tab.key
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'text-teal-100/80 hover:text-white hover:bg-teal-800/50'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.badge > 0 && (
-                    <span className={`ml-1.5 ${tab.badgeColor || 'bg-teal-500 text-white'} text-[10px] font-extrabold px-1.5 py-0.2 rounded-full`}>
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative shrink-0" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setShowAccountDropdown((prev) => !prev)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold border border-teal-800 hover:bg-teal-800 transition cursor-pointer"
-              >
+            {/* Account Info */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold border border-teal-800">
                 <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                  {currentUser.username ? currentUser.username.charAt(0) : 'A'}
+                  {currentUser.username ? currentUser.username.charAt(0) : 'U'}
                 </div>
-                <span className="hidden sm:inline">Account</span>
-              </button>
+                <span>{currentUser.username}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
-        <GlobalDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
+        {/* MAIN BODY CONTENT */}
+        <main className="flex-1 p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+          <GlobalDateFilterBar dateFilter={dateFilter} setDateFilter={setDateFilter} />
 
-        {activeTab === 'dashboard' && (
-          <MainPortalDashboard
-            items={safeItems}
-            pendingApprovalsCount={pendingApprovalsCount}
-            effectiveRange={effectiveRange}
-          />
-        )}
-        {activeTab === 'sales' && (
-          <SalesEntry items={safeItems} selectedBranch={selectedBranch} onSalesSubmitted={fetchItems} />
-        )}
-        {activeTab === 'receipts' && (
-          <ReceiptsLogManagement selectedBranch={selectedBranch} onTransactionAdjusted={fetchItems} effectiveRange={effectiveRange} />
-        )}
-        {activeTab === 'credit' && (
-          <CreditSaleManagement selectedBranch={selectedBranch} items={safeItems} onTransactionComplete={fetchItems} effectiveRange={effectiveRange} />
-        )}
-        {activeTab === 'stock_ops' && (
-          <StockOperations items={safeItems} selectedBranch={selectedBranch} onItemUpdateSuccess={fetchItems} />
-        )}
-        {activeTab === 'approvals' && (
-          <ApprovalsDashboard selectedBranch={selectedBranch} onApprovalComplete={fetchItems} />
-        )}
-        {activeTab === 'alerts' && (
-          <LowStockAlerts items={safeItems} selectedBranch={selectedBranch} onRestockSuccess={fetchItems} />
-        )}
-        {activeTab === 'restock' && (
-          <RestockManagement items={safeItems} selectedBranch={selectedBranch} onRestockSuccess={fetchItems} effectiveRange={effectiveRange} />
-        )}
-        {activeTab === 'expenses' && <ExpenseManagement selectedBranch={selectedBranch} effectiveRange={effectiveRange} />}
-      </main>
+          {activeTab === 'dashboard' && (
+            <MainPortalDashboard
+              items={safeItems}
+              pendingApprovalsCount={pendingApprovalsCount}
+              effectiveRange={effectiveRange}
+            />
+          )}
+          {activeTab === 'sales' && (
+            <SalesEntry items={safeItems} selectedBranch={selectedBranch} onSalesSubmitted={fetchItems} />
+          )}
+          {activeTab === 'receipts' && (
+            <ReceiptsLogManagement selectedBranch={selectedBranch} onTransactionAdjusted={fetchItems} effectiveRange={effectiveRange} />
+          )}
+          {activeTab === 'credit' && (
+            <CreditSaleManagement selectedBranch={selectedBranch} items={safeItems} onTransactionComplete={fetchItems} effectiveRange={effectiveRange} />
+          )}
+          {activeTab === 'stock_ops' && (
+            <StockOperations items={safeItems} selectedBranch={selectedBranch} onItemUpdateSuccess={fetchItems} />
+          )}
+          {activeTab === 'approvals' && (
+            <ApprovalsDashboard selectedBranch={selectedBranch} onApprovalComplete={fetchItems} />
+          )}
+          {activeTab === 'alerts' && (
+            <LowStockAlerts items={safeItems} selectedBranch={selectedBranch} onRestockSuccess={fetchItems} />
+          )}
+          {activeTab === 'restock' && (
+            <RestockManagement items={safeItems} selectedBranch={selectedBranch} onRestockSuccess={fetchItems} effectiveRange={effectiveRange} />
+          )}
+          {activeTab === 'expenses' && <ExpenseManagement selectedBranch={selectedBranch} effectiveRange={effectiveRange} />}
+        </main>
+      </div>
     </div>
   );
 }
@@ -1104,20 +923,12 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Standard User Auth */}
       <Route path="/login" element={<AuthPage />} />
-
-      {/* Management Portal */}
       <Route path="/management" element={<ManagementRoute />} />
-
-      {/* Admin Portal */}
       <Route path="/admin" element={<AdminRoute onItemsUpdated={fetchItems} />} />
-
-      {/* User POS Portal */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<UserDashboard items={items} fetchItems={fetchItems} />} />
       </Route>
-
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
