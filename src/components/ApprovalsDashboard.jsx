@@ -10,6 +10,24 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
+  // Parse current user permissions
+  const currentUser = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      /* ignore */
+    }
+    return {
+      username: localStorage.getItem('username') || 'Store Manager',
+      role: localStorage.getItem('role') || 'User',
+      is_staff: localStorage.getItem('is_staff') === 'true',
+      is_superuser: localStorage.getItem('is_superuser') === 'true',
+    };
+  }, []);
+
+  const isManagementOrAdmin = currentUser.is_staff || currentUser.is_superuser;
+
   // Hidden Request IDs (Stored in localStorage)
   const [hiddenRequestIds, setHiddenRequestIds] = useState(() => {
     try {
@@ -58,20 +76,6 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
     fetchRequests();
   }, [fetchRequests]);
 
-  const handleHideRequest = (e, id) => {
-    e.stopPropagation();
-    setHiddenRequestIds((prev) => [...new Set([...prev, id])]);
-  };
-
-  const handleUnhideRequest = (e, id) => {
-    e.stopPropagation();
-    setHiddenRequestIds((prev) => prev.filter((hiddenId) => hiddenId !== id));
-  };
-
-  const handleUnhideAll = () => {
-    setHiddenRequestIds([]);
-  };
-
   const metrics = useMemo(() => {
     const total = requests.length;
     const pending = requests.filter((r) => r.status === 'PENDING').length;
@@ -93,6 +97,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
 
   const categories = [
     { id: 'ALL', label: 'All Categories' },
+    { id: 'RESTOCK_PURCHASE', label: 'Restock Purchases' },
     { id: 'SALE_ENTRY', label: 'Sales & Discounts' },
     { id: 'PRICE_QUERY', label: 'Price Queries' },
     { id: 'NEW_REGISTERED_ITEMS', label: 'Item Registrations' },
@@ -103,6 +108,9 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
   const getCategoryInfo = (type) => {
     const key = String(type || '').toUpperCase();
     switch (key) {
+      case 'RESTOCK_PURCHASE':
+      case 'RESTOCK':
+        return { label: 'RESTOCK PURCHASE', style: 'bg-teal-50 text-teal-800 border-teal-200' };
       case 'NEW_REGISTERED_ITEMS':
       case 'NEW_ITEMS':
         return { label: 'ITEM REGISTRATION', style: 'bg-teal-50 text-teal-800 border-teal-200' };
@@ -118,6 +126,20 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
       default:
         return { label: key.replace(/_/g, ' '), style: 'bg-teal-50 text-teal-800 border-teal-200' };
     }
+  };
+
+  const getPayloadItems = (payload) => {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    return (
+      payload.items ||
+      payload.purchases ||
+      payload.order_items ||
+      payload.cart_summary ||
+      payload.line_items ||
+      payload.items_list ||
+      []
+    );
   };
 
   const handleDelete = async (id) => {
@@ -151,7 +173,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
     setEditRequestType(req.request_type || 'NEW_REGISTERED_ITEMS');
     setEditTargetBranch(req.payload?.target_branch || req.payload?.branch_id || '');
     setEditMessage(req.payload?.message || '');
-    const items = req.payload?.items || req.payload?.cart_summary || [];
+    const items = getPayloadItems(req.payload);
     setEditPayloadItems(JSON.parse(JSON.stringify(items)));
   };
 
@@ -176,7 +198,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
     if (!editingRequest) return;
     setActionLoading(editingRequest.id);
 
-    const validRequestType = ['NEW_REGISTERED_ITEMS', 'SALE_ENTRY', 'BRANCH_CREATION', 'PRICE_QUERY'].includes(editRequestType)
+    const validRequestType = ['NEW_REGISTERED_ITEMS', 'SALE_ENTRY', 'BRANCH_CREATION', 'PRICE_QUERY', 'RESTOCK_PURCHASE'].includes(editRequestType)
       ? editRequestType
       : 'SALE_ENTRY';
 
@@ -185,6 +207,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
       target_branch: editTargetBranch || selectedBranch || editingRequest.payload?.target_branch,
       message: editMessage,
       items: editPayloadItems,
+      purchases: editPayloadItems,
       cart_summary: editPayloadItems,
     };
 
@@ -337,7 +360,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
             const isExpanded = expandedId === req.id;
             const isHidden = hiddenRequestIds.includes(req.id);
             const payload = req.payload || {};
-            const items = payload.items || payload.cart_summary || [];
+            const items = getPayloadItems(payload);
             const reqType = req.request_type || 'NEW_REGISTERED_ITEMS';
             const categoryBadge = getCategoryInfo(reqType);
             const status = req.status?.toUpperCase() || 'PENDING';
@@ -431,7 +454,8 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                           </>
                         )}
 
-                        {status.includes('PENDING') && (
+                        {/* APPROVE AND REJECT BUTTONS ONLY SHOWN TO MANAGEMENT/ADMIN */}
+                        {isManagementOrAdmin && status.includes('PENDING') && (
                           <>
                             <button
                               onClick={() => handleApprove(req.id)}
@@ -475,19 +499,19 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                           <tbody className="divide-y divide-teal-50 text-slate-800">
                             {items.map((item, i) => {
                               const costPrice = toNumber(
-                                item.unit_cost_price ?? item.cost_price ?? item.cost ?? 0
+                                item.unit_cost_price ?? item.cost_price ?? item.unit_cost ?? item.cost ?? 0
                               );
                               const retailPrice = toNumber(
                                 item.unit_retail_price ?? item.unit_selling_price ?? item.unit_price ?? item.price ?? 0
                               );
                               const qty = toNumber(
-                                item.opening_stock ?? item.quantity ?? item.qty ?? 1
+                                item.quantity ?? item.qty ?? item.opening_stock ?? item.quantity_purchased ?? 1
                               );
 
                               return (
                                 <tr key={i} className="hover:bg-teal-50/40">
                                   <td className="py-2.5 px-4 font-bold text-slate-900">
-                                    {item.name || item.product_name || `Item #${item.item_id || item.id}`}
+                                    {item.item_name || item.name || item.product_name || `Item #${item.item_id || item.id}`}
                                   </td>
                                   <td className="py-2.5 px-4 text-right text-slate-600 font-mono">
                                     KSh {costPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -541,6 +565,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                   onChange={(e) => setEditRequestType(e.target.value)}
                   className="w-full bg-teal-50/50 border border-teal-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
                 >
+                  <option value="RESTOCK_PURCHASE">Restock Purchase</option>
                   <option value="PRICE_QUERY">Price Query</option>
                   <option value="DISCOUNT_APPROVAL">Discount Approval</option>
                   <option value="STOCK_OVERRIDE">Stock Limit Override</option>
@@ -578,7 +603,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     <label className="text-[10px] text-teal-800 block mb-1 font-bold uppercase">Item Name</label>
                     <input
                       type="text"
-                      value={item.name || item.product_name || ''}
+                      value={item.item_name || item.name || item.product_name || ''}
                       onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
                       className="w-full bg-white border border-teal-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-bold"
                     />
@@ -587,7 +612,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     <label className="text-[10px] text-teal-800 block mb-1 font-bold uppercase">Cost Price</label>
                     <input
                       type="text"
-                      value={item.unit_cost_price ?? item.cost_price ?? ''}
+                      value={item.unit_cost_price ?? item.cost_price ?? item.unit_cost ?? ''}
                       onChange={(e) => handleItemChange(idx, 'unit_cost_price', e.target.value)}
                       className="w-full bg-white border border-teal-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono"
                     />
@@ -605,7 +630,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     <label className="text-[10px] text-teal-800 block mb-1 font-bold uppercase">Qty</label>
                     <input
                       type="number"
-                      value={item.quantity ?? item.opening_stock ?? 1}
+                      value={item.quantity ?? item.qty ?? item.opening_stock ?? 1}
                       onChange={(e) => handleItemChange(idx, 'quantity', parseInt(e.target.value) || 1)}
                       className="w-full bg-white border border-teal-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono"
                     />
