@@ -10,23 +10,22 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
-  // Map item ID -> actual name for quick lookup fallback
+  // Map item ID -> catalog item object for quick name & retail price lookups
   const catalogItemMap = useMemo(() => {
     const map = {};
     if (Array.isArray(catalogItems)) {
       catalogItems.forEach((it) => {
         const id = it.id || it.item_id || it.item;
-        const name = it.name || it.item_name || it.product_name;
-        if (id && name) {
-          map[id] = name;
-          map[String(id)] = name;
+        if (id) {
+          map[id] = it;
+          map[String(id)] = it;
         }
       });
     }
     return map;
   }, [catalogItems]);
 
-  // Parse current user permissions
+  // Current user permissions
   const currentUser = useMemo(() => {
     try {
       const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
@@ -44,7 +43,6 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
 
   const isManagementOrAdmin = currentUser.is_staff || currentUser.is_superuser;
 
-  // Hidden Request IDs (Stored in localStorage)
   const [hiddenRequestIds, setHiddenRequestIds] = useState(() => {
     try {
       const saved = localStorage.getItem('hidden_approval_ids');
@@ -63,12 +61,11 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
   const [editTargetBranch, setEditTargetBranch] = useState('');
   const [editMessage, setEditMessage] = useState('');
 
-  // Persist hidden request IDs
   useEffect(() => {
     try {
       localStorage.setItem('hidden_approval_ids', JSON.stringify(hiddenRequestIds));
     } catch (e) {
-      console.warn('Failed to save hidden request IDs to localStorage:', e);
+      console.warn('Failed to save hidden request IDs:', e);
     }
   }, [hiddenRequestIds]);
 
@@ -173,11 +170,28 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
     }
 
     const itemId = item.item || item.item_id || item.id;
-    if (itemId && catalogItemMap[itemId]) {
-      return catalogItemMap[itemId];
+    const catItem = itemId ? catalogItemMap[itemId] : null;
+    if (catItem) {
+      return catItem.name || catItem.item_name || catItem.product_name || `Item #${itemId}`;
     }
 
     return rawName || `Item #${itemId || 'Unknown'}`;
+  };
+
+  const getItemRetailPrice = (item) => {
+    let price = Number(
+      item.unit_retail_price ?? item.unit_selling_price ?? item.unit_price ?? item.price ?? 0
+    );
+    if (price > 0) return price;
+
+    const itemId = item.item || item.item_id || item.id;
+    const catItem = itemId ? catalogItemMap[itemId] : null;
+    if (catItem) {
+      return Number(
+        catItem.unit_retail_price ?? catItem.unit_selling_price ?? catItem.unit_price ?? catItem.price ?? 0
+      );
+    }
+    return 0;
   };
 
   const handleDelete = async (id) => {
@@ -492,7 +506,6 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
                           </>
                         )}
 
-                        {/* APPROVE AND REJECT BUTTONS ONLY SHOWN TO MANAGEMENT/ADMIN */}
                         {isManagementOrAdmin && status.includes('PENDING') && (
                           <>
                             <button
@@ -540,9 +553,7 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
                               const costPrice = toNumber(
                                 item.unit_cost_price ?? item.cost_price ?? item.unit_cost ?? item.cost ?? 0
                               );
-                              const retailPrice = toNumber(
-                                item.unit_retail_price ?? item.unit_selling_price ?? item.unit_price ?? item.price ?? 0
-                              );
+                              const retailPrice = getItemRetailPrice(item);
                               const qty = toNumber(
                                 item.quantity ?? item.qty ?? item.opening_stock ?? item.quantity_purchased ?? 1
                               );
@@ -660,7 +671,7 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
                     <label className="text-[10px] text-teal-800 block mb-1 font-bold uppercase">Retail Price</label>
                     <input
                       type="text"
-                      value={item.unit_retail_price ?? item.unit_price ?? item.price ?? ''}
+                      value={getItemRetailPrice(item)}
                       onChange={(e) => handleItemChange(idx, 'unit_retail_price', e.target.value)}
                       className="w-full bg-white border border-teal-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono font-bold text-teal-800"
                     />

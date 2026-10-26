@@ -844,7 +844,7 @@ function UserDashboard({ items, fetchItems }) {
             <StockOperations items={safeItems} selectedBranch={selectedBranch} onItemUpdateSuccess={fetchItems} />
           )}
           {activeTab === 'approvals' && (
-            <ApprovalsDashboard selectedBranch={selectedBranch} onApprovalComplete={fetchItems} />
+            <ApprovalsDashboard items={safeItems} selectedBranch={selectedBranch} onApprovalComplete={fetchItems} />
           )}
           {activeTab === 'alerts' && (
             <LowStockAlerts items={safeItems} selectedBranch={selectedBranch} onRestockSuccess={fetchItems} />
