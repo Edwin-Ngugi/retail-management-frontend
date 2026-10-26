@@ -47,7 +47,7 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
     return map;
   }, [catalogItems]);
 
-  // Parse current user permissions
+  // Parse current user permissions and check URL path
   const currentUser = useMemo(() => {
     try {
       const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
@@ -64,7 +64,9 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
   }, []);
 
   const canApprove = useMemo(() => {
+    const isManagementRoute = window.location.pathname.includes('/management');
     return (
+      isManagementRoute ||
       currentUser.is_staff ||
       currentUser.is_superuser ||
       currentUser.role === 'Manager' ||
