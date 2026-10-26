@@ -63,7 +63,14 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
     };
   }, []);
 
-  const isManagementOrAdmin = currentUser.is_staff || currentUser.is_superuser;
+  const canApprove = useMemo(() => {
+    return (
+      currentUser.is_staff ||
+      currentUser.is_superuser ||
+      currentUser.role === 'Manager' ||
+      currentUser.role === 'Superadmin'
+    );
+  }, [currentUser]);
 
   const [hiddenRequestIds, setHiddenRequestIds] = useState(() => {
     try {
@@ -549,7 +556,7 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
                           </>
                         )}
 
-                        {isManagementOrAdmin && status.includes('PENDING') && (
+                        {canApprove && status.includes('PENDING') && (
                           <>
                             <button
                               onClick={() => handleApprove(req.id)}
