@@ -711,7 +711,7 @@ function UserDashboard({ items, fetchItems }) {
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-900/40 hover:bg-rose-800 text-rose-200 text-xs font-bold border border-rose-700/50 transition cursor-pointer"
           >
-            <span>🚪</span>
+            <span></span>
             <span>Sign Out</span>
           </button>
         </div>
@@ -722,7 +722,7 @@ function UserDashboard({ items, fetchItems }) {
         {/* TOP BAR: Branch, Centered Logo, Date Selector & Account */}
         <header className="bg-teal-950 border-b border-teal-900 px-6 py-3 sticky top-0 z-30 shadow-md">
           <div className="flex items-center justify-between gap-4 w-full">
-            {/* Left Controls: Branch & Portals */}
+            {/* Left Controls: Branch */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-2 bg-teal-900/80 border border-teal-800 px-3 py-1.5 rounded-xl">
                 <label className="text-[10px] font-bold text-teal-200 uppercase">Branch:</label>
@@ -737,15 +737,6 @@ function UserDashboard({ items, fetchItems }) {
                   ))}
                 </select>
               </div>
-
-              {(currentUser.is_staff || currentUser.is_superuser) && (
-                <div className="hidden xl:flex items-center gap-2 text-[10px] text-teal-300/80 border-l border-teal-800 pl-3">
-                  <span className="text-teal-300 font-bold">Portals:</span>
-                  <button onClick={() => navigate('/')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/' ? 'text-teal-200 font-bold' : ''}`}>User</button> •
-                  <button onClick={() => navigate('/management')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/management' ? 'text-teal-200 font-bold' : ''}`}>Management</button> •
-                  <button onClick={() => navigate('/admin')} className={`hover:text-white underline cursor-pointer ${location.pathname === '/admin' ? 'text-teal-200 font-bold' : ''}`}>Admin</button>
-                </div>
-              )}
             </div>
 
             {/* CENTERED LOGO */}
