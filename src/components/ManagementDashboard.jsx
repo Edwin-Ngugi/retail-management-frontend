@@ -499,69 +499,86 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
           {/* DASHBOARD OVERVIEW */}
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
 
                 {/* 1. FINANCIAL PERFORMANCE CARD */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Financial Performance</span>
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-medium">Total Sales</span>
-                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                    <div className="text-xl font-black text-slate-900 tracking-tight">
                       {dashboardCardsData?.profitability?.total_sales_formatted || 'KSh 0.00'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-xs">
+                  <div className="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-xs">
                     <div>
                       <span className="text-slate-400 block text-[9px] font-bold uppercase">COGS</span>
-                      <span className="font-bold text-amber-600 text-xs">
+                      <span className="font-bold text-amber-600 text-[11px]">
                         {dashboardCardsData?.profitability?.cogs_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Gross Profit</span>
-                      <span className="font-bold text-emerald-700 text-xs">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Gross</span>
+                      <span className="font-bold text-emerald-700 text-[11px]">
                         {dashboardCardsData?.profitability?.gross_profit_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Net Profit</span>
-                      <span className="font-bold text-teal-800 text-xs">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase">Net</span>
+                      <span className="font-bold text-teal-800 text-[11px]">
                         {dashboardCardsData?.profitability?.net_profit_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. INVENTORY & SKUs CARD */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                {/* 2. CUSTOMER DEBTORS CARD */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Customer Debts</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-medium">Receivables Ledger</span>
+                    <div className="text-xl font-black text-rose-700 tracking-tight">
+                      {dashboardCardsData?.debtors?.total_customer_debts_formatted || 'KSh 0.00'}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100 leading-snug font-medium">
+                    Total unpaid customer credit balances
+                  </p>
+                </div>
+
+                {/* 3. INVENTORY & SKUs CARD */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Inventory & SKUs</span>
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 font-medium">Stock Value (At Cost)</span>
-                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                    <span className="text-xs text-slate-500 font-medium">Stock Value (Cost)</span>
+                    <div className="text-xl font-black text-slate-900 tracking-tight">
                       {dashboardCardsData?.inventory?.total_stock_value_formatted || 'KSh 0.00'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-center">
-                    <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                      <span className="text-[9px] text-slate-400 block uppercase font-bold">Active</span>
+                  <div className="grid grid-cols-3 gap-1 pt-2 border-t border-slate-100 text-center">
+                    <div className="bg-slate-50 p-1 rounded-lg border border-slate-100">
+                      <span className="text-[8px] text-slate-400 block uppercase font-bold">Active</span>
                       <span className="font-extrabold text-slate-800 text-xs">
                         {formatNumber(dashboardCardsData?.inventory?.product_skus || 0)}
                       </span>
                     </div>
-                    <div className="bg-amber-50/80 p-1.5 rounded-lg border border-amber-100">
-                      <span className="text-[9px] text-amber-700 block uppercase font-bold">Low</span>
+                    <div className="bg-amber-50/80 p-1 rounded-lg border border-amber-100">
+                      <span className="text-[8px] text-amber-700 block uppercase font-bold">Low</span>
                       <span className="font-extrabold text-amber-800 text-xs">
                         {dashboardCardsData?.inventory?.low_stock_items ?? 0}
                       </span>
                     </div>
-                    <div className="bg-rose-50/80 p-1.5 rounded-lg border border-rose-100">
-                      <span className="text-[9px] text-rose-700 block uppercase font-bold">Out</span>
+                    <div className="bg-rose-50/80 p-1 rounded-lg border border-rose-100">
+                      <span className="text-[8px] text-rose-700 block uppercase font-bold">Out</span>
                       <span className="font-extrabold text-rose-800 text-xs">
                         {dashboardCardsData?.inventory?.out_of_stock_items ?? 0}
                       </span>
@@ -569,52 +586,51 @@ export default function ManagementDashboard({ onLogout, currentUser: initialUser
                   </div>
                 </div>
 
-                {/* 3. CASH MOVEMENT CARD */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                {/* 4. CASH MOVEMENT CARD */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                      Cash Movement
-                    </span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Cash Movement</span>
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-medium">{dynamicReceiptsLabel}</span>
-                    <div className="text-2xl font-black text-slate-900 tracking-tight">
+                    <div className="text-xl font-black text-slate-900 tracking-tight">
                       {dashboardCardsData?.cash_flow?.receipts_formatted || dashboardCardsData?.cash_flow?.todays_receipts_formatted || 'KSh 0.00'}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">{dynamicPaymentsLabel}</span>
-                      <span className="font-bold text-slate-800">
+                      <span className="text-slate-400 block text-[9px] font-bold">{dynamicPaymentsLabel}</span>
+                      <span className="font-bold text-slate-800 text-[11px]">
                         {dashboardCardsData?.cash_flow?.payments_formatted || dashboardCardsData?.cash_flow?.todays_payments_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block text-[10px]">Purchases</span>
-                      <span className="font-bold text-blue-600">
+                      <span className="text-slate-400 block text-[9px] font-bold">Purchases</span>
+                      <span className="font-bold text-blue-600 text-[11px]">
                         {dashboardCardsData?.cash_flow?.purchases_formatted || dashboardCardsData?.cash_flow?.todays_purchases_formatted || 'KSh 0.00'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 4. CASH POSITION CARD */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                {/* 5. CASH POSITION CARD */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Cash Position</span>
                     <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-medium">Available Funds</span>
-                    <div className="text-2xl font-black text-teal-800 tracking-tight">
+                    <div className="text-xl font-black text-teal-800 tracking-tight">
                       {dashboardCardsData?.cash_flow?.total_available_funds_formatted || 'KSh 0.00'}
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 leading-snug">
-                    Combined cash, bank accounts & mobile till balances
+                  <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100 leading-snug font-medium">
+                    Combined cash, bank accounts & till balances
                   </p>
                 </div>
+
               </div>
 
               {/* SALES PERFORMANCE TRAJECTORY CHART */}
