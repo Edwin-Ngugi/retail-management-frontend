@@ -2,13 +2,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 
-export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete }) {
+export default function ApprovalsDashboard({ items: catalogItems = [], selectedBranch, onApprovalComplete }) {
   const [requests, setRequests] = useState([]);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeStatus, setActiveStatus] = useState('ALL');
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+
+  // Map item ID -> actual name for quick lookup fallback
+  const catalogItemMap = useMemo(() => {
+    const map = {};
+    if (Array.isArray(catalogItems)) {
+      catalogItems.forEach((it) => {
+        const id = it.id || it.item_id || it.item;
+        const name = it.name || it.item_name || it.product_name;
+        if (id && name) {
+          map[id] = name;
+          map[String(id)] = name;
+        }
+      });
+    }
+    return map;
+  }, [catalogItems]);
 
   // Parse current user permissions
   const currentUser = useMemo(() => {
@@ -140,6 +156,28 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
       payload.items_list ||
       []
     );
+  };
+
+  const getItemDisplayName = (item) => {
+    if (!item) return 'Item';
+    const rawName =
+      item.item_name ||
+      item.name ||
+      item.product_name ||
+      item.item?.name ||
+      item.item_details?.name ||
+      item.item_obj?.name;
+
+    if (rawName && !rawName.startsWith('Item #')) {
+      return rawName;
+    }
+
+    const itemId = item.item || item.item_id || item.id;
+    if (itemId && catalogItemMap[itemId]) {
+      return catalogItemMap[itemId];
+    }
+
+    return rawName || `Item #${itemId || 'Unknown'}`;
   };
 
   const handleDelete = async (id) => {
@@ -498,6 +536,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                           </thead>
                           <tbody className="divide-y divide-teal-50 text-slate-800">
                             {items.map((item, i) => {
+                              const displayName = getItemDisplayName(item);
                               const costPrice = toNumber(
                                 item.unit_cost_price ?? item.cost_price ?? item.unit_cost ?? item.cost ?? 0
                               );
@@ -511,7 +550,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                               return (
                                 <tr key={i} className="hover:bg-teal-50/40">
                                   <td className="py-2.5 px-4 font-bold text-slate-900">
-                                    {item.item_name || item.name || item.product_name || `Item #${item.item_id || item.id}`}
+                                    {displayName}
                                   </td>
                                   <td className="py-2.5 px-4 text-right text-slate-600 font-mono">
                                     KSh {costPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -603,7 +642,7 @@ export default function ApprovalsDashboard({ selectedBranch, onApprovalComplete 
                     <label className="text-[10px] text-teal-800 block mb-1 font-bold uppercase">Item Name</label>
                     <input
                       type="text"
-                      value={item.item_name || item.name || item.product_name || ''}
+                      value={getItemDisplayName(item)}
                       onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
                       className="w-full bg-white border border-teal-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-bold"
                     />
