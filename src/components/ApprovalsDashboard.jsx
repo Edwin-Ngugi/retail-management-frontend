@@ -101,8 +101,27 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get('pending-approvals/');
-      const data = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      const branchKey = typeof selectedBranch === 'object' ? selectedBranch?.id : selectedBranch;
+      const params = new URLSearchParams();
+
+      if (branchKey) {
+        params.append('branch', branchKey);
+        params.append('branch_id', branchKey);
+      }
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      let res = await API.get(`pending-approvals/${queryString}`);
+      let data = Array.isArray(res.data) ? res.data : res.data?.results || [];
+
+      // Fallback: If filtered fetch returned no results, query all pending approvals
+      if (data.length === 0) {
+        const fallbackRes = await API.get('pending-approvals/');
+        const fallbackData = Array.isArray(fallbackRes.data) ? fallbackRes.data : fallbackRes.data?.results || [];
+        if (fallbackData.length > 0) {
+          data = fallbackData;
+        }
+      }
+
       setRequests(data);
       if (data.length > 0 && !expandedId) {
         setExpandedId(data[0].id);
@@ -112,7 +131,7 @@ export default function ApprovalsDashboard({ items: propsCatalogItems = [], sele
     } finally {
       setLoading(false);
     }
-  }, [expandedId]);
+  }, [selectedBranch, expandedId]);
 
   useEffect(() => {
     fetchRequests();
