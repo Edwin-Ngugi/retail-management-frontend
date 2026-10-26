@@ -2,20 +2,42 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import API from '../api';
 
-export default function ApprovalsDashboard({ items: catalogItems = [], selectedBranch, onApprovalComplete }) {
+export default function ApprovalsDashboard({ items: propsCatalogItems = [], selectedBranch, onApprovalComplete }) {
   const [requests, setRequests] = useState([]);
+  const [fetchedItems, setFetchedItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeStatus, setActiveStatus] = useState('ALL');
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
-  // Map item ID -> catalog item object for quick name & retail price lookups
+  // Fetch branch catalog items directly to ensure local lookups always work
+  const loadBranchCatalog = useCallback(async () => {
+    try {
+      const branchParam = selectedBranch ? `?branch=${encodeURIComponent(selectedBranch)}` : '';
+      const res = await API.get(`items/${branchParam}`);
+      const data = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      setFetchedItems(data);
+    } catch (err) {
+      console.warn('Failed to fetch catalog items directly inside ApprovalsDashboard:', err);
+    }
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    loadBranchCatalog();
+  }, [loadBranchCatalog]);
+
+  // Combine props catalog and internally fetched catalog
+  const catalogItems = useMemo(() => {
+    return propsCatalogItems.length > 0 ? propsCatalogItems : fetchedItems;
+  }, [propsCatalogItems, fetchedItems]);
+
+  // Map item ID -> catalog item object
   const catalogItemMap = useMemo(() => {
     const map = {};
     if (Array.isArray(catalogItems)) {
       catalogItems.forEach((it) => {
-        const id = it.id || it.item_id || it.item;
+        const id = it.id || it.item_id || it.item || it.pk;
         if (id) {
           map[id] = it;
           map[String(id)] = it;
@@ -25,7 +47,7 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
     return map;
   }, [catalogItems]);
 
-  // Current user permissions
+  // Parse current user permissions
   const currentUser = useMemo(() => {
     try {
       const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
@@ -157,40 +179,58 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
 
   const getItemDisplayName = (item) => {
     if (!item) return 'Item';
-    const rawName =
+
+    // 1. Check nested item objects or direct string names
+    const directName =
       item.item_name ||
       item.name ||
       item.product_name ||
-      item.item?.name ||
+      (typeof item.item === 'object' ? item.item?.name || item.item?.item_name : null) ||
       item.item_details?.name ||
       item.item_obj?.name;
 
-    if (rawName && !rawName.startsWith('Item #')) {
-      return rawName;
+    if (directName && !directName.startsWith('Item #')) {
+      return directName;
     }
 
-    const itemId = item.item || item.item_id || item.id;
-    const catItem = itemId ? catalogItemMap[itemId] : null;
-    if (catItem) {
-      return catItem.name || catItem.item_name || catItem.product_name || `Item #${itemId}`;
+    // 2. Extract item ID
+    const itemId = typeof item.item === 'number' || typeof item.item === 'string'
+      ? item.item
+      : item.item_id || item.id || item.item?.id;
+
+    // 3. Perform lookup against branch catalog
+    if (itemId && catalogItemMap[itemId]) {
+      const cat = catalogItemMap[itemId];
+      return cat.name || cat.item_name || cat.product_name || `Item #${itemId}`;
     }
 
-    return rawName || `Item #${itemId || 'Unknown'}`;
+    return directName || `Item #${itemId || 'Unknown'}`;
   };
 
   const getItemRetailPrice = (item) => {
+    // 1. Direct field on item
     let price = Number(
-      item.unit_retail_price ?? item.unit_selling_price ?? item.unit_price ?? item.price ?? 0
+      item.unit_retail_price ?? item.unit_selling_price ?? item.unit_price ?? item.selling_price ?? item.price ?? 0
     );
+
     if (price > 0) return price;
 
-    const itemId = item.item || item.item_id || item.id;
-    const catItem = itemId ? catalogItemMap[itemId] : null;
-    if (catItem) {
-      return Number(
-        catItem.unit_retail_price ?? catItem.unit_selling_price ?? catItem.unit_price ?? catItem.price ?? 0
-      );
+    // 2. Check nested item object
+    if (typeof item.item === 'object' && item.item) {
+      price = Number(item.item.unit_retail_price ?? item.item.unit_selling_price ?? item.item.unit_price ?? item.item.price ?? 0);
+      if (price > 0) return price;
     }
+
+    // 3. Fallback to Catalog Map Lookup
+    const itemId = typeof item.item === 'number' || typeof item.item === 'string'
+      ? item.item
+      : item.item_id || item.id;
+
+    if (itemId && catalogItemMap[itemId]) {
+      const cat = catalogItemMap[itemId];
+      return Number(cat.unit_retail_price ?? cat.unit_selling_price ?? cat.unit_price ?? cat.selling_price ?? cat.price ?? 0);
+    }
+
     return 0;
   };
 
@@ -329,7 +369,10 @@ export default function ApprovalsDashboard({ items: catalogItems = [], selectedB
         </div>
 
         <button
-          onClick={fetchRequests}
+          onClick={() => {
+            fetchRequests();
+            loadBranchCatalog();
+          }}
           disabled={loading}
           className="px-3.5 py-1.5 bg-teal-950 hover:bg-black text-teal-100 hover:text-white text-xs font-bold rounded-xl border border-teal-700/60 transition cursor-pointer shadow-xs disabled:opacity-50"
         >
