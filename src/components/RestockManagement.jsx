@@ -1,3 +1,4 @@
+// src/components/RestockManagement.jsx
 import React, { useState, useMemo } from 'react';
 import API from '../api';
 
@@ -19,9 +20,7 @@ export default function RestockManagement({
   items = [],
   selectedBranch,
   onRestockSuccess,
-  effectiveRange,
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('new_order'); // 'new_order' | 'supplier_payables'
   const [purchaseDate, setPurchaseDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -52,7 +51,6 @@ export default function RestockManagement({
         if (row.id !== id) return row;
         const updated = { ...row, [field]: value };
 
-        // Auto-fill cost price when item is selected
         if (field === 'item_id') {
           const selected = safeItems.find((i) => String(i.id) === String(value));
           if (selected) {
@@ -122,11 +120,9 @@ export default function RestockManagement({
 
       setFeedback({
         type: 'success',
-        message:
-          'Purchase order submitted to Management for sign-off successfully!',
+        message: 'Cash purchase order submitted for Management approval!',
       });
 
-      // Reset form
       setOrderItems([
         { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
       ]);
@@ -146,42 +142,14 @@ export default function RestockManagement({
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 font-sans">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-        {/* Header & Sub-tab Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Restock & Supplier Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Submit restock requests to Management for approval before inventory updates.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('new_order')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === 'new_order'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              + New Purchase Order
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('supplier_payables')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === 'supplier_payables'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              💳 Supplier Payables
-            </button>
-          </div>
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Cash Purchase & Restock Entry
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Submit immediate/liquid cash purchases to Management for sign-off.
+          </p>
         </div>
 
         {feedback.message && (
@@ -196,170 +164,154 @@ export default function RestockManagement({
           </div>
         )}
 
-        {activeSubTab === 'new_order' ? (
-          <form onSubmit={handleSubmitOrder} className="space-y-6">
-            {/* Control Fields Box */}
-            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
-                  Purchase Date
-                </label>
-                <input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
-                  Payment Method
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="MPESA">M-Pesa / Mobile Money</option>
-                  <option value="PAYBILL">Paybill / Till Transfer</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CREDIT">Supplier Credit (On Account)</option>
-                </select>
-              </div>
+        <form onSubmit={handleSubmitOrder} className="space-y-6">
+          <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                Purchase Date
+              </label>
+              <input
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                required
+              />
             </div>
 
-            {/* Order Items List */}
-            <div className="space-y-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Order Items ({orderItems.length})
-              </span>
-
-              <div className="space-y-3">
-                {orderItems.map((row) => {
-                  const lineTotal =
-                    toNumber(row.quantity) * toNumber(row.unit_cost_price);
-
-                  return (
-                    <div
-                      key={row.id}
-                      className="bg-slate-50/60 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-                    >
-                      <div className="flex-1 min-w-[200px]">
-                        <select
-                          value={row.item_id}
-                          onChange={(e) =>
-                            handleItemRowChange(row.id, 'item_id', e.target.value)
-                          }
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                          required
-                        >
-                          <option value="">-- Choose item --</option>
-                          {safeItems.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name} ({item.code || 'No Code'})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="w-full sm:w-28">
-                        <input
-                          type="number"
-                          min="1"
-                          placeholder="Qty"
-                          value={row.quantity}
-                          onChange={(e) =>
-                            handleItemRowChange(row.id, 'quantity', e.target.value)
-                          }
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
-                          required
-                        />
-                      </div>
-
-                      <div className="w-full sm:w-36">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Unit Cost"
-                          value={row.unit_cost_price}
-                          onChange={(e) =>
-                            handleItemRowChange(
-                              row.id,
-                              'unit_cost_price',
-                              e.target.value
-                            )
-                          }
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
-                          required
-                        />
-                      </div>
-
-                      <div className="sm:w-32 text-right">
-                        <span className="text-xs font-bold font-mono text-slate-900 block">
-                          {formatCurrency(lineTotal)}
-                        </span>
-                      </div>
-
-                      {orderItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItemRow(row.id)}
-                          className="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 transition cursor-pointer self-end sm:self-center"
-                          title="Remove item"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                Payment Channel
+              </label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="CASH">Cash</option>
+                <option value="MPESA">M-Pesa / Mobile Money</option>
+                <option value="PAYBILL">Paybill / Till Transfer</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+              </select>
             </div>
-
-            {/* Bottom Actions Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
-              <div>
-                <span className="text-xs text-slate-500 font-medium">
-                  Total Order Valuation:{' '}
-                </span>
-                <span className="text-base font-extrabold font-mono text-indigo-600 ml-1">
-                  {formatCurrency(totalOrderValuation)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleAddItemRow}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
-                >
-                  + Add Another Item
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md transition cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? 'Submitting...' : 'Submit Purchase Order'}
-                </button>
-              </div>
-            </div>
-          </form>
-        ) : (
-          <div className="p-8 text-center text-slate-500 text-xs">
-            <p className="font-semibold text-slate-700">
-              Supplier Payables Ledger
-            </p>
-            <p className="mt-1">
-              All outstanding credit restock payables are tracked under Management Sign-offs.
-            </p>
           </div>
-        )}
+
+          <div className="space-y-3">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Order Line Items ({orderItems.length})
+            </span>
+
+            <div className="space-y-3">
+              {orderItems.map((row) => {
+                const lineTotal =
+                  toNumber(row.quantity) * toNumber(row.unit_cost_price);
+
+                return (
+                  <div
+                    key={row.id}
+                    className="bg-slate-50/60 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-[200px]">
+                      <select
+                        value={row.item_id}
+                        onChange={(e) =>
+                          handleItemRowChange(row.id, 'item_id', e.target.value)
+                        }
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        required
+                      >
+                        <option value="">-- Select catalog item --</option>
+                        {safeItems.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} ({item.code || 'No Code'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="w-full sm:w-28">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Qty"
+                        value={row.quantity}
+                        onChange={(e) =>
+                          handleItemRowChange(row.id, 'quantity', e.target.value)
+                        }
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    <div className="w-full sm:w-36">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Unit Cost"
+                        value={row.unit_cost_price}
+                        onChange={(e) =>
+                          handleItemRowChange(
+                            row.id,
+                            'unit_cost_price',
+                            e.target.value
+                          )
+                        }
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:w-32 text-right">
+                      <span className="text-xs font-bold font-mono text-slate-900 block">
+                        {formatCurrency(lineTotal)}
+                      </span>
+                    </div>
+
+                    {orderItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItemRow(row.id)}
+                        className="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 transition cursor-pointer self-end sm:self-center"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
+            <div>
+              <span className="text-xs text-slate-500 font-medium">
+                Total Order Valuation:{' '}
+              </span>
+              <span className="text-base font-extrabold font-mono text-indigo-600 ml-1">
+                {formatCurrency(totalOrderValuation)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleAddItemRow}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition cursor-pointer"
+              >
+                + Add Another Item
+              </button>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md transition cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit Purchase Order'}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );

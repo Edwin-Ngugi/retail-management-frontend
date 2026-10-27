@@ -1,32 +1,36 @@
-import React, { useState, useEffect } from 'react';
+// src/components/SalesEntry.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import API from '../api';
 import { useBranch } from '../components/BranchContext';
 
 export default function SalesEntry({
-  items,
+  items = [],
   selectedBranch: propBranch,
   onSalesSubmitted,
 }) {
   const { selectedBranch: contextBranch } = useBranch();
   const activeBranch = propBranch || contextBranch;
 
-  const [salesData, setSalesData] = useState({});
+  // Search & Item Picker State
   const [searchTerm, setSearchTerm] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
+  const [inputQty, setInputQty] = useState('');
+  const [inputDiscount, setInputDiscount] = useState('');
 
+  // Cart State: Array of { item, quantity, discount }
+  const [cart, setCart] = useState([]);
+
+  // Payment Options (CREDIT REMOVED)
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [splitPayments, setSplitPayments] = useState({
     cash: '',
     paybill: '',
     paybill_ref: '',
     send_money: '',
     send_money_ref: '',
-    credit: '',
   });
 
-  /*
-   * LOCAL DATE HELPER
-   */
   const getLocalDateString = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -36,28 +40,18 @@ export default function SalesEntry({
   };
 
   const [saleDate, setSaleDate] = useState(getLocalDateString());
-
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    invoice_number: '',
-    notes: '',
-    id: null,
-  });
-
+  const [customerInfo, setCustomerInfo] = useState({ name: '', invoice_number: '', notes: '' });
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  /*
-   * MANAGEMENT REQUEST STATE
-   */
+  // Management Request Modal State
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestType, setRequestType] = useState('DISCOUNT_APPROVAL');
   const [requestMessage, setRequestMessage] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
 
-  /*
-   * HELPERS
-   */
+  /* ================= HELPERS ================= */
+
   const getItemId = (item) => {
     if (!item) return null;
     if (typeof item.id === 'object' && item.id !== null) {
@@ -76,13 +70,6 @@ export default function SalesEntry({
       item.retail_price ??
       item.price ??
       0;
-    const parsed = parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const getItemCostPrice = (item) => {
-    if (!item) return 0;
-    const value = item.unit_cost_price ?? item.cost_price ?? item.unit_cost ?? 0;
     const parsed = parseFloat(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
@@ -118,195 +105,127 @@ export default function SalesEntry({
     return localDate.toISOString();
   };
 
-  /*
-   * INITIALIZE SALES DATA
-   */
-  useEffect(() => {
-    if (!items || !Array.isArray(items)) return;
+  /* ================= SEARCH FILTERING ================= */
 
-    setSalesData((prev) => {
-      const nextState = {};
-      items.forEach((item) => {
-        const itemId = getItemId(item);
-        if (itemId === null || itemId === undefined) return;
-        nextState[itemId] = {
-          discount_per_item: prev[itemId]?.discount_per_item ?? '',
-          quantity_sold: prev[itemId]?.quantity_sold ?? 0,
-        };
-      });
-      return nextState;
+  const filteredCatalogItems = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const term = searchTerm.toLowerCase();
+    return (items || []).filter((item) => {
+      const name = String(item?.name || '').toLowerCase();
+      const code = String(item?.code || item?.item_code || '').toLowerCase();
+      return name.includes(term) || code.includes(term);
     });
-  }, [items]);
+  }, [items, searchTerm]);
 
-  /*
-   * INPUT HANDLING
-   */
-  const handleChange = (itemId, field, value) => {
-    let val;
-    if (value === '') {
-      val = '';
-    } else {
-      const parsed = parseFloat(value);
-      val = !Number.isFinite(parsed) ? 0 : Math.max(0, parsed);
+  /* ================= CART MANAGEMENT ================= */
+
+  const handleSelectItem = (item) => {
+    setSelectedCatalogItem(item);
+    setSearchTerm('');
+    setInputQty('1');
+    setInputDiscount('');
+  };
+
+  const handleAddToCart = () => {
+    if (!selectedCatalogItem) return;
+    const itemId = getItemId(selectedCatalogItem);
+    const qty = toPositiveNumber(inputQty);
+    const discount = Math.max(0, parseFloat(inputDiscount) || 0);
+    const stock = getItemStock(selectedCatalogItem);
+    const retailPrice = getItemRetailPrice(selectedCatalogItem);
+
+    if (qty <= 0) {
+      setStatus({ type: 'error', text: 'Please enter a valid quantity sold.' });
+      return;
     }
 
-    setSalesData((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...(prev[itemId] || { discount_per_item: '', quantity_sold: 0 }),
-        [field]: val,
-      },
-    }));
+    if (qty > stock) {
+      setStatus({
+        type: 'error',
+        text: `Quantity (${qty}) exceeds available stock (${stock}).`,
+      });
+      return;
+    }
+
+    if (discount > retailPrice) {
+      setStatus({
+        type: 'error',
+        text: `Discount cannot exceed retail price of KSh ${retailPrice.toFixed(2)}.`,
+      });
+      return;
+    }
+
+    setStatus(null);
+
+    setCart((prevCart) => {
+      const existingIdx = prevCart.findIndex((c) => getItemId(c.item) === itemId);
+      if (existingIdx >= 0) {
+        const updated = [...prevCart];
+        updated[existingIdx] = {
+          item: selectedCatalogItem,
+          quantity: qty,
+          discount,
+        };
+        return updated;
+      }
+      return [...prevCart, { item: selectedCatalogItem, quantity: qty, discount }];
+    });
+
+    // Reset picker
+    setSelectedCatalogItem(null);
+    setInputQty('');
+    setInputDiscount('');
   };
+
+  const handleRemoveFromCart = (itemId) => {
+    setCart((prevCart) => prevCart.filter((c) => getItemId(c.item) !== itemId));
+  };
+
+  const handleUpdateCartQty = (itemId, newQty) => {
+    setCart((prevCart) =>
+      prevCart.map((c) => {
+        if (getItemId(c.item) !== itemId) return c;
+        const qty = Math.max(0, parseFloat(newQty) || 0);
+        return { ...c, quantity: qty };
+      })
+    );
+  };
+
+  const handleUpdateCartDiscount = (itemId, newDiscount) => {
+    setCart((prevCart) =>
+      prevCart.map((c) => {
+        if (getItemId(c.item) !== itemId) return c;
+        const discount = Math.max(0, parseFloat(newDiscount) || 0);
+        return { ...c, discount };
+      })
+    );
+  };
+
+  /* ================= TOTAL CALCULATIONS ================= */
+
+  const grandTotalAmount = useMemo(() => {
+    return cart.reduce((sum, entry) => {
+      const price = getItemRetailPrice(entry.item);
+      const effPrice = Math.max(0, price - entry.discount);
+      return sum + toMoney(entry.quantity * effPrice);
+    }, 0);
+  }, [cart]);
+
+  const splitTotalAmount = useMemo(() => {
+    const cash = toMoney(splitPayments.cash);
+    const paybill = toMoney(splitPayments.paybill);
+    const sendMoney = toMoney(splitPayments.send_money);
+    return toMoney(cash + paybill + sendMoney);
+  }, [splitPayments]);
+
+  const remainingBalance = toMoney(grandTotalAmount - splitTotalAmount);
 
   const handleSplitChange = (field, value) => {
     setSplitPayments((prev) => ({ ...prev, [field]: value }));
   };
 
-  /*
-   * TOTAL CALCULATIONS
-   */
-  const calculateItemTotal = (item, itemState) => {
-    if (!itemState) return 0;
-    const quantity = toPositiveNumber(itemState.quantity_sold);
-    const retailPrice = getItemRetailPrice(item);
-    const discount = Math.max(0, parseFloat(itemState.discount_per_item) || 0);
-    const effectivePrice = Math.max(0, retailPrice - discount);
-    return toMoney(quantity * effectivePrice);
-  };
+  /* ================= SUBMIT TRANSACTION ================= */
 
-  const calculateGrandTotal = () => {
-    if (!items || !Array.isArray(items) || items.length === 0) return 0;
-    const total = items.reduce((sum, item) => {
-      const itemId = getItemId(item);
-      if (itemId === null || itemId === undefined) return sum;
-      return sum + calculateItemTotal(item, salesData[itemId]);
-    }, 0);
-    return toMoney(total);
-  };
-
-  const grandTotalAmount = calculateGrandTotal();
-
-  const calculateSplitTotal = () => {
-    const cash = toMoney(splitPayments.cash);
-    const paybill = toMoney(splitPayments.paybill);
-    const sendMoney = toMoney(splitPayments.send_money);
-    const credit = toMoney(splitPayments.credit);
-    return toMoney(cash + paybill + sendMoney + credit);
-  };
-
-  const splitTotalAmount = calculateSplitTotal();
-  const remainingBalance = toMoney(grandTotalAmount - splitTotalAmount);
-
-  const isCreditRequired =
-    paymentMethod === 'CREDIT' ||
-    (paymentMethod === 'SPLIT' && toPositiveNumber(splitPayments.credit) > 0);
-
-  const filteredItems = (items || []).filter((item) =>
-    String(item?.name || '')
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
-
-  /*
-   * ERROR PARSER
-   */
-  const parseBackendError = (err) => {
-    if (!err?.response?.data) return err?.message || 'Failed to submit sales records.';
-    const data = err.response.data;
-    if (typeof data === 'string') return data;
-    if (data.detail && typeof data.detail === 'string') return data.detail;
-
-    const extractValue = (value) => {
-      if (Array.isArray(value)) return value.map(extractValue).filter(Boolean).join(', ');
-      if (typeof value === 'object' && value !== null) {
-        return Object.entries(value)
-          .map(([key, val]) => {
-            const extracted = extractValue(val);
-            return extracted ? `${key}: ${extracted}` : '';
-          })
-          .filter(Boolean)
-          .join(', ');
-      }
-      return value === null || value === undefined ? '' : String(value);
-    };
-
-    if (typeof data === 'object' && data !== null) {
-      const parsedErrors = [];
-      Object.entries(data).forEach(([key, value]) => {
-        const formattedVal = extractValue(value);
-        if (!formattedVal) return;
-        const numericKey = Number(key);
-        const isNumericIndex = !Number.isNaN(numericKey) && String(Math.floor(numericKey)) === key;
-        const keyLabel = isNumericIndex ? `Item ${numericKey + 1}` : key;
-        parsedErrors.push(`${keyLabel}: ${formattedVal}`);
-      });
-      if (parsedErrors.length > 0) return parsedErrors.join(' | ');
-    }
-
-    return 'Failed to submit sales records.';
-  };
-
-  /*
-   * SEND REQUEST TO MANAGEMENT
-   */
-  const handleSendManagementRequest = async (e) => {
-    e.preventDefault();
-    if (!requestMessage.trim()) return;
-
-    setSendingRequest(true);
-
-    const branchId =
-      typeof activeBranch === 'object' && activeBranch !== null
-        ? activeBranch.id ?? activeBranch.pk ?? activeBranch.value
-        : activeBranch;
-
-    const currentCartSummary = (items || [])
-      .map((item) => {
-        const itemId = getItemId(item);
-        const state = salesData[itemId];
-        if (!state || parseFloat(state.quantity_sold) <= 0) return null;
-        return {
-          item_id: itemId,
-          name: item.name,
-          quantity: state.quantity_sold,
-          discount: state.discount_per_item || 0,
-        };
-      })
-      .filter(Boolean);
-
-    const payload = {
-      request_type: requestType,
-      payload: {
-        branch_id: branchId,
-        message: requestMessage,
-        cart_summary: currentCartSummary,
-        total_amount: grandTotalAmount,
-      },
-    };
-
-    try {
-      await API.post('pending-approvals/', payload);
-      setStatus({
-        type: 'success',
-        text: 'Request sent to Management successfully!',
-      });
-      setShowRequestModal(false);
-      setRequestMessage('');
-    } catch (err) {
-      console.error('Failed to send management request:', err);
-      setStatus({
-        type: 'error',
-        text: parseBackendError(err),
-      });
-    } finally {
-      setSendingRequest(false);
-    }
-  };
-
-  /*
-   * SUBMIT SALE
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -315,7 +234,7 @@ export default function SalesEntry({
     setStatus(null);
 
     if (!activeBranch) {
-      setStatus({ type: 'error', text: 'Please select a retail branch before submitting transactions.' });
+      setStatus({ type: 'error', text: 'Please select a retail branch.' });
       setLoading(false);
       return;
     }
@@ -325,80 +244,28 @@ export default function SalesEntry({
         ? activeBranch.id ?? activeBranch.pk ?? activeBranch.value
         : activeBranch;
 
-    if (branchId === null || branchId === undefined || branchId === '') {
-      setStatus({ type: 'error', text: 'The selected branch does not have a valid branch ID.' });
+    if (cart.length === 0) {
+      setStatus({ type: 'error', text: 'Cart is empty. Please search and add items first.' });
       setLoading(false);
       return;
     }
-
-    const selectedItems = (items || [])
-      .map((item) => {
-        const itemId = getItemId(item);
-        if (itemId === null || itemId === undefined) return null;
-        const state = salesData[itemId] || { discount_per_item: '', quantity_sold: 0 };
-        const quantity = parseFloat(state.quantity_sold) || 0;
-        if (quantity <= 0) return null;
-
-        return {
-          itemId,
-          item,
-          quantity,
-          retailPrice: getItemRetailPrice(item),
-          discount: Math.max(0, parseFloat(state.discount_per_item) || 0),
-          stock: getItemStock(item),
-        };
-      })
-      .filter(Boolean);
-
-    if (selectedItems.length === 0) {
-      setStatus({ type: 'error', text: 'Please enter a quantity sold (> 0) for at least one item.' });
-      setLoading(false);
-      return;
-    }
-
-    for (const selected of selectedItems) {
-      if (selected.quantity > selected.stock) {
-        setStatus({
-          type: 'error',
-          text: `Quantity for "${selected.item.name}" exceeds remaining stock (${selected.stock} available).`,
-        });
-        setLoading(false);
-        return;
-      }
-      if (selected.discount > selected.retailPrice) {
-        setStatus({
-          type: 'error',
-          text: `Discount for "${selected.item.name}" cannot exceed retail price of KSh ${selected.retailPrice.toFixed(2)}.`,
-        });
-        setLoading(false);
-        return;
-      }
-    }
-
-    const cartItems = selectedItems.map(({ itemId, quantity, retailPrice, discount }) => ({
-      item: itemId,
-      quantity_sold: toMoney(quantity),
-      unit_selling_price: toMoney(retailPrice).toFixed(2),
-      discount_per_item: toMoney(discount).toFixed(2),
-      total_amount: toMoney(quantity * (retailPrice - discount)).toFixed(2),
-    }));
 
     if (grandTotalAmount <= 0) {
-      setStatus({ type: 'error', text: 'The sale total must be greater than KSh 0.00.' });
+      setStatus({ type: 'error', text: 'Total sale valuation must be greater than KSh 0.00.' });
       setLoading(false);
       return;
     }
 
     if (paymentMethod === 'SPLIT') {
       if (splitTotalAmount <= 0) {
-        setStatus({ type: 'error', text: 'Please allocate at least one payment amount.' });
+        setStatus({ type: 'error', text: 'Please allocate split payment amounts.' });
         setLoading(false);
         return;
       }
       if (Math.abs(remainingBalance) > 0.01) {
         setStatus({
           type: 'error',
-          text: `Split payments total (KSh ${splitTotalAmount.toFixed(2)}) must equal Grand Total (KSh ${grandTotalAmount.toFixed(2)}). Remaining: KSh ${remainingBalance.toFixed(2)}`,
+          text: `Split total (KSh ${splitTotalAmount.toFixed(2)}) must equal Grand Total (KSh ${grandTotalAmount.toFixed(2)}).`,
         });
         setLoading(false);
         return;
@@ -410,7 +277,7 @@ export default function SalesEntry({
 
     if (paymentMethod === 'PAYBILL' || (paymentMethod === 'SPLIT' && paybillAmount > 0)) {
       if (!String(splitPayments.paybill_ref || '').trim()) {
-        setStatus({ type: 'error', text: 'Please enter the Paybill M-Pesa reference number.' });
+        setStatus({ type: 'error', text: 'Paybill reference code is required.' });
         setLoading(false);
         return;
       }
@@ -418,18 +285,26 @@ export default function SalesEntry({
 
     if (paymentMethod === 'SEND_MONEY' || (paymentMethod === 'SPLIT' && sendMoneyAmount > 0)) {
       if (!String(splitPayments.send_money_ref || '').trim()) {
-        setStatus({ type: 'error', text: 'Please enter the Send Money M-Pesa reference number.' });
+        setStatus({ type: 'error', text: 'Send Money reference code is required.' });
         setLoading(false);
         return;
       }
     }
 
-    const payments = [];
+    const cartItems = cart.map(({ item, quantity, discount }) => {
+      const retailPrice = getItemRetailPrice(item);
+      return {
+        item: getItemId(item),
+        quantity_sold: toMoney(quantity),
+        unit_selling_price: toMoney(retailPrice).toFixed(2),
+        discount_per_item: toMoney(discount).toFixed(2),
+        total_amount: toMoney(quantity * (retailPrice - discount)).toFixed(2),
+      };
+    });
 
+    const payments = [];
     if (paymentMethod === 'SPLIT') {
       const cashAmount = toPositiveNumber(splitPayments.cash);
-      const creditAmount = toPositiveNumber(splitPayments.credit);
-
       if (cashAmount > 0) payments.push({ method: 'CASH', amount: toMoney(cashAmount).toFixed(2) });
       if (paybillAmount > 0) {
         payments.push({
@@ -445,7 +320,6 @@ export default function SalesEntry({
           reference_code: String(splitPayments.send_money_ref || '').trim().toUpperCase(),
         });
       }
-      if (creditAmount > 0) payments.push({ method: 'CREDIT', amount: toMoney(creditAmount).toFixed(2) });
     } else {
       const payment = {
         method: paymentMethod.toUpperCase(),
@@ -460,15 +334,11 @@ export default function SalesEntry({
       payments.push(payment);
     }
 
-    const customerVal = String(customerInfo.name || '').trim();
-
     const checkoutPayload = {
       branch: branchId,
       payment_method: paymentMethod.toUpperCase(),
-      customer: customerInfo.id || customerVal || null,
-      customer_name: customerVal,
-      invoice_number: String(customerInfo.invoice_number || '').trim(),
-      credit_notes: String(customerInfo.notes || '').trim(),
+      customer_name: customerInfo.name,
+      invoice_number: customerInfo.invoice_number,
       sale_date: buildSaleDateTime(saleDate),
       total_amount: toMoney(grandTotalAmount).toFixed(2),
       items: cartItems,
@@ -476,414 +346,445 @@ export default function SalesEntry({
     };
 
     try {
-      const response = await API.post('sales/', checkoutPayload);
-
+      const res = await API.post('sales/', checkoutPayload);
       setStatus({
         type: 'success',
-        text: `Sale recorded successfully! Single receipt generated for ${cartItems.length} item(s).`,
+        text: `Sale recorded successfully for ${cart.length} item(s)!`,
       });
 
-      // Reset state
-      setSalesData((prev) => {
-        const reset = { ...prev };
-        Object.keys(reset).forEach((id) => {
-          reset[id] = { ...reset[id], quantity_sold: 0, discount_per_item: '' };
-        });
-        return reset;
-      });
-
-      setCustomerInfo({ name: '', invoice_number: '', notes: '', id: null });
-      setSplitPayments({ cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '', credit: '' });
+      // Reset
+      setCart([]);
+      setSelectedCatalogItem(null);
+      setSearchTerm('');
+      setCustomerInfo({ name: '', invoice_number: '', notes: '' });
+      setSplitPayments({ cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '' });
       setPaymentMethod('CASH');
-      setSaleDate(getLocalDateString());
 
-      if (onSalesSubmitted) {
-        onSalesSubmitted(response?.data);
-      }
+      if (onSalesSubmitted) onSalesSubmitted(res?.data);
     } catch (err) {
-      const msg = parseBackendError(err);
+      console.error('Failed to submit sale:', err);
+      const msg = err?.response?.data?.detail || err?.message || 'Failed to submit sale.';
       setStatus({ type: 'error', text: msg });
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= MANAGEMENT REQUEST ================= */
+
+  const handleSendManagementRequest = async (e) => {
+    e.preventDefault();
+    if (!requestMessage.trim()) return;
+    setSendingRequest(true);
+
+    try {
+      await API.post('pending-approvals/', {
+        request_type: requestType,
+        payload: {
+          branch_id: activeBranch,
+          message: requestMessage,
+          cart_summary: cart.map((c) => ({
+            name: c.item.name,
+            quantity: c.quantity,
+            discount: c.discount,
+          })),
+          total_amount: grandTotalAmount,
+        },
+      });
+      setStatus({ type: 'success', text: 'Request sent to Management successfully!' });
+      setShowRequestModal(false);
+      setRequestMessage('');
+    } catch (err) {
+      setStatus({ type: 'error', text: 'Failed to send approval request.' });
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  // Payment Options (CREDIT REMOVED)
   const paymentOptions = [
     { id: 'CASH', label: 'CASH' },
     { id: 'PAYBILL', label: 'PAYBILL' },
     { id: 'SEND_MONEY', label: 'SEND MONEY' },
-    { id: 'CREDIT', label: 'CREDIT' },
     { id: 'SPLIT', label: 'Split Payment' },
   ];
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6 relative">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+    <div className="max-w-7xl mx-auto font-sans space-y-6">
+      {/* Top Banner Header */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-wrap justify-between items-center gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Record Daily Sales</h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Apply discounts and specify quantities sold for inventory items for the selected branch.
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Record Daily Cash Sales</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Search items from catalog, specify quantity & discounts, then submit sales receipt.
           </p>
         </div>
-        <div className="w-full sm:w-72">
+
+        {/* Styled Payment Selector (No Credit) */}
+        <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+          <span className="text-[10px] font-bold text-slate-500 uppercase px-2">Payment:</span>
+          {paymentOptions.map((opt) => {
+            const isActive = paymentMethod === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setPaymentMethod(opt.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isActive
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-200/60'
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-600">Date:</label>
           <input
-            type="text"
-            placeholder="Search items by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ colorScheme: 'light' }}
-            className="w-full px-3 py-2 bg-white !text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium [color-scheme:light]"
+            type="date"
+            value={saleDate}
+            onChange={(e) => setSaleDate(e.target.value)}
+            className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
       </div>
 
       {status && (
         <div
-          className={`p-4 rounded-lg border text-sm font-medium ${
+          className={`p-4 rounded-2xl text-xs font-bold border ${
             status.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-              : 'bg-rose-50 text-rose-800 border-rose-300'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}
         >
           {status.text}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            
-            {/* STYLED PAYMENT METHOD BUTTONS */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider mr-2">
-                Payment Method:
-              </span>
-              {paymentOptions.map((opt) => {
-                const isActive = paymentMethod === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(opt.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      isActive
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
+      {/* Main POS 2-Column Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* LEFT 7 COLS: SEARCH & ITEM PICKER */}
+        <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+          <div className="space-y-2 relative">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Search Catalog Item
+            </label>
+            <input
+              type="text"
+              placeholder="Type item name or code to search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+            />
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Sale Date:</label>
-              <input
-                type="date"
-                required
-                value={saleDate}
-                onChange={(e) => setSaleDate(e.target.value)}
-                style={{ colorScheme: 'light' }}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none font-medium [color-scheme:light]"
-              />
-            </div>
+            {/* Live Search Dropdown */}
+            {searchTerm.trim().length > 0 && (
+              <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto divide-y divide-slate-100">
+                {filteredCatalogItems.length > 0 ? (
+                  filteredCatalogItems.map((item) => {
+                    const stock = getItemStock(item);
+                    const retail = getItemRetailPrice(item);
+
+                    return (
+                      <button
+                        key={getItemId(item)}
+                        type="button"
+                        onClick={() => handleSelectItem(item)}
+                        className="w-full p-3 text-left hover:bg-teal-50 flex justify-between items-center transition cursor-pointer"
+                      >
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 block">{item.name}</span>
+                          <span className="text-[10px] text-slate-400">
+                            Code: {item.code || 'N/A'} | Stock: {stock}
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-teal-800">
+                          KSh {retail.toFixed(2)}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-xs text-slate-400 text-center font-mono">
+                    No matching items found.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
+          {/* Selected Item Config Box */}
+          {selectedCatalogItem ? (
+            <div className="bg-slate-50 border border-teal-200 rounded-2xl p-4 space-y-4 animate-in fade-in duration-150">
+              <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">{selectedCatalogItem.name}</h3>
+                  <div className="flex gap-2 mt-1">
+                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                      In Stock: {getItemStock(selectedCatalogItem)}
+                    </span>
+                    <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
+                      Retail: KSh {getItemRetailPrice(selectedCatalogItem).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCatalogItem(null)}
+                  className="text-xs text-slate-400 hover:text-rose-600 font-bold"
+                >
+                  ✕ Clear
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    Quantity Sold
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={getItemStock(selectedCatalogItem)}
+                    value={inputQty}
+                    onChange={(e) => setInputQty(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    Discount / Unit (KSh)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={inputDiscount}
+                    onChange={(e) => setInputDiscount(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                <span className="text-xs font-bold font-mono text-teal-800">
+                  Item Total: KSh{' '}
+                  {(
+                    toPositiveNumber(inputQty) *
+                    Math.max(
+                      0,
+                      getItemRetailPrice(selectedCatalogItem) - (parseFloat(inputDiscount) || 0)
+                    )
+                  ).toFixed(2)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer shadow-xs"
+                >
+                  + Add to Sale
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400 text-xs">
+              Search and pick an item above to add to current transaction.
+            </div>
+          )}
+
+          {/* Reference fields for M-Pesa */}
           {paymentMethod === 'PAYBILL' && (
-            <div className="pt-2 border-t border-slate-200 flex items-center gap-3">
-              <label className="text-xs font-semibold text-slate-700 whitespace-nowrap">
-                Paybill Reference Code <span className="text-rose-500">*</span>:
+            <div className="space-y-1 pt-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase block">
+                Paybill M-Pesa Reference Code *
               </label>
               <input
                 type="text"
-                required
                 placeholder="e.g. QX12345678"
                 value={splitPayments.paybill_ref}
                 onChange={(e) => handleSplitChange('paybill_ref', e.target.value)}
-                style={{ colorScheme: 'light' }}
-                className="w-64 px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono uppercase font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
           )}
 
           {paymentMethod === 'SEND_MONEY' && (
-            <div className="pt-2 border-t border-slate-200 flex items-center gap-3">
-              <label className="text-xs font-semibold text-slate-700 whitespace-nowrap">
-                Send Money Reference Code <span className="text-rose-500">*</span>:
+            <div className="space-y-1 pt-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase block">
+                Send Money M-Pesa Reference Code *
               </label>
               <input
                 type="text"
-                required
                 placeholder="e.g. QX12345678"
                 value={splitPayments.send_money_ref}
                 onChange={(e) => handleSplitChange('send_money_ref', e.target.value)}
-                style={{ colorScheme: 'light' }}
-                className="w-64 px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono uppercase font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
           )}
 
+          {/* Split payment inputs */}
           {paymentMethod === 'SPLIT' && (
-            <div className="p-4 bg-indigo-50/50 rounded-lg border border-indigo-200 space-y-4 mt-2">
-              <div className="flex flex-wrap justify-between items-center border-b border-indigo-200 pb-2">
-                <span className="text-sm font-bold text-indigo-900">Split Payment Breakdown</span>
-                <div className="flex gap-4 text-xs font-semibold">
-                  <span className="text-slate-600">Total Due: <strong className="text-slate-900">KSh {grandTotalAmount.toFixed(2)}</strong></span>
-                  <span className="text-slate-600">Allocated: <strong className="text-indigo-700">KSh {splitTotalAmount.toFixed(2)}</strong></span>
-                  <span className={Math.abs(remainingBalance) <= 0.01 ? 'text-emerald-600' : 'text-rose-600'}>
-                    Remaining: <strong>KSh {remainingBalance.toFixed(2)}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-200 space-y-3">
+              <span className="text-xs font-bold text-teal-900 uppercase block">Split Breakdown</span>
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Cash Amount (KSh)</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Cash (KSh)</label>
                   <input
                     type="number"
-                    step="0.01"
                     min="0"
+                    step="0.01"
                     placeholder="0.00"
                     value={splitPayments.cash}
                     onChange={(e) => handleSplitChange('cash', e.target.value)}
-                    style={{ colorScheme: 'light' }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold [color-scheme:light]"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Paybill Amount (KSh)</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Paybill (KSh)</label>
                   <input
                     type="number"
-                    step="0.01"
                     min="0"
+                    step="0.01"
                     placeholder="0.00"
                     value={splitPayments.paybill}
                     onChange={(e) => handleSplitChange('paybill', e.target.value)}
-                    style={{ colorScheme: 'light' }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold mb-1.5 [color-scheme:light]"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold"
                   />
-                  {parseFloat(splitPayments.paybill) > 0 && (
-                    <input
-                      type="text"
-                      placeholder="M-Pesa Paybill Ref"
-                      value={splitPayments.paybill_ref}
-                      onChange={(e) => handleSplitChange('paybill_ref', e.target.value)}
-                      style={{ colorScheme: 'light' }}
-                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-xs bg-white !text-slate-900 placeholder:text-slate-400 font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
-                    />
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Send Money Amount (KSh)</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Send Money</label>
                   <input
                     type="number"
-                    step="0.01"
                     min="0"
+                    step="0.01"
                     placeholder="0.00"
                     value={splitPayments.send_money}
                     onChange={(e) => handleSplitChange('send_money', e.target.value)}
-                    style={{ colorScheme: 'light' }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold mb-1.5 [color-scheme:light]"
-                  />
-                  {parseFloat(splitPayments.send_money) > 0 && (
-                    <input
-                      type="text"
-                      placeholder="M-Pesa Ref"
-                      value={splitPayments.send_money_ref}
-                      onChange={(e) => handleSplitChange('send_money_ref', e.target.value)}
-                      style={{ colorScheme: 'light' }}
-                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-xs bg-white !text-slate-900 placeholder:text-slate-400 font-mono uppercase focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Credit Sale Amount (KSh)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={splitPayments.credit}
-                    onChange={(e) => handleSplitChange('credit', e.target.value)}
-                    style={{ colorScheme: 'light' }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold [color-scheme:light]"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold"
                   />
                 </div>
-              </div>
-            </div>
-          )}
-
-          {isCreditRequired && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Invoice Number <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required={isCreditRequired}
-                  placeholder="e.g. INV-2026-001"
-                  value={customerInfo.invoice_number}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, invoice_number: e.target.value })}
-                  style={{ colorScheme: 'light' }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-mono [color-scheme:light]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Customer Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. John Doe"
-                  value={customerInfo.name}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                  style={{ colorScheme: 'light' }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Credit Notes / Due Date</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pay by Friday"
-                  value={customerInfo.notes}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })}
-                  style={{ colorScheme: 'light' }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:light]"
-                />
               </div>
             </div>
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b bg-slate-50 text-xs text-slate-500 uppercase font-semibold">
-                <th className="p-3">Item Description</th>
-                <th className="p-3">In Stock</th>
-                <th className="p-3">Cost Price (KSh)</th>
-                <th className="p-3">Retail Price (KSh)</th>
-                <th className="p-3">Discount / Unit (KSh)</th>
-                <th className="p-3">Qty Sold</th>
-                <th className="p-3 text-right">Total Selling Price</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredItems.length > 0 ? (
-                filteredItems.map((item) => {
-                  const itemId = getItemId(item);
-                  const state = salesData[itemId] || { discount_per_item: '', quantity_sold: 0 };
-                  const lineTotal = calculateItemTotal(item, state);
-                  const costPrice = getItemCostPrice(item);
+        {/* RIGHT 5 COLS: CART & GRAND TOTAL */}
+        <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-5">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                Current Sale Items ({cart.length})
+              </h2>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setCart([])}
+                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+                >
+                  Clear Cart
+                </button>
+              )}
+            </div>
+
+            {/* Cart List */}
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {cart.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-mono">
+                  No items added to cart yet.
+                </div>
+              ) : (
+                cart.map(({ item, quantity, discount }) => {
+                  const id = getItemId(item);
                   const retailPrice = getItemRetailPrice(item);
-                  const stock = getItemStock(item);
+                  const effective = Math.max(0, retailPrice - discount);
+                  const lineTotal = quantity * effective;
 
                   return (
-                    <tr
-                      key={itemId}
-                      className={state.quantity_sold > 0 ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : 'hover:bg-slate-50'}
+                    <div
+                      key={id}
+                      className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center gap-3"
                     >
-                      <td className="p-3 font-medium text-slate-800">{item.name}</td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                            stock <= 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-800'
-                          }`}
-                        >
-                          {stock}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-slate-800 truncate block">
+                          {item.name}
                         </span>
-                      </td>
-                      <td className="p-3 font-medium text-slate-600">KSh {costPrice.toFixed(2)}</td>
-                      <td className="p-3 font-semibold text-indigo-900">KSh {retailPrice.toFixed(2)}</td>
-                      <td className="p-3">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={retailPrice}
-                          placeholder="0"
-                          value={state.discount_per_item}
-                          onChange={(e) => handleChange(itemId, 'discount_per_item', e.target.value)}
-                          style={{ colorScheme: 'light' }}
-                          className="w-24 px-3 py-1.5 border border-slate-300 rounded-md text-sm bg-white !text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none font-semibold text-right [color-scheme:light]"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max={stock}
-                          step="any"
-                          value={state.quantity_sold}
-                          onChange={(e) => handleChange(itemId, 'quantity_sold', e.target.value)}
-                          style={{ colorScheme: 'light' }}
-                          className="w-20 px-3 py-1.5 border border-slate-300 rounded-md text-sm bg-white !text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-center [color-scheme:light]"
-                        />
-                      </td>
-                      <td className="p-3 text-right font-bold text-slate-800">KSh {lineTotal.toFixed(2)}</td>
-                    </tr>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => handleUpdateCartQty(id, e.target.value)}
+                            className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-mono font-bold text-center"
+                          />
+                          <span className="text-[10px] text-slate-400">× KSh {effective.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <span className="text-xs font-extrabold font-mono text-slate-900">
+                          KSh {lineTotal.toFixed(2)}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveFromCart(id)}
+                          className="text-[10px] text-slate-400 hover:text-rose-600 font-bold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
                   );
                 })
-              ) : (
-                <tr>
-                  <td colSpan="7" className="p-6 text-center text-slate-400 font-medium">
-                    {searchTerm ? `No items found matching "${searchTerm}".` : 'No items loaded for this branch.'}
-                  </td>
-                </tr>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowRequestModal(true);
-            }}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-lg transition shadow-sm flex items-center gap-2 cursor-pointer"
-          >
-            <span>📩 Request Management Approval</span>
-          </button>
-
-          <div className="flex items-center gap-6 ml-auto">
-            <div className="text-right">
-              <span className="text-xs text-slate-500 uppercase font-semibold block">Grand Total Amount</span>
-              <span className="text-2xl font-extrabold text-indigo-600">KSh {grandTotalAmount.toFixed(2)}</span>
+          {/* Grand Total & Checkout */}
+          <div className="pt-4 border-t border-slate-100 space-y-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Total Payable Amount
+                </span>
+                <span className="text-2xl font-black font-mono text-teal-700">
+                  KSh {grandTotalAmount.toFixed(2)}
+                </span>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={
-                loading ||
-                !items ||
-                items.length === 0 ||
-                !activeBranch ||
-                grandTotalAmount <= 0 ||
-                (paymentMethod === 'SPLIT' && Math.abs(remainingBalance) > 0.01)
-              }
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition shadow-sm disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? 'Processing...' : 'Submit Transactions'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowRequestModal(true)}
+                className="w-1/3 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] rounded-xl transition cursor-pointer"
+              >
+                📩 Request
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || cart.length === 0 || grandTotalAmount <= 0}
+                className="w-2/3 py-2.5 bg-teal-700 hover:bg-teal-600 text-white font-extrabold text-xs rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? 'Processing...' : 'Submit Sale'}
+              </button>
+            </div>
           </div>
         </div>
-      </form>
+      </div>
 
       {/* REQUEST MANAGEMENT MODAL */}
       {showRequestModal &&
         createPortal(
           <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 text-slate-800 relative z-[100000] animate-in fade-in zoom-in duration-150">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 text-slate-800 relative z-[100000]">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-extrabold text-slate-900">
                   Send Request to Management
                 </h3>
                 <button
@@ -894,39 +795,35 @@ export default function SalesEntry({
                   ✕
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mb-4">
-                Send a query or seek approval for discounts, custom pricing, or stock overrides.
-              </p>
 
               <form onSubmit={handleSendManagementRequest} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Request Category
                   </label>
                   <select
                     value={requestType}
                     onChange={(e) => setRequestType(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 font-semibold outline-none"
                   >
                     <option value="DISCOUNT_APPROVAL">Discount Approval</option>
                     <option value="STOCK_OVERRIDE">Stock Limit Override</option>
                     <option value="PRICE_QUERY">Unit Price Query</option>
-                    <option value="CREDIT_APPROVAL">Credit Terms Approval</option>
                     <option value="OTHER">Other Query</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Message / Details <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Details / Reason *
                   </label>
                   <textarea
                     required
                     rows={3}
-                    placeholder="e.g. Customer requests 15% discount on bulk purchase..."
+                    placeholder="e.g. Customer requests custom discount..."
                     value={requestMessage}
                     onChange={(e) => setRequestMessage(e.target.value)}
-                    className="w-full p-3 border border-slate-300 rounded-lg text-xs bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full p-3 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 placeholder:text-slate-400 outline-none"
                   />
                 </div>
 
@@ -934,14 +831,14 @@ export default function SalesEntry({
                   <button
                     type="button"
                     onClick={() => setShowRequestModal(false)}
-                    className="w-1/2 px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                    className="w-1/2 px-4 py-2 border border-slate-300 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={sendingRequest}
-                    className="w-1/2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition cursor-pointer"
+                    className="w-1/2 px-4 py-2 bg-teal-700 text-white rounded-xl text-xs font-bold hover:bg-teal-600 transition cursor-pointer"
                   >
                     {sendingRequest ? 'Sending...' : 'Send Request'}
                   </button>
