@@ -8,6 +8,7 @@ export default function AuthPage({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [branches, setBranches] = useState([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -23,7 +24,7 @@ export default function AuthPage({ onLoginSuccess }) {
       try {
         const response = await API.get('branches/');
         const data = response.data;
-        setBranches(data);
+        setBranches(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Failed to load branches:', err);
       } finally {
@@ -47,9 +48,14 @@ export default function AuthPage({ onLoginSuccess }) {
       return;
     }
 
-    const endpoint = isLogin ? 'auth/user-login/' : 'auth/register/';
+    setIsSubmitting(true);
 
-    const cleanUsername = formData.username.trim().replace(/\s+/g, '_').toLowerCase();
+    const endpoint = isLogin ? '/auth/login/' : '/auth/register/';
+    
+    // For login, preserve exact trimmed username
+    const loginUsername = formData.username.trim();
+    // For registration, generate cleaned fallback username
+    const regUsername = formData.username.trim().replace(/\s+/g, '_').toLowerCase();
     
     // Split input into first_name and last_name for registration
     const nameParts = formData.username.trim().split(' ');
@@ -59,11 +65,11 @@ export default function AuthPage({ onLoginSuccess }) {
     // Format payload for both Login and Registration
     const payload = isLogin
       ? { 
-          username: cleanUsername, 
+          username: loginUsername, 
           password: formData.password 
         }
       : {
-          username: cleanUsername,
+          username: regUsername,
           first_name: firstName,
           last_name: lastName,
           email: formData.email.trim(),
@@ -80,50 +86,90 @@ export default function AuthPage({ onLoginSuccess }) {
       const data = response.data;
 
       if (isLogin) {
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        localStorage.setItem('token', data.access);
+        const activeToken = data.access || data.token;
+        if (activeToken) {
+          localStorage.setItem('access_token', activeToken);
+          localStorage.setItem('token', activeToken);
+        }
+
+        if (data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh);
+        }
 
         const userObj = data.user || {
-          username: data.username || cleanUsername,
-          role: 'User',
+          username: data.username || loginUsername,
+          role: 'NORMAL_USER',
+          permissions: {},
           is_staff: false,
           is_superuser: false,
         };
 
-        localStorage.setItem('username', userObj.username);
-        localStorage.setItem('user_data', JSON.stringify(userObj));
+        // Save module permissions to local storage
+        if (userObj.permissions) {
+          localStorage.setItem('user_permissions', JSON.stringify(userObj.permissions));
+        }
 
-        if (onLoginSuccess) {
+        const isSuperadmin = userObj.is_superuser || userObj.role === 'SUPERADMIN';
+        const isManagement = userObj.is_staff || ['ADMIN', 'MANAGER', 'MANAGEMENT'].includes(userObj.role);
+
+        const portalType = data.portal_type || (isSuperadmin ? 'admin' : (isManagement ? 'management' : 'user'));
+
+        localStorage.setItem('username', userObj.username);
+        localStorage.setItem('user', JSON.stringify(userObj));
+        localStorage.setItem('user_data', JSON.stringify(userObj));
+        localStorage.setItem('portal_type', portalType);
+
+        if (typeof onLoginSuccess === 'function') {
           onLoginSuccess(userObj);
         }
 
-        navigate('/');
+        // Dynamic redirect based on privileges & portal type
+        if (isSuperadmin || portalType === 'admin') {
+          navigate('/admin');
+        } else if (isManagement || portalType === 'management') {
+          navigate('/management');
+        } else {
+          navigate('/');
+        }
       } else {
         // Automatically pre-fill username and switch view to Sign In
         setFormData({
-          username: cleanUsername,
+          username: regUsername,
           email: '',
           password: '',
           confirmPassword: '',
           branch: 'all',
         });
         setError('');
-        setIsLogin(true); // Automatically redirects view to User Portal Sign In
+        setIsLogin(true);
       }
     } catch (err) {
       if (err.response?.data) {
         const data = err.response.data;
-        if (typeof data === 'object') {
+        if (typeof data === 'string') {
+          // Prevent raw HTML pages from rendering inside the alert box
+          if (data.includes('<!doctype html>') || data.includes('<html')) {
+            setError('Server Error (500). Please verify Django terminal logs.');
+          } else {
+            setError(data);
+          }
+        } else if (data.detail) {
+          setError(data.detail);
+        } else if (data.error) {
+          setError(data.error);
+        } else if (typeof data === 'object') {
           const firstKey = Object.keys(data)[0];
-          const firstErr = Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey];
-          setError(`${firstKey.toUpperCase()}: ${firstErr}`);
+          const firstVal = data[firstKey];
+          const msg = Array.isArray(firstVal) ? firstVal[0] : firstVal;
+          setError(`${firstKey !== 'non_field_errors' ? `${firstKey}: ` : ''}${msg}`);
         } else {
-          setError(data.error || data.detail || 'Registration failed');
+          setError('Authentication failed. Please check your credentials.');
         }
       } else {
-        setError(err.message || 'Authentication failed');
+        setError(err.message || 'Unable to connect to authentication service.');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -135,10 +181,10 @@ export default function AuthPage({ onLoginSuccess }) {
             🔒
           </div>
           <h2 className="text-2xl font-bold text-slate-900">
-            {isLogin ? 'User Portal Sign In' : 'Create an account'}
+            {isLogin ? 'Sign In' : 'Create an Account'}
           </h2>
           <p className="text-xs text-slate-600 mt-1">
-            {isLogin ? 'Enter your credentials to access POS' : 'Fill in the details below to get started'}
+            {isLogin ? 'Enter your credentials to access your portal' : 'Fill in the details below to get started'}
           </p>
         </div>
 
@@ -249,9 +295,10 @@ export default function AuthPage({ onLoginSuccess }) {
 
           <button
             type="submit"
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition duration-150 ease-in-out mt-2 cursor-pointer"
+            disabled={isSubmitting}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-semibold rounded-lg shadow-sm transition duration-150 ease-in-out mt-2 cursor-pointer"
           >
-            {isLogin ? 'Sign In' : 'Register Account'}
+            {isSubmitting ? 'Authenticating...' : (isLogin ? 'Sign In' : 'Register Account')}
           </button>
         </form>
 

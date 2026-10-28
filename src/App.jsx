@@ -30,8 +30,6 @@ import SalesReturnsManagement from './components/SalesReturnsManagement';
 import QuotationsManagement from './components/QuotationManagement';
 import CreditSaleManagement from './components/CreditSalesManagement';
 import AdminDashboard from './components/AdminDashboard';
-import AdminLogin from './components/AdminLogin';
-import ManagementLogin from './components/ManagementLogin';
 import AuthPage from './components/AuthPage';
 import ReceiptsLogManagement from './components/ReceiptsLogManagement';
 import ApprovalsDashboard from './components/ApprovalsDashboard';
@@ -61,7 +59,7 @@ import DebtorsView from './components/DebtorsView';
 import FinancialView from './components/FinancialView';
 
 /* =========================================================
-   PORTAL ROUTE GUARDS
+   PORTAL ROUTE GUARDS (SINGLE AUTH ENTRYPOINT)
 ========================================================= */
 
 const ProtectedRoute = () => {
@@ -72,13 +70,30 @@ const ProtectedRoute = () => {
 
 const AdminRoute = ({ onItemsUpdated }) => {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-  if (!token) return <AdminLogin />;
+  if (!token) return <Navigate to="/login" replace />;
+  
+  const user = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('user') || '{}');
+  const isSuperadmin = user.is_superuser || user.role === 'SUPERADMIN';
+
+  // If user doesn't have superadmin privileges, send to home workspace
+  if (!isSuperadmin) {
+    return <Navigate to="/" replace />;
+  }
+
   return <AdminDashboard onItemsUpdated={onItemsUpdated} />;
 };
 
 const ManagementRoute = () => {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-  if (!token) return <ManagementLogin />;
+  if (!token) return <Navigate to="/login" replace />;
+
+  const user = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('user') || '{}');
+  const isManagement = user.is_staff || user.is_superuser || user.role === 'ADMIN' || user.role === 'MANAGEMENT';
+
+  if (!isManagement) {
+    return <Navigate to="/" replace />;
+  }
+
   return <AdminDashboard />;
 };
 
@@ -681,21 +696,18 @@ function UserDashboard({ items, fetchItems }) {
 
   // Evaluates permissions against backend model defaults and exact sub-menu keys
   const hasAccess = useCallback((key) => {
-    // Superusers and Administrators bypass checks
-    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN') {
+    if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN') {
       return true;
     }
 
     if (!userPermissions || typeof userPermissions !== 'object') {
-      return true; // Default open if permissions object has not loaded yet
+      return true;
     }
 
-    // Direct exact key match (e.g. 'dashboard', 'goods_received', 'cash_sale')
     if (key in userPermissions) {
       return Boolean(userPermissions[key]?.view);
     }
 
-    // Fallback for singular vs plural key variances
     const singularKey = key.endsWith('s') ? key.slice(0, -1) : key;
     const pluralKey = key.endsWith('s') ? key : `${key}s`;
 
@@ -712,11 +724,9 @@ function UserDashboard({ items, fetchItems }) {
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('user_active_tab');
     if (saved && saved !== 'dashboard') return saved;
-    // If dashboard is forbidden, default initial active tab to Cash Sale
     return hasAccess('dashboard') ? 'dashboard' : 'cash_sale';
   });
 
-  // Redirect to cash_sale if currently on dashboard without permission
   useEffect(() => {
     if (activeTab === 'dashboard' && !hasAccess('dashboard')) {
       setActiveTab('cash_sale');
@@ -846,18 +856,6 @@ function UserDashboard({ items, fetchItems }) {
     }));
   };
 
-  const validTabKeys = useMemo(() => {
-    const keys = new Set(['dashboard', 'approvals']);
-    menuGroups.forEach((g) => {
-      if (g.items) {
-        g.items.forEach((i) => keys.add(i.key));
-      }
-    });
-    return keys;
-  }, [menuGroups]);
-
-  const isTabValid = validTabKeys.has(activeTab) && hasAccess(activeTab);
-
   return (
     <div className="h-screen w-screen flex overflow-hidden text-teal-950 font-sans bg-slate-100">
       {/* LEFT SIDEBAR NAVIGATION */}
@@ -870,7 +868,6 @@ function UserDashboard({ items, fetchItems }) {
 
         <nav className="p-3 space-y-2 flex-1 overflow-y-auto">
           {menuGroups.map((group) => {
-            // HIDE DASHBOARD ENTIRELY FROM SIDEBAR IF USER HAS NO PERMISSION
             if (group.isDirect) {
               const allowed = hasAccess(group.key);
               if (group.key === 'dashboard' && !allowed) {
@@ -915,7 +912,7 @@ function UserDashboard({ items, fetchItems }) {
                   }`}
                 >
                   <span className="uppercase tracking-wider text-[10px]">{group.group}</span>
-                  <span className="text-xs">{isOpen ? '▾' : '▸'}</span>
+                  <span className="text-xs">{isOpen ? '▼' : '▶'}</span>
                 </button>
 
                 {isOpen && (
@@ -1195,12 +1192,23 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Unified Auth Entrypoint */}
       <Route path="/login" element={<AuthPage />} />
+      
+      {/* Redirect explicit legacy login routes to unified AuthPage */}
+      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+      <Route path="/management/login" element={<Navigate to="/login" replace />} />
+
+      {/* Role-guarded workspaces */}
       <Route path="/management" element={<ManagementRoute />} />
       <Route path="/admin" element={<AdminRoute onItemsUpdated={fetchItems} />} />
+      
+      {/* General workspace protected route */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<UserDashboard items={items} fetchItems={fetchItems} />} />
       </Route>
+      
+      {/* Catch-all fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const PRODUCTION_API_URL = 'https://api.melvexbusinesssolutions.com/apis/';
+const PRODUCTION_API_URL = 'https://api.melvexbusinesssolutions.com/api/';
 
 const getBaseURL = () => {
   const hostname = window.location.hostname;
@@ -11,7 +11,7 @@ const getBaseURL = () => {
     hostname.startsWith('10.');
 
   if (isLocal) {
-    return import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/apis/';
+    return import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/';
   }
 
   return import.meta.env?.VITE_API_BASE_URL || PRODUCTION_API_URL;
@@ -28,18 +28,9 @@ const API = axios.create({
 
 API.interceptors.request.use(
   (config) => {
-    // Force absolute baseURL on every request
-    config.baseURL = BASE_URL;
-
-    if (config.url && typeof config.url === 'string') {
-      // If the URL starts with absolute domain, convert it to relative endpoint
-      if (config.url.startsWith('http://') || config.url.startsWith('https://')) {
-        const urlObj = new URL(config.url);
-        config.url = urlObj.pathname + urlObj.search;
-      }
-
-      // Strip unwanted leading prefixes
-      config.url = config.url.replace(/^\/(apis|api)\//, '');
+    // Standardize relative URLs with proper trailing slashes
+    if (config.url && typeof config.url === 'string' && !config.url.startsWith('http')) {
+      // Clean leading slash so standard baseURL concatenation works properly
       if (config.url.startsWith('/')) {
         config.url = config.url.slice(1);
       }
@@ -54,7 +45,7 @@ API.interceptors.request.use(
       }
     }
 
-    // Attach JWT Bearer Authorization header
+    // Attach JWT Bearer Token if logged in
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -69,28 +60,15 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user_data');
-      localStorage.removeItem('user');
-      localStorage.removeItem('username');
-      localStorage.removeItem('role');
-
+      localStorage.clear();
       const path = window.location.pathname;
 
-      if (path.startsWith('/admin')) {
-        if (!path.includes('/admin/login')) {
-          window.location.href = '/admin';
-        }
-      } else if (path.startsWith('/management')) {
-        if (!path.includes('/management/login')) {
-          window.location.href = '/management';
-        }
-      } else {
-        if (!path.includes('/login')) {
-          window.location.href = '/login';
-        }
+      if (path.startsWith('/admin') && !path.includes('/admin/login')) {
+        window.location.href = '/admin';
+      } else if (path.startsWith('/management') && !path.includes('/management/login')) {
+        window.location.href = '/management';
+      } else if (!path.includes('/login')) {
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
