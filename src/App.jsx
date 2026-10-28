@@ -87,22 +87,221 @@ const ManagementRoute = () => {
 ========================================================= */
 
 function ManagementDashboardCards({ selectedBranch }) {
+  const currentDate = useMemo(() => new Date(), []);
   const [data, setData] = useState(null);
 
-  useEffect(() => {
-    if (!selectedBranch) return;
-    let isMounted = true;
+  // Period state initialization matching Reports logic
+  const [periodType, setPeriodType] = useState(() => {
+    if (typeof window === 'undefined') return 'month';
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get('period_type') ||
+      params.get('periodType') ||
+      localStorage.getItem('dash_period_type') ||
+      'month'
+    );
+  });
 
-    API.get(`dashboard-cards/?branch_id=${selectedBranch}`)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get('selectedDate') ||
+      localStorage.getItem('dash_selectedDate') ||
+      currentDate.toISOString().split('T')[0]
+    );
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get('start_date') ||
+      localStorage.getItem('dash_start_date') ||
+      currentDate.toISOString().split('T')[0]
+    );
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get('end_date') ||
+      localStorage.getItem('dash_end_date') ||
+      currentDate.toISOString().split('T')[0]
+    );
+  });
+
+  const [year, setYear] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paramYear = params.get('year');
+      if (paramYear && !isNaN(Number(paramYear))) return Number(paramYear);
+      const savedYear = localStorage.getItem('dash_year');
+      if (savedYear && !isNaN(Number(savedYear))) return Number(savedYear);
+    }
+    return currentDate.getFullYear();
+  });
+
+  const [month, setMonth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paramMonth = params.get('month');
+      if (paramMonth && !isNaN(Number(paramMonth))) return Number(paramMonth);
+      const savedMonth = localStorage.getItem('dash_month');
+      if (savedMonth && !isNaN(Number(savedMonth))) return Number(savedMonth);
+    }
+    return currentDate.getMonth() + 1;
+  });
+
+  const monthNames = useMemo(() => [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ], []);
+
+  const availableYears = useMemo(() => {
+    const currentYr = currentDate.getFullYear();
+    return Array.from({ length: 7 }, (_, index) => currentYr - 3 + index);
+  }, [currentDate]);
+
+  // Sync state to URL & Storage
+  const updateUrlAndStorage = useCallback((paramsUpdate) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+
+    Object.entries(paramsUpdate).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        url.searchParams.set(key, String(val));
+        localStorage.setItem(`dash_${key}`, String(val));
+      } else {
+        url.searchParams.delete(key);
+      }
+    });
+
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  // Handlers
+  const handlePeriodChange = (newPeriod) => {
+    setPeriodType(newPeriod);
+    updateUrlAndStorage({ 
+      period_type: newPeriod,
+      selectedDate,
+      startDate,
+      endDate,
+      month,
+      year
+    });
+  };
+
+  const handleDateChange = (e) => {
+    const val = e.target.value;
+    setSelectedDate(val);
+    let newYear = year;
+    let newMonth = month;
+
+    if (val) {
+      const d = new Date(`${val}T00:00:00`);
+      if (!isNaN(d.getTime())) {
+        newYear = d.getFullYear();
+        newMonth = d.getMonth() + 1;
+        setYear(newYear);
+        setMonth(newMonth);
+      }
+    }
+
+    updateUrlAndStorage({
+      selectedDate: val,
+      year: newYear,
+      month: newMonth,
+      period_type: periodType,
+    });
+  };
+
+  const handleStartDateChange = (e) => {
+    const val = e.target.value;
+    setStartDate(val);
+    updateUrlAndStorage({
+      start_date: val,
+      period_type: periodType,
+    });
+  };
+
+  const handleEndDateChange = (e) => {
+    const val = e.target.value;
+    setEndDate(val);
+    updateUrlAndStorage({
+      end_date: val,
+      period_type: periodType,
+    });
+  };
+
+  const handleMonthChange = (newMonth) => {
+    setMonth(newMonth);
+    const formattedMonth = String(newMonth).padStart(2, '0');
+    const newDate = `${year}-${formattedMonth}-01`;
+    setSelectedDate(newDate);
+
+    updateUrlAndStorage({
+      month: newMonth,
+      selectedDate: newDate,
+      period_type: periodType,
+    });
+  };
+
+  const handleYearChange = (newYear) => {
+    setYear(newYear);
+    const formattedMonth = String(month).padStart(2, '0');
+    const newDate = `${newYear}-${formattedMonth}-01`;
+    setSelectedDate(newDate);
+
+    updateUrlAndStorage({
+      year: newYear,
+      selectedDate: newDate,
+      period_type: periodType,
+    });
+  };
+
+  const fetchDashboardData = useCallback(() => {
+    if (!selectedBranch) return;
+
+    const queryParams = new URLSearchParams();
+    queryParams.append('branch_id', String(selectedBranch));
+    queryParams.append('period_type', periodType);
+
+    if (periodType === 'custom') {
+      queryParams.append('start_date', startDate);
+      queryParams.append('end_date', endDate);
+    } else if (periodType === 'day' || periodType === 'weekly') {
+      queryParams.append('date', selectedDate);
+    } else if (periodType === 'month') {
+      queryParams.append('year', String(year));
+      queryParams.append('month', String(month));
+    } else if (periodType === 'year') {
+      queryParams.append('year', String(year));
+    }
+
+    API.get(`dashboard-cards/?${queryParams.toString()}`)
       .then((res) => {
-        if (isMounted && res.data) {
+        if (res.data) {
           setData(res.data);
         }
       })
       .catch((err) => console.error("Error fetching dashboard cards:", err));
+  }, [selectedBranch, periodType, selectedDate, startDate, endDate, year, month]);
 
-    return () => { isMounted = false; };
-  }, [selectedBranch]);
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const getPeriodLabel = () => {
+    if (periodType === 'day') return `DATE: ${selectedDate}`;
+    if (periodType === 'weekly') return `WEEK OF: ${selectedDate}`;
+    if (periodType === 'custom') return `RANGE: ${startDate} TO ${endDate}`;
+    if (periodType === 'month') return `MONTH: ${monthNames[month - 1]} ${year}`;
+    if (periodType === 'year') return `YEAR: ${year}`;
+    return '';
+  };
 
   const prof = data?.profitability || {};
   const debt = data?.debtors || {};
@@ -112,6 +311,93 @@ function ManagementDashboardCards({ selectedBranch }) {
 
   return (
     <div className="space-y-6 w-full font-sans max-w-7xl mx-auto">
+      {/* Date Range Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Period:
+          </label>
+          <select
+            value={periodType}
+            onChange={(e) => handlePeriodChange(e.target.value)}
+            className="bg-slate-50 border border-slate-200 text-teal-900 text-xs font-bold rounded-lg px-3 py-1.5 outline-none focus:border-teal-500 cursor-pointer"
+          >
+            <option value="day">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="year">Yearly</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          {/* Dynamic Date Pickers matching Reports logic */}
+          {(periodType === 'day' || periodType === 'weekly') && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 font-medium outline-none focus:border-teal-500"
+            />
+          )}
+
+          {periodType === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={handleStartDateChange}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 font-medium outline-none focus:border-teal-500"
+              />
+              <span className="text-xs text-slate-400 font-bold">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={handleEndDateChange}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 font-medium outline-none focus:border-teal-500"
+              />
+            </div>
+          )}
+
+          {periodType === 'month' && (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={month}
+                onChange={(e) => handleMonthChange(Number(e.target.value))}
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2 py-1 outline-none"
+              >
+                {monthNames.map((name, idx) => (
+                  <option key={idx + 1} value={idx + 1}>{name.slice(0, 3)}</option>
+                ))}
+              </select>
+              <select
+                value={year}
+                onChange={(e) => handleYearChange(Number(e.target.value))}
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2 py-1 outline-none"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {periodType === 'year' && (
+            <select
+              value={year}
+              onChange={(e) => handleYearChange(Number(e.target.value))}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2.5 py-1 outline-none"
+            >
+              {availableYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="text-[11px] font-mono font-bold text-slate-400">
+          Showing: <span className="text-slate-700 uppercase">{getPeriodLabel()}</span>
+        </div>
+      </div>
+
       {/* Top Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
@@ -202,11 +488,11 @@ function ManagementDashboardCards({ selectedBranch }) {
           </div>
           <div className="grid grid-cols-2 gap-1 border-t border-slate-100 pt-2 text-[10px]">
             <div>
-              <span className="text-slate-400 font-bold block">Monthly Payments</span>
+              <span className="text-slate-400 font-bold block font-sans">Monthly Payments</span>
               <span className="font-mono text-slate-700">{cash.payments_formatted || 'KSh 0.00'}</span>
             </div>
             <div>
-              <span className="text-blue-600 font-bold block">Purchases</span>
+              <span className="text-blue-600 font-bold block font-sans">Purchases</span>
               <span className="font-mono text-blue-700">{cash.purchases_formatted || 'KSh 0.00'}</span>
             </div>
           </div>
@@ -337,7 +623,6 @@ function UserDashboard({ items, fetchItems }) {
 
   const safeItems = Array.isArray(items) ? items : [];
 
-  // CLEANED MENU GROUPS (Management and Settings removed)
   const menuGroups = useMemo(() => [
     {
       group: 'Dashboard',
