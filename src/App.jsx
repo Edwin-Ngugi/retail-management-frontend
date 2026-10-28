@@ -761,6 +761,8 @@ function UserDashboard({ items, fetchItems }) {
     loadingBranches = false,
   } = branchContext;
 
+  // Exact requested order:
+  // 1. Dashboard, 2. Sales, 3. Receipts, 4. Purchase, 5. Payments, 6. Inventory, 7. Customer, 8. Supplier, 9. Reports
   const menuGroups = useMemo(() => [
     {
       group: 'Dashboard',
@@ -778,7 +780,6 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'quotations', label: 'Quotations' },
       ],
     },
-
     {
       group: 'Receipts',
       items: [
@@ -787,7 +788,6 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'receipts_allocation', label: 'Receipts Allocation' },
       ],
     },
-
     {
       group: 'Purchase',
       items: [
@@ -797,7 +797,6 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'purchase_returns', label: 'Purchase Returns' },
       ],
     },
-
     {
       group: 'Payments',
       items: [
@@ -807,7 +806,6 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'payment_vouchers', label: 'Payment Vouchers' },
       ],
     },
-    
     {
       group: 'Inventory',
       items: [
@@ -817,10 +815,8 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'stock_count', label: 'Stock Count' },
       ],
     },
-    
-    
     {
-      group: 'Customers',
+      group: 'Customer',
       items: [
         { key: 'customer_register', label: 'Customer Register' },
         { key: 'customer_statements', label: 'Customer Statements' },
@@ -828,7 +824,7 @@ function UserDashboard({ items, fetchItems }) {
       ],
     },
     {
-      group: 'Suppliers',
+      group: 'Supplier',
       items: [
         { key: 'supplier_register', label: 'Supplier Register' },
         { key: 'supplier_statements', label: 'Supplier Statements' },
@@ -849,10 +845,13 @@ function UserDashboard({ items, fetchItems }) {
 
   const [openGroups, setOpenGroups] = useState({
     Sales: true,
-    Purchase: true,
-    Inventory: true,
-    Suppliers: true,
-    Reports: true,
+    Receipts: false,
+    Purchase: false,
+    Payments: false,
+    Inventory: false,
+    Customer: false,
+    Supplier: false,
+    Reports: false,
   });
 
   const toggleGroup = (groupName) => {
