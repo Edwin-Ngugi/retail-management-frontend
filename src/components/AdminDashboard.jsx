@@ -4,6 +4,7 @@ import API from '../api';
 import { useBranch } from '../components/BranchContext';
 import StockActivityLog from '../components/StockActivityLog';
 import ApprovalsDashboard from './ApprovalsDashboard';
+import UserPermissions from './UserPermissions';
 
 export default function AdminDashboard({
   selectedBranch: propBranch,
@@ -46,7 +47,7 @@ export default function AdminDashboard({
   const [adminTab, setAdminTab] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_active_tab');
-      const allowedTabs = ['inventory', 'approvals', 'stock-ops', 'branches'];
+      const allowedTabs = ['inventory', 'approvals', 'stock-ops', 'branches', 'user-permissions',];
       return allowedTabs.includes(saved) ? saved : 'inventory';
     } catch {
       return 'inventory';
@@ -482,6 +483,21 @@ export default function AdminDashboard({
                 {branches.length}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setAdminTab('user-permissions')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                adminTab === 'user-permissions'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">🔐</span>
+                <span>User Roles &amp; Permissions</span>
+              </span>
+            </button>
           </nav>
 
           {activeBranchObject && (
@@ -503,6 +519,7 @@ export default function AdminDashboard({
                 {adminTab === 'approvals' && 'Approval Status & Progress'}
                 {adminTab === 'stock-ops' && 'Stock Operations & Logs'}
                 {adminTab === 'branches' && 'Branch Administration'}
+                {adminTab === 'user-permissions' && 'User Roles & Permissions'}
               </h2>
             </div>
 
@@ -864,6 +881,11 @@ export default function AdminDashboard({
                 </form>
               </div>
             )}
+            {adminTab === 'user-permissions' && (
+              <div className="w-full min-w-0">
+                <UserPermissions />
+              </div>
+)}
           </main>
         </div>
 

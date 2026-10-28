@@ -175,6 +175,7 @@ function ManagementDashboardCards({ selectedBranch }) {
         localStorage.setItem(`dash_${key}`, String(val));
       } else {
         url.searchParams.delete(key);
+        localStorage.removeItem(`dash_${key}`);
       }
     });
 
@@ -184,14 +185,53 @@ function ManagementDashboardCards({ selectedBranch }) {
   // Handlers
   const handlePeriodChange = (newPeriod) => {
     setPeriodType(newPeriod);
-    updateUrlAndStorage({ 
-      period_type: newPeriod,
-      selectedDate,
-      startDate,
-      endDate,
-      month,
-      year
-    });
+
+    if (newPeriod === 'month') {
+      updateUrlAndStorage({ 
+        period_type: newPeriod,
+        month,
+        year,
+        selectedDate: null,
+        start_date: null,
+        end_date: null,
+        startDate: null,
+        endDate: null,
+        date: null,
+      });
+    } else if (newPeriod === 'day' || newPeriod === 'weekly') {
+      updateUrlAndStorage({ 
+        period_type: newPeriod,
+        selectedDate,
+        month: null,
+        year: null,
+        start_date: null,
+        end_date: null,
+        startDate: null,
+        endDate: null,
+      });
+    } else if (newPeriod === 'custom') {
+      updateUrlAndStorage({ 
+        period_type: newPeriod,
+        start_date: startDate,
+        end_date: endDate,
+        selectedDate: null,
+        month: null,
+        year: null,
+        date: null,
+      });
+    } else if (newPeriod === 'year') {
+      updateUrlAndStorage({ 
+        period_type: newPeriod,
+        year,
+        month: null,
+        selectedDate: null,
+        start_date: null,
+        end_date: null,
+        startDate: null,
+        endDate: null,
+        date: null,
+      });
+    }
   };
 
   const handleDateChange = (e) => {
@@ -269,6 +309,7 @@ function ManagementDashboardCards({ selectedBranch }) {
     queryParams.append('branch_id', String(selectedBranch));
     queryParams.append('period_type', periodType);
 
+    // Strictly send ONLY parameters matching periodType to prevent parameter pollution
     if (periodType === 'custom') {
       queryParams.append('start_date', startDate);
       queryParams.append('end_date', endDate);
@@ -281,7 +322,7 @@ function ManagementDashboardCards({ selectedBranch }) {
       queryParams.append('year', String(year));
     }
 
-    API.get(`dashboard-cards/?${queryParams.toString()}`)
+    API.get(`management-analytics/dashboard-cards/?${queryParams.toString()}`)
       .then((res) => {
         if (res.data) {
           setData(res.data);
@@ -308,6 +349,15 @@ function ManagementDashboardCards({ selectedBranch }) {
   const inv = data?.inventory || {};
   const cash = data?.cash_flow || {};
   const trajectory = data?.trajectory || [];
+
+  // Calculate highest metric value to dynamically scale graph heights
+  const maxGraphVal = useMemo(() => {
+    if (!trajectory.length) return 1;
+    const maxVal = Math.max(
+      ...trajectory.map((t) => Math.max(t.total_sales || 0, t.cogs || 0, t.net_profit || 0))
+    );
+    return maxVal > 0 ? maxVal : 1;
+  }, [trajectory]);
 
   return (
     <div className="space-y-6 w-full font-sans max-w-7xl mx-auto">
@@ -517,7 +567,7 @@ function ManagementDashboardCards({ selectedBranch }) {
 
       </div>
 
-      {/* SALES PERFORMANCE TRAJECTORY GRAPH */}
+      {/* SALES PERFORMANCE TRAJECTORY GRAPH WITH MULTI-BAR METRICS */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-2xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
@@ -532,28 +582,62 @@ function ManagementDashboardCards({ selectedBranch }) {
         </div>
 
         <div className="h-64 border border-slate-200 rounded-xl p-4 flex flex-col justify-end bg-slate-50/50">
-          <div className="flex-1 flex items-end justify-between gap-1 px-2">
+          <div className="flex-1 flex items-end justify-around gap-2 px-2">
             {trajectory.length === 0 ? (
               <div className="w-full flex items-center justify-center text-xs text-slate-400 font-mono">
                 No activity recorded for this selected date range.
               </div>
             ) : (
-              trajectory.map((point, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center group relative">
-                  <div className="w-full max-w-[12px] flex flex-col items-center gap-0.5">
-                    <div
-                      style={{ height: `${Math.min(100, (point.total_sales / (prof.total_sales || 1)) * 180)}px` }}
-                      className="w-full bg-teal-500 rounded-t-xs"
-                    ></div>
+              trajectory.map((point, index) => {
+                const cogsHeight = Math.min(180, ((point.cogs || 0) / maxGraphVal) * 180);
+                const profitHeight = Math.min(180, (Math.max(0, point.net_profit || 0) / maxGraphVal) * 180);
+                const salesHeight = Math.min(180, ((point.total_sales || 0) / maxGraphVal) * 180);
+
+                return (
+                  <div key={index} className="flex-1 flex flex-col items-center group relative max-w-[80px]">
+                    {/* Tooltip on Hover */}
+                    <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[9px] font-mono py-1.5 px-2.5 rounded-md shadow-lg z-20 whitespace-nowrap">
+                      <span>COGS: KSh {Number(point.cogs || 0).toLocaleString()}</span>
+                      <span>Net Profit: KSh {Number(point.net_profit || 0).toLocaleString()}</span>
+                      <span>Sales: KSh {Number(point.total_sales || 0).toLocaleString()}</span>
+                    </div>
+
+                    {/* Side-by-Side Bars Container */}
+                    <div className="w-full flex items-end justify-center gap-1 h-[180px]">
+                      {/* COGS Bar (Amber) */}
+                      <div
+                        style={{ height: `${Math.max(4, cogsHeight)}px` }}
+                        className="flex-1 bg-amber-500 rounded-t-xs hover:bg-amber-600 transition-all duration-200 cursor-pointer"
+                        title={`COGS: KSh ${Number(point.cogs || 0).toLocaleString()}`}
+                      ></div>
+
+                      {/* Net Profit Bar (Emerald) */}
+                      <div
+                        style={{ height: `${Math.max(4, profitHeight)}px` }}
+                        className="flex-1 bg-emerald-500 rounded-t-xs hover:bg-emerald-600 transition-all duration-200 cursor-pointer"
+                        title={`Net Profit: KSh ${Number(point.net_profit || 0).toLocaleString()}`}
+                      ></div>
+
+                      {/* Total Sales Bar (Teal) */}
+                      <div
+                        style={{ height: `${Math.max(4, salesHeight)}px` }}
+                        className="flex-1 bg-teal-600 rounded-t-xs hover:bg-teal-700 transition-all duration-200 cursor-pointer"
+                        title={`Sales: KSh ${Number(point.total_sales || 0).toLocaleString()}`}
+                      ></div>
+                    </div>
+
+                    <span className="text-[9px] font-bold text-slate-500 font-mono mt-2 truncate max-w-full">
+                      {point.date}
+                    </span>
                   </div>
-                  <span className="text-[8px] text-slate-400 font-mono mt-2">{point.date}</span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
           <div className="border-t border-slate-300 w-full mt-2"></div>
         </div>
 
+        {/* Legend Indicator */}
         <div className="flex items-center justify-center gap-6 text-[11px] font-bold">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
