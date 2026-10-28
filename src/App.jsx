@@ -778,6 +778,16 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'quotations', label: 'Quotations' },
       ],
     },
+
+    {
+      group: 'Receipts',
+      items: [
+        { key: 'customer_receipts', label: 'Customer Receipts' },
+        { key: 'other_receipts', label: 'Other Receipts' },
+        { key: 'receipts_allocation', label: 'Receipts Allocation' },
+      ],
+    },
+
     {
       group: 'Purchase',
       items: [
@@ -787,15 +797,7 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'purchase_returns', label: 'Purchase Returns' },
       ],
     },
-    {
-      group: 'Inventory',
-      items: [
-        { key: 'item_register', label: 'Item Register' },
-        { key: 'stock_transfer', label: 'Stock Transfer' },
-        { key: 'stock_adjustment', label: 'Stock Adjustment' },
-        { key: 'stock_count', label: 'Stock Count' },
-      ],
-    },
+
     {
       group: 'Payments',
       items: [
@@ -805,14 +807,18 @@ function UserDashboard({ items, fetchItems }) {
         { key: 'payment_vouchers', label: 'Payment Vouchers' },
       ],
     },
+    
     {
-      group: 'Receipts',
+      group: 'Inventory',
       items: [
-        { key: 'customer_receipts', label: 'Customer Receipts' },
-        { key: 'other_receipts', label: 'Other Receipts' },
-        { key: 'receipts_allocation', label: 'Receipts Allocation' },
+        { key: 'item_register', label: 'Item Register' },
+        { key: 'stock_transfer', label: 'Stock Transfer' },
+        { key: 'stock_adjustment', label: 'Stock Adjustment' },
+        { key: 'stock_count', label: 'Stock Count' },
       ],
     },
+    
+    
     {
       group: 'Customers',
       items: [
