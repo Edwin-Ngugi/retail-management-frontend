@@ -24,8 +24,9 @@ export default function SalesInvoicesManagement({ selectedBranch }) {
       setInvoices(data);
     } catch (err) {
       console.error('Failed to fetch sales invoices:', err);
-    } font-mono
+    } finally {
       setLoading(false);
+    }
   }, [selectedBranch]);
 
   useEffect(() => {
