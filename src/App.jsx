@@ -725,7 +725,7 @@ function UserDashboard({ items, fetchItems }) {
       ],
     },
     {
-      group: 'Procurement',
+      group: 'Purchase',
       items: [
         { key: 'cash_purchase', label: 'Cash Purchase' },
         { key: 'credit_purchase', label: 'Credit Purchase' },

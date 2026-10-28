@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import API from '../api';
 import './UserPermissions.css';
@@ -6,10 +5,12 @@ import './UserPermissions.css';
 const MODULES = [
   { key: 'dashboard', label: 'Dashboard', description: 'Business overview and KPIs' },
   { key: 'sales', label: 'Sales', description: 'Sales transactions and records' },
+  { key: 'procurement', label: 'Procurement', description: 'Supplier purchases and restocking' },
   { key: 'inventory', label: 'Inventory', description: 'Items, stock and adjustments' },
+  { key: 'payments', label: 'Payments', description: 'Business expenses and payments' },
+  { key: 'receipts', label: 'Receipts', description: 'Customer receipts and allocations' },
   { key: 'customers', label: 'Customers', description: 'Customer records and debts' },
-  { key: 'purchases', label: 'Purchases', description: 'Supplier purchases and restocking' },
-  { key: 'expenses', label: 'Expenses', description: 'Business expenses' },
+  { key: 'suppliers', label: 'Suppliers', description: 'Supplier statements and balances' },
   { key: 'reports', label: 'Reports', description: 'Financial and operational reports' },
   { key: 'cashbook', label: 'Cashbook', description: 'Cash inflows and outflows' },
   { key: 'balance_sheet', label: 'Balance sheet', description: 'Assets, liabilities and equity' },
@@ -115,12 +116,10 @@ export default function UserPermissions() {
         },
       };
 
-      // Changing a module requires viewing that module.
       if (action === 'change' && checked) {
         next[moduleKey].view = true;
       }
 
-      // A module cannot be changed if viewing is disabled.
       if (action === 'view' && !checked) {
         next[moduleKey].change = false;
       }
