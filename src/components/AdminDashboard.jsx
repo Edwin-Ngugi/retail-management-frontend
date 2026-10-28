@@ -10,7 +10,6 @@ export default function AdminDashboard({
   selectedBranch: propBranch,
   onItemsUpdated,
 }) {
-  // Safe destructuring with fallback default object to prevent runtime errors
   const {
     branches = [],
     selectedBranch: contextBranch = null,
@@ -43,7 +42,6 @@ export default function AdminDashboard({
     }
   }, [contextBranch, branches, setSelectedBranch]);
 
-  // PERSISTENT TAB STATE ACROSS PAGE REFRESHES
   const [adminTab, setAdminTab] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_active_tab');
@@ -66,7 +64,6 @@ export default function AdminDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const [newBranchName, setNewBranchName] = useState('');
 
-  // Single Item Form State
   const [singleItem, setSingleItem] = useState({
     name: '',
     unit_cost_price: '',
@@ -74,7 +71,6 @@ export default function AdminDashboard({
     opening_stock: '0',
   });
 
-  // Edit Item State
   const [editingId, setEditingId] = useState(null);
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -83,14 +79,11 @@ export default function AdminDashboard({
     opening_stock: '0',
   });
 
-  // Stock Modal State
   const [stockModalItem, setStockModalItem] = useState(null);
   const [stockInput, setStockInput] = useState('');
 
-  // Branch Copy Modal State
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
-  // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileData, setProfileData] = useState({
     username: localStorage.getItem('username') || 'Administrator',
@@ -411,12 +404,12 @@ export default function AdminDashboard({
   const activeBranchObject = getActiveBranchObject();
 
   return (
-    <div className="min-h-screen bg-slate-200/80 w-full font-sans text-slate-900">
-      <div className="flex flex-col lg:flex-row min-h-screen w-full max-w-none overflow-x-hidden">
+    <div className="h-screen bg-slate-200/80 w-full font-sans text-slate-900 overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full w-full max-w-none">
         
-        {/* SIDEBAR NAVIGATION */}
-        <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-300 flex flex-col shrink-0 shadow-sm">
-          <div className="p-4 border-b border-slate-200 space-y-2">
+        {/* SIDEBAR NAVIGATION (Fixed height & scrollable list) */}
+        <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-300 flex flex-col shrink-0 shadow-sm h-full overflow-y-auto">
+          <div className="p-4 border-b border-slate-200 space-y-2 shrink-0">
             <div className="flex items-center">
               <img
                 src="/logo.svg"
@@ -429,7 +422,7 @@ export default function AdminDashboard({
             </p>
           </div>
 
-          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible p-3 gap-1.5 scrollbar-none">
+          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible p-3 gap-1.5 scrollbar-none flex-1">
             <button
               type="button"
               onClick={() => setAdminTab('inventory')}
@@ -501,7 +494,7 @@ export default function AdminDashboard({
           </nav>
 
           {activeBranchObject && (
-            <div className="hidden lg:block p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50 mt-auto">
+            <div className="hidden lg:block p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50 mt-auto shrink-0">
               <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Active Workspace</p>
               <p className="text-slate-900 font-bold truncate mt-0.5">{activeBranchObject.name}</p>
             </div>
@@ -509,9 +502,9 @@ export default function AdminDashboard({
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 flex flex-col w-full min-w-0">
+        <div className="flex-1 flex flex-col w-full min-w-0 h-full overflow-hidden">
           
-          {/* HEADER BAR */}
+          {/* FIXED HEADER BAR */}
           <header className="min-h-16 bg-white border-b border-slate-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between shrink-0 w-full gap-3 shadow-sm">
             <div>
               <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -524,7 +517,6 @@ export default function AdminDashboard({
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              {/* ACTIVE BRANCH SELECTOR */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 hidden sm:inline">
                   Active Branch:
@@ -549,7 +541,6 @@ export default function AdminDashboard({
                 </select>
               </div>
 
-              {/* PROFILE & LOGOUT CONTROLS */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 p-1 rounded-xl">
                 <button
                   type="button"
@@ -584,8 +575,8 @@ export default function AdminDashboard({
             </div>
           </header>
 
-          {/* BODY PANEL */}
-          <main className="flex-1 p-3 sm:p-6 space-y-6 w-full max-w-[1600px] mx-auto">
+          {/* INDEPENDENT SCROLLABLE BODY PANEL */}
+          <main className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 w-full max-w-[1600px] mx-auto">
             {status && (
               <div className={`p-3 sm:p-4 rounded-xl border text-xs font-medium flex items-center justify-between ${
                 status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-rose-50 text-rose-800 border-rose-300'
@@ -599,7 +590,6 @@ export default function AdminDashboard({
 
             {adminTab === 'inventory' && (
               <div className="space-y-6 w-full">
-                {/* REGISTER ITEM FORM */}
                 <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-300 shadow-sm w-full">
                   <h3 className="text-xs font-bold text-slate-700 mb-4 tracking-wider uppercase">
                     Add New Item & Pricing
@@ -665,7 +655,6 @@ export default function AdminDashboard({
                   </form>
                 </div>
 
-                {/* REGISTERED ITEMS TABLE WITH RESTOCKS COLUMN */}
                 <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden w-full">
                   <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50">
                     <h3 className="text-sm font-bold text-slate-900">
@@ -885,7 +874,7 @@ export default function AdminDashboard({
               <div className="w-full min-w-0">
                 <UserPermissions />
               </div>
-)}
+            )}
           </main>
         </div>
 
@@ -948,7 +937,6 @@ export default function AdminDashboard({
                 </button>
               </div>
 
-              {/* Profile Info Form */}
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Account Details</h4>
                 <div>
@@ -981,7 +969,6 @@ export default function AdminDashboard({
 
               <div className="border-t border-slate-200 pt-4" />
 
-              {/* Password Form */}
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Change Password</h4>
                 <div>
@@ -1250,7 +1237,6 @@ function SelectBranchItemsModal({
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white border border-slate-300 rounded-xl max-w-3xl w-full p-6 text-slate-900 shadow-xl space-y-4">
         
-        {/* MODAL HEADER */}
         <div className="flex justify-between items-center border-b border-slate-200 pb-3">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
@@ -1277,7 +1263,6 @@ function SelectBranchItemsModal({
           </div>
         )}
 
-        {/* STEP 1: ITEM SELECTION */}
         {step === 1 && (
           <div className="space-y-4">
             <div>
@@ -1359,7 +1344,6 @@ function SelectBranchItemsModal({
           </div>
         )}
 
-        {/* STEP 2: EDIT ITEMS TABLE */}
         {step === 2 && (
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
@@ -1447,7 +1431,6 @@ function SelectBranchItemsModal({
           </div>
         )}
 
-        {/* MODAL FOOTER ACTIONS */}
         <div className="flex justify-between items-center pt-3 border-t border-slate-200">
           <div>
             {step === 2 && (
