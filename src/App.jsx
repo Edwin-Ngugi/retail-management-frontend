@@ -789,7 +789,7 @@ function UserDashboard({ items, fetchItems }) {
 
   const [openGroups, setOpenGroups] = useState({
     Sales: true,
-    Procurement: true,
+    Purchase: true,
     Inventory: true,
     Suppliers: true,
     Reports: true,
@@ -801,6 +801,19 @@ function UserDashboard({ items, fetchItems }) {
       [groupName]: !prev[groupName],
     }));
   };
+
+  // Valid active tab keys set
+  const validTabKeys = useMemo(() => {
+    const keys = new Set(['dashboard', 'approvals']);
+    menuGroups.forEach((g) => {
+      if (g.items) {
+        g.items.forEach((i) => keys.add(i.key));
+      }
+    });
+    return keys;
+  }, [menuGroups]);
+
+  const isTabValid = validTabKeys.has(activeTab);
 
   return (
     <div className="h-screen w-screen flex overflow-hidden text-teal-950 font-sans bg-slate-100">
@@ -908,16 +921,19 @@ function UserDashboard({ items, fetchItems }) {
             </select>
           </div>
 
-          <img src="/logo.svg" alt="Melvex Portal" className="h-9 w-auto object-contain cursor-pointer" onClick={() => setActiveTab('dashboard')} />
+          <img src="/logo.svg" alt="Melvex Portal" className="h-9 w-auto object-contain cursor-pointer" onClick={() => {
+            setActiveTab('dashboard');
+            localStorage.setItem('user_active_tab', 'dashboard');
+          }} />
 
           <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold">
             <span>{currentUser.username}</span>
           </div>
         </header>
 
-        {/* WORKSPACE CONTENT ROUTER */}
+        {/* WORKSPACE CONTENT ROUTER WITH AUTOMATIC DASHBOARD FALLBACK */}
         <main className="flex-1 overflow-y-auto p-6 w-full bg-slate-50/50">
-          {activeTab === 'dashboard' && (
+          {(!isTabValid || activeTab === 'dashboard') && (
             <ManagementDashboardCards selectedBranch={selectedBranch} />
           )}
 
