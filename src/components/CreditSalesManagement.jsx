@@ -91,7 +91,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     }
   }, [selectedBranch, effectiveRange]);
 
-  // Fetch Credit Repayments Log (Sanitized clean path)
+  // Fetch Credit Repayments Log
   const fetchCreditRepayments = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -128,16 +128,17 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     fetchCreditRepayments();
   }, [fetchCreditSales, fetchCreditRepayments]);
 
-  // Strictly filter out paid sales or sales with 0 balance
+  // Filter sales ONLY when a search term is actively entered by the user
   const filteredSales = useMemo(() => {
     if (!Array.isArray(sales)) return [];
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return []; // Hide table list by default until user searches
+
     return sales.filter((sale) => {
       const balance = Number(sale.balance_due ?? sale.due_balance ?? 0);
       const isPaid = sale.payment_status === "PAID" || balance <= 0;
       if (isPaid) return false;
 
-      const term = searchTerm.toLowerCase().trim();
-      if (!term) return true;
       const customer = String(sale.customer_name || "").toLowerCase();
       const saleId = String(sale.id || "");
       const receiptNum = String(getReceiptNumber(sale)).toLowerCase();
@@ -149,17 +150,21 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     });
   }, [sales, searchTerm]);
 
-  // Calculations for total credit amounts
+  // Overall calculations across all pending credit sales
   const creditTotals = useMemo(() => {
-    const totalAmount = filteredSales.reduce((acc, sale) => {
+    const pendingSales = (Array.isArray(sales) ? sales : []).filter((sale) => {
+      const balance = Number(sale.balance_due ?? sale.due_balance ?? 0);
+      return sale.payment_status !== "PAID" && balance > 0;
+    });
+
+    const totalAmount = pendingSales.reduce((acc, sale) => {
       return acc + Number(sale.total_amount || 0);
     }, 0);
 
-    const totalBalanceDue = filteredSales.reduce((acc, sale) => {
+    const totalBalanceDue = pendingSales.reduce((acc, sale) => {
       return acc + Number(sale.balance_due ?? sale.due_balance ?? 0);
     }, 0);
 
-    // Sum actual recorded repayments returned by API for the selected active period
     const totalRecovered = (Array.isArray(repayments) ? repayments : []).reduce(
       (acc, rep) => acc + Number(rep.amount || rep.amount_paid || 0),
       0
@@ -169,9 +174,9 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       totalAmount,
       totalBalanceDue,
       totalRecovered,
-      count: filteredSales.length,
+      count: pendingSales.length,
     };
-  }, [filteredSales, repayments]);
+  }, [sales, repayments]);
 
   const handleOpenPaymentModal = (sale) => {
     const dueAmount = sale.balance_due ?? sale.due_balance ?? sale.total_amount ?? "";
@@ -288,8 +293,8 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Credit Sales & Repayments</h1>
-          <p className="text-xs text-slate-600 mt-0.5">Track credit accounts by receipt numbers and record repayments.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Customer Receipts & Repayments</h1>
+          <p className="text-xs text-slate-600 mt-0.5">Search for an invoice number or receipt to process credit repayments.</p>
         </div>
 
         <button
@@ -307,14 +312,14 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </button>
       </div>
 
-      {/* Credit Overview KPI Summary Cards */}
+      {/* Overview KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
         <div className="bg-white border border-slate-300 p-4 rounded-2xl shadow-sm">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Credit Value</span>
           <div className="text-xl font-black text-slate-900 mt-1">
             KSh {creditTotals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[10px] text-slate-500 mt-0.5 block">{creditTotals.count} Active Accounts</span>
+          <span className="text-[10px] text-slate-500 mt-0.5 block">{creditTotals.count} Active Credit Accounts</span>
         </div>
 
         <div className="bg-white border border-slate-300 p-4 rounded-2xl shadow-sm">
@@ -334,35 +339,50 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
       </div>
 
-      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-300 shadow-sm no-print">
-        <div className="relative w-full sm:w-80">
-          <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Invoice Search Input Bar */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm space-y-2 no-print">
+        <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+          Search Invoice / Receipt Number
+        </label>
+        <div className="relative w-full">
+          <svg className="absolute left-3.5 top-3 h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
-            placeholder="Search customer, receipt #, or sale ID..."
+            placeholder="Type Invoice Number, Receipt No., Customer Name, or Transaction ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 w-full text-xs bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 transition-all"
+            className="pl-10 pr-10 py-2.5 w-full text-xs bg-slate-50 border border-slate-300 text-slate-900 font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 transition-all"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 font-bold"
+            >
+              ✕ Clear
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Credit Sales Table */}
+      {/* Credit Repayment Results Table */}
       <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden no-print">
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-          <h2 className="text-sm font-semibold text-slate-800">Active Credit Accounts</h2>
-          <span className="text-xs font-mono font-bold text-slate-600">
-            Total Balance: KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </span>
+          <h2 className="text-sm font-semibold text-slate-800">Invoice Repayment Lookup</h2>
+          {searchTerm && (
+            <span className="text-xs font-mono font-bold text-slate-600">
+              Found {filteredSales.length} matching invoice(s)
+            </span>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
                 <th className="p-4">Transaction ID</th>
-                <th className="p-4">Receipt No.</th>
+                <th className="p-4">Receipt / Invoice No.</th>
                 <th className="p-4">Customer</th>
                 <th className="p-4">Date</th>
                 <th className="p-4">Total Amount</th>
@@ -380,14 +400,26 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                       </svg>
-                      <span>Loading credit sales...</span>
+                      <span>Searching credit records...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : !searchTerm.trim() ? (
+                <tr>
+                  <td colSpan="8" className="p-10 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 text-base">
+                        🔍
+                      </div>
+                      <span className="font-semibold text-slate-700">Enter an Invoice or Receipt Number above to search</span>
+                      <span className="text-[11px] text-slate-400">Accounts will appear here when searched.</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredSales.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="p-8 text-center text-slate-500 font-medium">
-                    No active credit sales found for this branch.
+                    No matching unpaid invoice found for <span className="font-bold text-slate-700">"{searchTerm}"</span>.
                   </td>
                 </tr>
               ) : (
@@ -436,22 +468,6 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 })
               )}
             </tbody>
-            {filteredSales.length > 0 && (
-              <tfoot>
-                <tr className="bg-slate-100 font-bold border-t border-slate-300 text-xs">
-                  <td colSpan="4" className="p-4 text-right text-slate-600 uppercase tracking-wider">
-                    Total:
-                  </td>
-                  <td className="p-4 font-bold text-slate-900">
-                    KSh {creditTotals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-4 font-bold text-rose-600">
-                    KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                  <td colSpan="2"></td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
       </div>
@@ -492,7 +508,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Number</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt / Invoice Number</label>
                 <input
                   type="text"
                   value={receiptNumberInput}
