@@ -656,22 +656,27 @@ function UserDashboard({ items, fetchItems }) {
     return localStorage.getItem('user_active_tab') || 'dashboard';
   });
 
-  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-
-  const branchContext = useBranch() || {};
-  const {
-    branches = [],
-    selectedBranch = null,
-    setSelectedBranch = () => {},
-    loadingBranches = false,
-  } = branchContext;
-
-  const currentUser = useMemo(() => {
+  const [currentUser, setCurrentUser] = useState(() => {
     try {
       const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
       if (stored) return JSON.parse(stored);
     } catch (e) {}
     return { username: 'Store Manager', role: 'User' };
+  });
+
+  // Automatically fetch fresh user permissions on mount to reflect live changes
+  useEffect(() => {
+    API.get('auth/profile/')
+      .then((res) => {
+        if (res.data) {
+          setCurrentUser((prev) => {
+            const updated = { ...prev, ...res.data };
+            localStorage.setItem('user_data', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch((err) => console.error("Could not sync permissions:", err));
   }, []);
 
   const userPermissions = useMemo(() => {
@@ -679,16 +684,20 @@ function UserDashboard({ items, fetchItems }) {
   }, [currentUser]);
 
   const hasAccess = useCallback((key) => {
-    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN') return true;
-    if (key === 'dashboard') return true;
-    return Boolean(userPermissions[key]?.view);
+    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN' || key === 'dashboard') {
+      return true;
+    }
+
+    if (userPermissions && typeof userPermissions === 'object' && key in userPermissions) {
+      return Boolean(userPermissions[key]?.view);
+    }
+
+    return true;
   }, [currentUser, userPermissions]);
 
   const fetchPendingApprovalsCount = useCallback(async () => {
     try {
-      const response = await API.get('pending-approvals/');
-      const data = Array.isArray(response?.data) ? response.data : response?.data?.results || [];
-      setPendingApprovalsCount(data.filter((item) => item.status === 'PENDING').length);
+      await API.get('pending-approvals/');
     } catch (e) {
       console.error('Failed to fetch pending approvals count:', e);
     }
@@ -704,6 +713,14 @@ function UserDashboard({ items, fetchItems }) {
   }, [navigate]);
 
   const safeItems = Array.isArray(items) ? items : [];
+
+  const branchContext = useBranch() || {};
+  const {
+    branches = [],
+    selectedBranch = null,
+    setSelectedBranch = () => {},
+    loadingBranches = false,
+  } = branchContext;
 
   const menuGroups = useMemo(() => [
     {
