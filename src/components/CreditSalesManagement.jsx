@@ -128,13 +128,16 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     fetchCreditRepayments();
   }, [fetchCreditSales, fetchCreditRepayments]);
 
-  // Filter sales requiring specific exact / suffix matching on invoice number or transaction ID
+  // Strict Filter Logic: Enforces exact / suffix matching on receipt number or exact customer prefix
   const filteredSales = useMemo(() => {
     if (!Array.isArray(sales)) return [];
-    const term = searchTerm.toLowerCase().trim();
+    const rawTerm = searchTerm.trim().toLowerCase();
 
-    // Do not populate list until user enters at least 2 characters
-    if (!term || term.length < 2) return [];
+    // Hide records by default until user enters at least 2 characters
+    if (!rawTerm || rawTerm.length < 2) return [];
+
+    // Strip common prefixes like "inv", "receipt", "#" to isolate the core invoice identifier
+    const cleanTerm = rawTerm.replace(/^(inv|invoice|receipt|rcpt|txn|#)\s*[-_:]?\s*/i, "").trim();
 
     return sales.filter((sale) => {
       const balance = Number(sale.balance_due ?? sale.due_balance ?? 0);
@@ -142,25 +145,23 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       if (isPaid) return false;
 
       const receiptNum = String(getReceiptNumber(sale)).toLowerCase().trim();
+      const cleanReceipt = receiptNum.replace(/^(inv|invoice|receipt|rcpt)\s*[-_:]?\s*/i, "").trim();
       const customer = String(sale.customer_name || "").toLowerCase().trim();
       const saleId = String(sale.id || "").toLowerCase().trim();
 
-      // Normalize spaces and underscores for clean invoice matching (e.g. "inv 1_2" vs "1_2")
-      const normalizedReceipt = receiptNum.replace(/\s+/g, "_");
-      const normalizedTerm = term.replace(/\s+/g, "_");
+      // 1. Exact match on full or stripped receipt number
+      const isExactReceipt = receiptNum === rawTerm || cleanReceipt === cleanTerm;
 
-      // Check for exact match or ending suffix match on invoice / receipt number
-      const isExactReceipt =
-        receiptNum === term ||
-        normalizedReceipt === normalizedTerm ||
-        receiptNum.endsWith(term) ||
-        normalizedReceipt.endsWith(normalizedTerm) ||
-        receiptNum.includes(term);
+      // 2. Strict suffix match (e.g., typing "1_2" matches "INV 1_2" or "TW 1_2")
+      const isSuffixReceipt = receiptNum.endsWith(cleanTerm) || cleanReceipt.endsWith(cleanTerm);
 
-      const isExactCustomer = customer === term || customer.startsWith(term);
-      const isExactSaleId = saleId === term || `#txn-${saleId}` === term || `txn-${saleId}` === term;
+      // 3. Customer match requires at least 3 characters and must start with the query
+      const isCustomerMatch = rawTerm.length >= 3 && customer.startsWith(rawTerm);
 
-      return isExactReceipt || isExactCustomer || isExactSaleId;
+      // 4. Exact Transaction ID match
+      const isSaleIdMatch = saleId === rawTerm || `#txn-${saleId}` === rawTerm || `txn-${saleId}` === rawTerm;
+
+      return isExactReceipt || isSuffixReceipt || isCustomerMatch || isSaleIdMatch;
     });
   }, [sales, searchTerm]);
 
@@ -363,7 +364,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
       </div>
 
-      {/* Enhanced Invoice Search Card */}
+      {/* Invoice Search Bar */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 no-print">
         <div className="flex items-center justify-between">
           <label className="block text-xs font-black text-teal-950 uppercase tracking-wider">
@@ -380,7 +381,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </svg>
           <input
             type="text"
-            placeholder="Enter full or ending invoice/receipt # (e.g. 1_2)..."
+            placeholder="Type exact or ending invoice # (e.g. 1_2)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-20 py-2.5 w-full text-xs font-mono font-bold bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 placeholder-slate-400 transition-all"
@@ -397,7 +398,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
       </div>
 
-      {/* Credit Repayment Results Table */}
+      {/* Clean Repayments Table (Only Invoice, Customer, Balance & Repay Button) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden no-print">
         <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex justify-between items-center">
           <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
@@ -411,23 +412,19 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+          <table className="w-full text-left border-collapse min-w-[500px]">
             <thead>
               <tr className="bg-slate-100/70 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                <th className="p-4">Transaction ID</th>
-                <th className="p-4">Receipt / Invoice No.</th>
+                <th className="p-4">Invoice / Receipt No.</th>
                 <th className="p-4">Customer</th>
-                <th className="p-4">Date</th>
-                <th className="p-4">Total Amount</th>
                 <th className="p-4">Balance Due</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Actions</th>
+                <th className="p-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-800 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-10 text-center text-slate-500">
+                  <td colSpan="4" className="p-10 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <svg className="w-6 h-6 animate-spin text-teal-600" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -439,7 +436,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </tr>
               ) : !searchTerm.trim() ? (
                 <tr>
-                  <td colSpan="8" className="p-12 text-center">
+                  <td colSpan="4" className="p-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-600 text-xl font-bold">
                         🔍
@@ -453,16 +450,16 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </tr>
               ) : searchTerm.trim().length < 2 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-500 font-semibold">
+                  <td colSpan="4" className="p-8 text-center text-slate-500 font-semibold">
                     Please enter at least 2 characters to search.
                   </td>
                 </tr>
               ) : filteredSales.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-10 text-center text-slate-500">
+                  <td colSpan="4" className="p-10 text-center text-slate-500">
                     <div className="space-y-1">
                       <p className="font-extrabold text-slate-700">No matching unpaid invoice found for "{searchTerm}"</p>
-                      <p className="text-xs text-slate-400">Please verify the receipt number and try again.</p>
+                      <p className="text-xs text-slate-400">Please verify the invoice number and try again.</p>
                     </div>
                   </td>
                 </tr>
@@ -471,45 +468,23 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                   const receiptNo = getReceiptNumber(sale);
                   return (
                     <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-mono font-bold text-slate-900">#TXN-{sale.id}</td>
-                      <td className="p-4 font-mono font-black text-teal-800">
-                        {receiptNo || "N/A"}
+                      <td className="p-4 font-mono font-black text-teal-800 text-sm">
+                        {receiptNo || `TXN-#${sale.id}`}
                       </td>
-                      <td className="p-4 font-bold text-slate-800">{sale.customer_name || "Walk-in Customer"}</td>
-                      <td className="p-4 text-slate-500 font-mono text-[11px]">
-                        {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : "N/A"}
+                      <td className="p-4 font-bold text-slate-800 text-xs">
+                        {sale.customer_name || "Walk-in Customer"}
                       </td>
-                      <td className="p-4 font-bold font-mono text-slate-900">
-                        KSh {Number(sale.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="p-4 font-black font-mono text-rose-600">
+                      <td className="p-4 font-black font-mono text-rose-600 text-sm">
                         KSh {Number(sale.balance_due ?? sale.due_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="p-4">
-                        {sale.payment_status === "PAID" ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            PAID
-                          </span>
-                        ) : sale.payment_status === "PARTIAL" ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300">
-                            PARTIAL
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                            PENDING
-                          </span>
-                        )}
-                      </td>
                       <td className="p-4 text-right whitespace-nowrap">
-                        {sale.payment_status !== "PAID" && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPaymentModal(sale)}
-                            className="px-3.5 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-2xs transition-all cursor-pointer"
-                          >
-                            Record Repayment
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPaymentModal(sale)}
+                          className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-2xs transition-all cursor-pointer"
+                        >
+                          Record Repayment
+                        </button>
                       </td>
                     </tr>
                   );
@@ -544,8 +519,8 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-sans">Transaction Ref:</span>
-                  <span className="font-bold text-slate-800">#TXN-{selectedSale.id}</span>
+                  <span className="text-slate-500 font-sans">Customer:</span>
+                  <span className="font-bold text-slate-800">{selectedSale.customer_name || "Walk-in Customer"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-sans">Outstanding Balance:</span>
