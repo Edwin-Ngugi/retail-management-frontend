@@ -683,13 +683,48 @@ function UserDashboard({ items, fetchItems }) {
     return currentUser?.permissions || {};
   }, [currentUser]);
 
+  // Flexible permission evaluation matching DRF models and views
   const hasAccess = useCallback((key) => {
+    // 1. Superusers, Administrators, and Dashboard Overview always allowed
     if (currentUser?.is_superuser || currentUser?.role === 'ADMIN' || key === 'dashboard') {
       return true;
     }
 
-    if (userPermissions && typeof userPermissions === 'object' && key in userPermissions) {
+    if (!userPermissions || typeof userPermissions !== 'object') {
+      return true; // Default open if permissions object has not loaded yet
+    }
+
+    // 2. Direct exact key match (e.g., 'goods_received', 'customer_receipts')
+    if (key in userPermissions) {
       return Boolean(userPermissions[key]?.view);
+    }
+
+    // 3. Fallback for singular vs plural key variances (e.g. customer_receipt vs customer_receipts)
+    const singularKey = key.endsWith('s') ? key.slice(0, -1) : key;
+    const pluralKey = key.endsWith('s') ? key : `${key}s`;
+
+    if (singularKey in userPermissions) {
+      return Boolean(userPermissions[singularKey]?.view);
+    }
+    if (pluralKey in userPermissions) {
+      return Boolean(userPermissions[pluralKey]?.view);
+    }
+
+    // 4. Fallback check for high-level module categories (e.g. 'sales', 'purchases', 'inventory')
+    const categoryMap = {
+      cash_sale: 'sales', credit_sale: 'sales', sales_invoices: 'sales', sales_returns: 'sales', quotations: 'sales',
+      cash_purchase: 'purchases', credit_purchase: 'purchases', goods_received: 'purchases', purchase_returns: 'purchases',
+      item_register: 'inventory', stock_transfer: 'inventory', stock_adjustment: 'inventory', stock_count: 'inventory',
+      supplier_payment: 'expenses', expenses: 'expenses', other_payments: 'expenses', payment_vouchers: 'expenses',
+      customer_receipts: 'receipts', other_receipts: 'receipts', receipts_allocation: 'receipts',
+      customer_register: 'customers', customer_statements: 'customers', outstanding_balances: 'customers',
+      supplier_register: 'suppliers', supplier_statements: 'suppliers', supplier_outstanding: 'suppliers',
+      rep_sales: 'reports', rep_purchases: 'reports', rep_inventory: 'reports', rep_debtors: 'reports', rep_financial: 'reports',
+    };
+
+    const parentCat = categoryMap[key];
+    if (parentCat && parentCat in userPermissions) {
+      return Boolean(userPermissions[parentCat]?.view);
     }
 
     return true;
