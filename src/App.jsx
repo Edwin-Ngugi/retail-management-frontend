@@ -652,10 +652,6 @@ function ManagementDashboardCards({ selectedBranch }) {
 function UserDashboard({ items, fetchItems }) {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('user_active_tab') || 'dashboard';
-  });
-
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const stored = localStorage.getItem('user_data') || localStorage.getItem('user');
@@ -683,10 +679,10 @@ function UserDashboard({ items, fetchItems }) {
     return currentUser?.permissions || {};
   }, [currentUser]);
 
-  // Flexible permission evaluation matching DRF models and views
+  // Evaluates permissions against backend model defaults and exact sub-menu keys
   const hasAccess = useCallback((key) => {
-    // 1. Superusers, Administrators, and Dashboard Overview always allowed
-    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN' || key === 'dashboard') {
+    // Superusers and Administrators bypass checks
+    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN') {
       return true;
     }
 
@@ -694,41 +690,39 @@ function UserDashboard({ items, fetchItems }) {
       return true; // Default open if permissions object has not loaded yet
     }
 
-    // 2. Direct exact key match (e.g., 'goods_received', 'customer_receipts')
+    // Direct exact key match (e.g. 'dashboard', 'goods_received', 'cash_sale')
     if (key in userPermissions) {
       return Boolean(userPermissions[key]?.view);
     }
 
-    // 3. Fallback for singular vs plural key variances (e.g. customer_receipt vs customer_receipts)
+    // Fallback for singular vs plural key variances
     const singularKey = key.endsWith('s') ? key.slice(0, -1) : key;
     const pluralKey = key.endsWith('s') ? key : `${key}s`;
 
     if (singularKey in userPermissions) {
-      return Boolean(userPermissions[singularKey]?.view);
+      return Boolean(singularKey in userPermissions && userPermissions[singularKey]?.view);
     }
     if (pluralKey in userPermissions) {
-      return Boolean(userPermissions[pluralKey]?.view);
-    }
-
-    // 4. Fallback check for high-level module categories (e.g. 'sales', 'purchases', 'inventory')
-    const categoryMap = {
-      cash_sale: 'sales', credit_sale: 'sales', sales_invoices: 'sales', sales_returns: 'sales', quotations: 'sales',
-      cash_purchase: 'purchases', credit_purchase: 'purchases', goods_received: 'purchases', purchase_returns: 'purchases',
-      item_register: 'inventory', stock_transfer: 'inventory', stock_adjustment: 'inventory', stock_count: 'inventory',
-      supplier_payment: 'expenses', expenses: 'expenses', other_payments: 'expenses', payment_vouchers: 'expenses',
-      customer_receipts: 'receipts', other_receipts: 'receipts', receipts_allocation: 'receipts',
-      customer_register: 'customers', customer_statements: 'customers', outstanding_balances: 'customers',
-      supplier_register: 'suppliers', supplier_statements: 'suppliers', supplier_outstanding: 'suppliers',
-      rep_sales: 'reports', rep_purchases: 'reports', rep_inventory: 'reports', rep_debtors: 'reports', rep_financial: 'reports',
-    };
-
-    const parentCat = categoryMap[key];
-    if (parentCat && parentCat in userPermissions) {
-      return Boolean(userPermissions[parentCat]?.view);
+      return Boolean(pluralKey in userPermissions && userPermissions[pluralKey]?.view);
     }
 
     return true;
   }, [currentUser, userPermissions]);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('user_active_tab');
+    if (saved && saved !== 'dashboard') return saved;
+    // If dashboard is forbidden, default initial active tab to Cash Sale
+    return hasAccess('dashboard') ? 'dashboard' : 'cash_sale';
+  });
+
+  // Redirect to cash_sale if currently on dashboard without permission
+  useEffect(() => {
+    if (activeTab === 'dashboard' && !hasAccess('dashboard')) {
+      setActiveTab('cash_sale');
+      localStorage.setItem('user_active_tab', 'cash_sale');
+    }
+  }, [activeTab, hasAccess]);
 
   const fetchPendingApprovalsCount = useCallback(async () => {
     try {
@@ -876,8 +870,13 @@ function UserDashboard({ items, fetchItems }) {
 
         <nav className="p-3 space-y-2 flex-1 overflow-y-auto">
           {menuGroups.map((group) => {
+            // HIDE DASHBOARD ENTIRELY FROM SIDEBAR IF USER HAS NO PERMISSION
             if (group.isDirect) {
               const allowed = hasAccess(group.key);
+              if (group.key === 'dashboard' && !allowed) {
+                return null;
+              }
+
               return (
                 <button
                   key={group.key}
@@ -988,10 +987,16 @@ function UserDashboard({ items, fetchItems }) {
             </select>
           </div>
 
-          <img src="/logo.svg" alt="Melvex Portal" className="h-9 w-auto object-contain cursor-pointer" onClick={() => {
-            setActiveTab('dashboard');
-            localStorage.setItem('user_active_tab', 'dashboard');
-          }} />
+          <img 
+            src="/logo.svg" 
+            alt="Melvex Portal" 
+            className="h-9 w-auto object-contain cursor-pointer" 
+            onClick={() => {
+              const targetTab = hasAccess('dashboard') ? 'dashboard' : 'cash_sale';
+              setActiveTab(targetTab);
+              localStorage.setItem('user_active_tab', targetTab);
+            }} 
+          />
 
           <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold">
             <span>{currentUser.username}</span>
@@ -1000,8 +1005,20 @@ function UserDashboard({ items, fetchItems }) {
 
         {/* WORKSPACE CONTENT ROUTER */}
         <main className="flex-1 overflow-y-auto p-6 w-full bg-slate-50/50">
-          {(!isTabValid || activeTab === 'dashboard') && (
-            <ManagementDashboardCards selectedBranch={selectedBranch} />
+          {activeTab === 'dashboard' && (
+            hasAccess('dashboard') ? (
+              <ManagementDashboardCards selectedBranch={selectedBranch} />
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
+                <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-2xl font-bold">
+                  🔒
+                </div>
+                <h3 className="text-base font-bold text-slate-800">Dashboard Access Restricted</h3>
+                <p className="text-xs text-slate-500 max-w-md">
+                  Your account role does not have permission to view executive financial analytics. You have been redirected to active operational features.
+                </p>
+              </div>
+            )
           )}
 
           {activeTab === 'approvals' && (
