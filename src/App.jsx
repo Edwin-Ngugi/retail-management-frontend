@@ -90,7 +90,6 @@ function ManagementDashboardCards({ selectedBranch }) {
   const currentDate = useMemo(() => new Date(), []);
   const [data, setData] = useState(null);
 
-  // Period state initialization matching Reports logic
   const [periodType, setPeriodType] = useState(() => {
     if (typeof window === 'undefined') return 'month';
     const params = new URLSearchParams(window.location.search);
@@ -164,7 +163,6 @@ function ManagementDashboardCards({ selectedBranch }) {
     return Array.from({ length: 7 }, (_, index) => currentYr - 3 + index);
   }, [currentDate]);
 
-  // Sync state to URL & Storage
   const updateUrlAndStorage = useCallback((paramsUpdate) => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -182,7 +180,6 @@ function ManagementDashboardCards({ selectedBranch }) {
     window.history.replaceState({}, '', url.toString());
   }, []);
 
-  // Handlers
   const handlePeriodChange = (newPeriod) => {
     setPeriodType(newPeriod);
 
@@ -309,7 +306,6 @@ function ManagementDashboardCards({ selectedBranch }) {
     queryParams.append('branch_id', String(selectedBranch));
     queryParams.append('period_type', periodType);
 
-    // Strictly send ONLY parameters matching periodType to prevent parameter pollution
     if (periodType === 'custom') {
       queryParams.append('start_date', startDate);
       queryParams.append('end_date', endDate);
@@ -350,7 +346,6 @@ function ManagementDashboardCards({ selectedBranch }) {
   const cash = data?.cash_flow || {};
   const trajectory = data?.trajectory || [];
 
-  // Calculate highest metric value to dynamically scale graph heights
   const maxGraphVal = useMemo(() => {
     if (!trajectory.length) return 1;
     const maxVal = Math.max(
@@ -379,7 +374,6 @@ function ManagementDashboardCards({ selectedBranch }) {
             <option value="custom">Custom Range</option>
           </select>
 
-          {/* Dynamic Date Pickers matching Reports logic */}
           {(periodType === 'day' || periodType === 'weekly') && (
             <input
               type="date"
@@ -595,30 +589,25 @@ function ManagementDashboardCards({ selectedBranch }) {
 
                 return (
                   <div key={index} className="flex-1 flex flex-col items-center group relative max-w-[80px]">
-                    {/* Tooltip on Hover */}
                     <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[9px] font-mono py-1.5 px-2.5 rounded-md shadow-lg z-20 whitespace-nowrap">
                       <span>COGS: KSh {Number(point.cogs || 0).toLocaleString()}</span>
                       <span>Net Profit: KSh {Number(point.net_profit || 0).toLocaleString()}</span>
                       <span>Sales: KSh {Number(point.total_sales || 0).toLocaleString()}</span>
                     </div>
 
-                    {/* Side-by-Side Bars Container */}
                     <div className="w-full flex items-end justify-center gap-1 h-[180px]">
-                      {/* COGS Bar (Amber) */}
                       <div
                         style={{ height: `${Math.max(4, cogsHeight)}px` }}
                         className="flex-1 bg-amber-500 rounded-t-xs hover:bg-amber-600 transition-all duration-200 cursor-pointer"
                         title={`COGS: KSh ${Number(point.cogs || 0).toLocaleString()}`}
                       ></div>
 
-                      {/* Net Profit Bar (Emerald) */}
                       <div
                         style={{ height: `${Math.max(4, profitHeight)}px` }}
                         className="flex-1 bg-emerald-500 rounded-t-xs hover:bg-emerald-600 transition-all duration-200 cursor-pointer"
                         title={`Net Profit: KSh ${Number(point.net_profit || 0).toLocaleString()}`}
                       ></div>
 
-                      {/* Total Sales Bar (Teal) */}
                       <div
                         style={{ height: `${Math.max(4, salesHeight)}px` }}
                         className="flex-1 bg-teal-600 rounded-t-xs hover:bg-teal-700 transition-all duration-200 cursor-pointer"
@@ -637,7 +626,6 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="border-t border-slate-300 w-full mt-2"></div>
         </div>
 
-        {/* Legend Indicator */}
         <div className="flex items-center justify-center gap-6 text-[11px] font-bold">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
@@ -685,6 +673,16 @@ function UserDashboard({ items, fetchItems }) {
     } catch (e) {}
     return { username: 'Store Manager', role: 'User' };
   }, []);
+
+  const userPermissions = useMemo(() => {
+    return currentUser?.permissions || {};
+  }, [currentUser]);
+
+  const hasAccess = useCallback((key) => {
+    if (currentUser?.is_superuser || currentUser?.role === 'ADMIN') return true;
+    if (key === 'dashboard') return true;
+    return Boolean(userPermissions[key]?.view);
+  }, [currentUser, userPermissions]);
 
   const fetchPendingApprovalsCount = useCallback(async () => {
     try {
@@ -802,7 +800,6 @@ function UserDashboard({ items, fetchItems }) {
     }));
   };
 
-  // Valid active tab keys set
   const validTabKeys = useMemo(() => {
     const keys = new Set(['dashboard', 'approvals']);
     menuGroups.forEach((g) => {
@@ -813,7 +810,7 @@ function UserDashboard({ items, fetchItems }) {
     return keys;
   }, [menuGroups]);
 
-  const isTabValid = validTabKeys.has(activeTab);
+  const isTabValid = validTabKeys.has(activeTab) && hasAccess(activeTab);
 
   return (
     <div className="h-screen w-screen flex overflow-hidden text-teal-950 font-sans bg-slate-100">
@@ -828,20 +825,26 @@ function UserDashboard({ items, fetchItems }) {
         <nav className="p-3 space-y-2 flex-1 overflow-y-auto">
           {menuGroups.map((group) => {
             if (group.isDirect) {
+              const allowed = hasAccess(group.key);
               return (
                 <button
                   key={group.key}
+                  disabled={!allowed}
                   onClick={() => {
+                    if (!allowed) return;
                     setActiveTab(group.key);
                     localStorage.setItem('user_active_tab', group.key);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    activeTab === group.key
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-teal-100 hover:bg-teal-900/60'
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition ${
+                    !allowed
+                      ? 'opacity-40 cursor-not-allowed text-teal-300/50 bg-teal-950/20'
+                      : activeTab === group.key
+                        ? 'bg-teal-600 text-white shadow-xs cursor-pointer'
+                        : 'text-teal-100 hover:bg-teal-900/60 cursor-pointer'
                   }`}
                 >
                   <span className="uppercase tracking-wider text-[10px]">{group.label}</span>
+                  {!allowed && <span className="text-[10px]" title="Access Restricted">🔒</span>}
                 </button>
               );
             }
@@ -866,27 +869,39 @@ function UserDashboard({ items, fetchItems }) {
 
                 {isOpen && (
                   <div className="px-2 py-1 space-y-1 bg-teal-950/60 border-t border-teal-900/30">
-                    {group.items.map((item) => (
-                      <button
-                        key={item.key}
-                        onClick={() => {
-                          setActiveTab(item.key);
-                          localStorage.setItem('user_active_tab', item.key);
-                        }}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                          activeTab === item.key
-                            ? 'bg-teal-600 text-white shadow-xs font-semibold'
-                            : 'text-teal-200/80 hover:text-white hover:bg-teal-900/50'
-                        }`}
-                      >
-                        <span className="truncate">{item.label}</span>
-                        {Boolean(item.badge) && (
-                          <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {group.items.map((item) => {
+                      const allowed = hasAccess(item.key);
+                      return (
+                        <button
+                          key={item.key}
+                          disabled={!allowed}
+                          onClick={() => {
+                            if (!allowed) return;
+                            setActiveTab(item.key);
+                            localStorage.setItem('user_active_tab', item.key);
+                          }}
+                          title={!allowed ? 'Module access restricted by administrator' : item.label}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                            !allowed
+                              ? 'opacity-40 cursor-not-allowed text-teal-300/40 bg-teal-950/40'
+                              : activeTab === item.key
+                                ? 'bg-teal-600 text-white shadow-xs font-semibold cursor-pointer'
+                                : 'text-teal-200/80 hover:text-white hover:bg-teal-900/50 cursor-pointer'
+                          }`}
+                        >
+                          <span className="truncate">{item.label}</span>
+                          {!allowed ? (
+                            <span className="text-[10px]" title="Restricted">🔒</span>
+                          ) : (
+                            Boolean(item.badge) && (
+                              <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">
+                                {item.badge}
+                              </span>
+                            )
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -931,7 +946,7 @@ function UserDashboard({ items, fetchItems }) {
           </div>
         </header>
 
-        {/* WORKSPACE CONTENT ROUTER WITH AUTOMATIC DASHBOARD FALLBACK */}
+        {/* WORKSPACE CONTENT ROUTER */}
         <main className="flex-1 overflow-y-auto p-6 w-full bg-slate-50/50">
           {(!isTabValid || activeTab === 'dashboard') && (
             <ManagementDashboardCards selectedBranch={selectedBranch} />

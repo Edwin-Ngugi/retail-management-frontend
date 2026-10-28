@@ -1,23 +1,96 @@
+// src/components/UserPermissions.jsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import API from '../api';
 import './UserPermissions.css';
 
-const MODULES = [
-  { key: 'dashboard', label: 'Dashboard', description: 'Business overview and KPIs' },
-  { key: 'sales', label: 'Sales', description: 'Sales transactions and records' },
-  { key: 'procurement', label: 'Procurement', description: 'Supplier purchases and restocking' },
-  { key: 'inventory', label: 'Inventory', description: 'Items, stock and adjustments' },
-  { key: 'payments', label: 'Payments', description: 'Business expenses and payments' },
-  { key: 'receipts', label: 'Receipts', description: 'Customer receipts and allocations' },
-  { key: 'customers', label: 'Customers', description: 'Customer records and debts' },
-  { key: 'suppliers', label: 'Suppliers', description: 'Supplier statements and balances' },
-  { key: 'reports', label: 'Reports', description: 'Financial and operational reports' },
-  { key: 'cashbook', label: 'Cashbook', description: 'Cash inflows and outflows' },
-  { key: 'balance_sheet', label: 'Balance sheet', description: 'Assets, liabilities and equity' },
-  { key: 'branches', label: 'Branches', description: 'Branch configuration and access' },
-  { key: 'approvals', label: 'Approvals', description: 'Review and approve pending actions' },
-  { key: 'user_permissions', label: 'User permissions', description: 'Manage roles and user access' },
+const MODULE_GROUPS = [
+  {
+    category: 'Dashboard',
+    items: [
+      { key: 'dashboard', label: 'Dashboard Overview', description: 'Main business trajectory & KPIs' },
+    ],
+  },
+  {
+    category: 'Sales',
+    items: [
+      { key: 'cash_sale', label: 'Cash Sale', description: 'Direct point-of-sale entries' },
+      { key: 'credit_sale', label: 'Credit Sale', description: 'Invoicing credit sales' },
+      { key: 'sales_invoices', label: 'Sales Invoices', description: 'Invoice audit ledger' },
+      { key: 'sales_returns', label: 'Sales Returns', description: 'Customer item return processing' },
+      { key: 'quotations', label: 'Quotations', description: 'Price quotations and estimates' },
+    ],
+  },
+  {
+    category: 'Procurement',
+    items: [
+      { key: 'cash_purchase', label: 'Cash Purchase', description: 'Direct cash restock entries' },
+      { key: 'credit_purchase', label: 'Credit Purchase', description: 'Supplier credit restocks' },
+      { key: 'goods_received', label: 'Goods Received (GRN)', description: 'Stock receiving logs' },
+      { key: 'purchase_returns', label: 'Purchase Returns', description: 'Supplier returns management' },
+    ],
+  },
+  {
+    category: 'Inventory',
+    items: [
+      { key: 'item_register', label: 'Item Register', description: 'SKU catalog & cost pricings' },
+      { key: 'stock_transfer', label: 'Stock Transfer', description: 'Branch stock movements' },
+      { key: 'stock_adjustment', label: 'Stock Adjustment', description: 'Discrepancy adjustments' },
+      { key: 'stock_count', label: 'Stock Count', description: 'Physical stock reconciliation' },
+    ],
+  },
+  {
+    category: 'Payments',
+    items: [
+      { key: 'supplier_payment', label: 'Supplier Payment', description: 'Supplier accounts payable' },
+      { key: 'expenses', label: 'Operating Expenses', description: 'Business operational expenses' },
+      { key: 'other_payments', label: 'Other Payments', description: 'Miscellaneous payment entries' },
+      { key: 'payment_vouchers', label: 'Payment Vouchers', description: 'Voucher generation' },
+    ],
+  },
+  {
+    category: 'Receipts',
+    items: [
+      { key: 'customer_receipts', label: 'Customer Receipts', description: 'Customer payment entries' },
+      { key: 'other_receipts', label: 'Other Receipts', description: 'Non-sales incoming funds' },
+      { key: 'receipts_allocation', label: 'Receipts Allocation', description: 'Funds allocation ledger' },
+    ],
+  },
+  {
+    category: 'Customers',
+    items: [
+      { key: 'customer_register', label: 'Customer Register', description: 'Customer contact records' },
+      { key: 'customer_statements', label: 'Customer Statements', description: 'Statement generation' },
+      { key: 'outstanding_balances', label: 'Outstanding Balances', description: 'Customer debt ledgers' },
+    ],
+  },
+  {
+    category: 'Suppliers',
+    items: [
+      { key: 'supplier_register', label: 'Supplier Register', description: 'Supplier catalog' },
+      { key: 'supplier_statements', label: 'Supplier Statements', description: 'Supplier balance statements' },
+      { key: 'supplier_outstanding', label: 'Outstanding Balances', description: 'Accounts payable summary' },
+    ],
+  },
+  {
+    category: 'Reports',
+    items: [
+      { key: 'rep_sales', label: 'Sales Reports', description: 'Detailed sales analytics' },
+      { key: 'rep_purchases', label: 'Purchase Reports', description: 'Procurement analytics' },
+      { key: 'rep_inventory', label: 'Inventory Reports', description: 'Stock valuation reports' },
+      { key: 'rep_debtors', label: 'Debtors Reports', description: 'Aging & balance reports' },
+      { key: 'rep_financial', label: 'Financial Statements', description: 'Profit & Loss statements' },
+    ],
+  },
+  {
+    category: 'Administration',
+    items: [
+      { key: 'approvals', label: 'Approvals Dashboard', description: 'Review pending requests' },
+      { key: 'user_permissions', label: 'User Permissions', description: 'Manage system roles & access' },
+    ],
+  },
 ];
+
+const FLAT_MODULES = MODULE_GROUPS.flatMap((g) => g.items);
 
 const ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Administrator' },
@@ -27,7 +100,7 @@ const ROLE_OPTIONS = [
 
 const makeDefaultPermissions = () =>
   Object.fromEntries(
-    MODULES.map(({ key }) => [
+    FLAT_MODULES.map(({ key }) => [
       key,
       { view: false, change: false },
     ])
@@ -36,7 +109,7 @@ const makeDefaultPermissions = () =>
 const normalizePermissions = (permissions = {}) => {
   const defaults = makeDefaultPermissions();
 
-  MODULES.forEach(({ key }) => {
+  FLAT_MODULES.forEach(({ key }) => {
     const supplied = permissions[key] || {};
     defaults[key] = {
       view: Boolean(supplied.view || supplied.change),
@@ -128,6 +201,25 @@ export default function UserPermissions() {
     });
   };
 
+  const toggleGroupPermissions = (groupItems, action, checked) => {
+    setPermissions((current) => {
+      const next = { ...current };
+      groupItems.forEach(({ key }) => {
+        next[key] = {
+          ...next[key],
+          [action]: checked,
+        };
+        if (action === 'change' && checked) {
+          next[key].view = true;
+        }
+        if (action === 'view' && !checked) {
+          next[key].change = false;
+        }
+      });
+      return next;
+    });
+  };
+
   const savePermissions = async () => {
     if (!selectedUser) return;
 
@@ -188,7 +280,7 @@ export default function UserPermissions() {
           <p className="up-eyebrow">SYSTEM ADMINISTRATION</p>
           <h1>User roles &amp; permissions</h1>
           <p className="up-subtitle">
-            Control which business modules each user can view or change.
+            Control which business sub-menus each user can view or change.
           </p>
         </div>
 
@@ -203,9 +295,8 @@ export default function UserPermissions() {
       </header>
 
       <div className="up-notice up-notice-info">
-        <strong>Access control:</strong> View grants access to a module.
+        <strong>Access control:</strong> View grants access to a sub-menu.
         Change grants editing rights and automatically enables View.
-        Backend endpoints must also enforce these permissions.
       </div>
 
       {error && <div className="up-alert up-alert-error">{error}</div>}
@@ -290,11 +381,6 @@ export default function UserPermissions() {
                             }
                             onClick={() => openUser(user)}
                             disabled={protectedUser}
-                            title={
-                              protectedUser
-                                ? 'Superuser permissions are managed through Django administration.'
-                                : 'Configure this user’s module permissions'
-                            }
                           >
                             {protectedUser
                               ? 'Protected'
@@ -320,7 +406,7 @@ export default function UserPermissions() {
             <div className="up-empty up-editor-empty">
               <span className="up-empty-icon">⚙</span>
               <h2>Configure user access</h2>
-              <p>Select a user from the table to assign a role and permissions.</p>
+              <p>Select a user from the table to assign a role and sub-menu permissions.</p>
             </div>
           ) : (
             <>
@@ -360,8 +446,8 @@ export default function UserPermissions() {
 
               <div className="up-permission-heading">
                 <div>
-                  <h3>Module permissions</h3>
-                  <p>Tick the access this user should have.</p>
+                  <h3>Sub-menu permissions</h3>
+                  <p>Tick access permissions for each feature.</p>
                 </div>
                 <button
                   type="button"
@@ -376,48 +462,85 @@ export default function UserPermissions() {
                 <table className="up-permission-table">
                   <thead>
                     <tr>
-                      <th>Module</th>
-                      <th>View</th>
-                      <th>Change</th>
+                      <th>Module / Sub-menu</th>
+                      <th className="text-center">View</th>
+                      <th className="text-center">Change</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {MODULES.map((module) => (
-                      <tr key={module.key}>
-                        <td>
-                          <strong>{module.label}</strong>
-                          <small>{module.description}</small>
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Allow viewing ${module.label}`}
-                            checked={Boolean(permissions[module.key]?.view)}
-                            onChange={(event) =>
-                              updatePermission(
-                                module.key,
-                                'view',
-                                event.target.checked
-                              )
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Allow changing ${module.label}`}
-                            checked={Boolean(permissions[module.key]?.change)}
-                            onChange={(event) =>
-                              updatePermission(
-                                module.key,
-                                'change',
-                                event.target.checked
-                              )
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {MODULE_GROUPS.map((group) => {
+                      const allGroupView = group.items.every((i) => permissions[i.key]?.view);
+                      const allGroupChange = group.items.every((i) => permissions[i.key]?.change);
+
+                      return (
+                        <React.Fragment key={group.category}>
+                          {/* Group Section Header */}
+                          <tr className="bg-slate-100/90 font-bold text-slate-800 text-xs">
+                            <td className="py-2 px-3 uppercase tracking-wider text-[10px] text-teal-900 bg-slate-100">
+                              {group.category}
+                            </td>
+                            <td className="py-2 px-3 text-center bg-slate-100">
+                              <input
+                                type="checkbox"
+                                title={`Toggle all View for ${group.category}`}
+                                checked={allGroupView}
+                                onChange={(e) =>
+                                  toggleGroupPermissions(group.items, 'view', e.target.checked)
+                                }
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-center bg-slate-100">
+                              <input
+                                type="checkbox"
+                                title={`Toggle all Change for ${group.category}`}
+                                checked={allGroupChange}
+                                onChange={(e) =>
+                                  toggleGroupPermissions(group.items, 'change', e.target.checked)
+                                }
+                              />
+                            </td>
+                          </tr>
+
+                          {/* Individual Sub-menu Rows */}
+                          {group.items.map((item) => (
+                            <tr key={item.key}>
+                              <td className="pl-6">
+                                <strong>{item.label}</strong>
+                                <small>{item.description}</small>
+                              </td>
+                              <td className="text-center">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Allow viewing ${item.label}`}
+                                  checked={Boolean(permissions[item.key]?.view)}
+                                  onChange={(event) =>
+                                    updatePermission(
+                                      item.key,
+                                      'view',
+                                      event.target.checked
+                                    )
+                                  }
+                                />
+                              </td>
+                              <td className="text-center">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Allow changing ${item.label}`}
+                                  checked={Boolean(permissions[item.key]?.change)}
+                                  onChange={(event) =>
+                                    updatePermission(
+                                      item.key,
+                                      'change',
+                                      event.target.checked
+                                    )
+                                  }
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -425,7 +548,7 @@ export default function UserPermissions() {
               <div className="up-editor-footer">
                 <span>
                   {Object.values(permissions).filter((item) => item.view).length}
-                  {' '}modules viewable · {' '}
+                  {' '}sub-menus viewable · {' '}
                   {Object.values(permissions).filter((item) => item.change).length}
                   {' '}editable
                 </span>
