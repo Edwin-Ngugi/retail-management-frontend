@@ -109,28 +109,17 @@ export default function AuthPage({ onLoginSuccess }) {
           localStorage.setItem('user_permissions', JSON.stringify(userObj.permissions));
         }
 
-        const isSuperadmin = userObj.is_superuser || userObj.role === 'SUPERADMIN';
-        const isManagement = userObj.is_staff || ['ADMIN', 'MANAGER', 'MANAGEMENT'].includes(userObj.role);
-
-        const portalType = data.portal_type || (isSuperadmin ? 'admin' : (isManagement ? 'management' : 'user'));
-
         localStorage.setItem('username', userObj.username);
         localStorage.setItem('user', JSON.stringify(userObj));
         localStorage.setItem('user_data', JSON.stringify(userObj));
-        localStorage.setItem('portal_type', portalType);
+        localStorage.setItem('portal_type', 'user');
 
         if (typeof onLoginSuccess === 'function') {
           onLoginSuccess(userObj);
         }
 
-        // Dynamic redirect based on privileges & portal type
-        if (isSuperadmin || portalType === 'admin') {
-          navigate('/admin');
-        } else if (isManagement || portalType === 'management') {
-          navigate('/management');
-        } else {
-          navigate('/');
-        }
+        // Always redirect all users (including admins and staff) to the main POS dashboard
+        navigate('/');
       } else {
         // Automatically pre-fill username and switch view to Sign In
         setFormData({
