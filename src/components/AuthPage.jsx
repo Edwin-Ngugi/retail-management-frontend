@@ -109,16 +109,24 @@ export default function AuthPage({ onLoginSuccess }) {
           localStorage.setItem('user_permissions', JSON.stringify(userObj.permissions));
         }
 
+        // Identify admin capabilities
+        const isAdmin = Boolean(
+          userObj.is_superuser || 
+          userObj.is_staff || 
+          userObj.can_access_admin || 
+          ['SUPERADMIN', 'ADMIN', 'MANAGER', 'MANAGEMENT'].includes(userObj.role)
+        );
+
         localStorage.setItem('username', userObj.username);
         localStorage.setItem('user', JSON.stringify(userObj));
         localStorage.setItem('user_data', JSON.stringify(userObj));
-        localStorage.setItem('portal_type', 'user');
+        localStorage.setItem('portal_type', isAdmin ? 'admin' : 'user');
 
         if (typeof onLoginSuccess === 'function') {
           onLoginSuccess(userObj);
         }
 
-        // Always redirect all users (including admins and staff) to the main POS dashboard
+        // Unified Landing: ALL roles land on the main POS interface first
         navigate('/');
       } else {
         // Automatically pre-fill username and switch view to Sign In
@@ -136,7 +144,6 @@ export default function AuthPage({ onLoginSuccess }) {
       if (err.response?.data) {
         const data = err.response.data;
         if (typeof data === 'string') {
-          // Prevent raw HTML pages from rendering inside the alert box
           if (data.includes('<!doctype html>') || data.includes('<html')) {
             setError('Server Error (500). Please verify Django terminal logs.');
           } else {
