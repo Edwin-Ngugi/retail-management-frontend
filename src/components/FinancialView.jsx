@@ -228,6 +228,8 @@ export default function FinancialView({ branchId, startDate, endDate }) {
 
     if (activeTab === 'balancesheet') {
       const data = balanceSheetData || {};
+      const bankOverdraft = Number(data.liabilities?.bank_overdraft || 0);
+
       return (
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-teal-800 text-white p-4 rounded-xl text-center shadow-md">
@@ -271,6 +273,12 @@ export default function FinancialView({ branchId, startDate, endDate }) {
                   <span>Supplier Debts (Accounts Payable)</span>
                   <span className="font-mono">{fmtCurr(data.liabilities?.supplier_debts)}</span>
                 </div>
+                {bankOverdraft > 0 && (
+                  <div className="flex justify-between py-2 text-rose-600">
+                    <span>Bank Overdraft & Short-Term Credit</span>
+                    <span className="font-mono">{fmtCurr(bankOverdraft)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between py-2 text-rose-600">
                   <span>Bank Loan & Borrowings</span>
                   <span className="font-mono">{fmtCurr(data.liabilities?.bank_loan)}</span>
