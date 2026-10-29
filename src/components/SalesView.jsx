@@ -30,7 +30,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Controlled date states
   const [startDate, setStartDate] = useState(propStartDate || '');
   const [endDate, setEndDate] = useState(propEndDate || '');
 
@@ -40,13 +39,15 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const [receivablesData, setReceivablesData] = useState(null);
   const [registerData, setRegisterData] = useState([]);
 
-  const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  
-  // Safely coerce branch ID string for Django ORM compatibility
+  // Dynamically resolve active branch
   const activeBranch = useMemo(() => {
-    const raw = branchId || queryParams.get('branch') || queryParams.get('branch_id');
-    return raw && raw !== 'all' ? String(raw) : '';
-  }, [branchId, queryParams]);
+    if (branchId && String(branchId).toLowerCase() !== 'all') {
+      return String(branchId);
+    }
+    const params = new URLSearchParams(window.location.search);
+    const urlBranch = params.get('branch') || params.get('branch_id');
+    return urlBranch && String(urlBranch).toLowerCase() !== 'all' ? String(urlBranch) : '';
+  }, [branchId]);
 
   const fetchAllAnalytics = useCallback(async () => {
     setLoading(true);
@@ -89,9 +90,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     fetchAllAnalytics();
   }, [fetchAllAnalytics]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const handleExportCSV = () => {
     if (!registerData || registerData.length === 0) return;
@@ -138,7 +137,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
         }
       `}</style>
 
-      {/* ACTION CONTROLS & DATE FILTER HEADER */}
+      {/* HEADER CONTROLS */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight">Executive Sales Analytics & Performance Report</h1>
@@ -167,7 +166,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             onClick={fetchAllAnalytics}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
           >
-            ↻ Refresh Data
+            ↻ Refresh
           </button>
 
           <button
@@ -199,7 +198,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
       ) : (
         <div id="executive-sales-report-area" className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xs space-y-8">
           
-          {/* REPORT HEADER */}
+          {/* REPORT TITLE BAR */}
           <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -208,7 +207,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
               </div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">SALES PERFORMANCE & ANALYTICS AUDIT</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Branch ID: <span className="font-bold text-slate-800">{activeBranch || 'All Branches'}</span> | Generated on: {new Date().toLocaleDateString()}
+                Branch Scope: <span className="font-bold text-slate-800">{activeBranch ? `Branch ID #${activeBranch}` : 'All System Branches'}</span> | Generated: {new Date().toLocaleDateString()}
               </p>
             </div>
 
@@ -396,7 +395,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </div>
 
-          {/* 4. MERCHANDISE PERFORMANCE TABLES */}
+          {/* 4. ITEM PERFORMANCE TABLES */}
           <div className="space-y-3 pt-4 chart-card-print">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
               4. Item Performance & Velocity Ranking
@@ -429,7 +428,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="p-4 text-center text-slate-400">No top performers recorded.</td>
+                        <td colSpan="4" className="p-4 text-center text-slate-400 font-mono">No top performers recorded.</td>
                       </tr>
                     )}
                   </tbody>
@@ -462,7 +461,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="p-4 text-center text-slate-400">No slow movers recorded.</td>
+                        <td colSpan="4" className="p-4 text-center text-slate-400 font-mono">No slow movers recorded.</td>
                       </tr>
                     )}
                   </tbody>
@@ -546,7 +545,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             )}
           </div>
 
-          {/* SIGNATURE / APPROVAL BLOCK */}
+          {/* APPROVAL BLOCK */}
           <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs font-bold text-slate-600 chart-card-print">
             <div className="text-right flex flex-col items-end">
               <span className="text-[10px] uppercase text-slate-400 block font-mono">Approved By:</span>
