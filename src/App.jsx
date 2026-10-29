@@ -30,6 +30,7 @@ import SalesReturnsManagement from './components/SalesReturnsManagement';
 import QuotationsManagement from './components/QuotationManagement';
 import CreditSaleManagement from './components/CreditSalesManagement';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './components/AdminLogin';
 import AuthPage from './components/AuthPage';
 import ReceiptsLogManagement from './components/ReceiptsLogManagement';
 import ApprovalsDashboard from './components/ApprovalsDashboard';
@@ -59,7 +60,7 @@ import DebtorsView from './components/DebtorsView';
 import FinancialView from './components/FinancialView';
 
 /* =========================================================
-   PORTAL ROUTE GUARDS (SINGLE AUTH ENTRYPOINT)
+   PORTAL ROUTE GUARDS
 ========================================================= */
 
 const ProtectedRoute = () => {
@@ -68,16 +69,25 @@ const ProtectedRoute = () => {
   return <Outlet />;
 };
 
-const AdminRoute = ({ onItemsUpdated }) => {
-  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-  if (!token) return <Navigate to="/login" replace />;
-  
-  const user = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('user') || '{}');
-  const isSuperadmin = user.is_superuser || user.role === 'SUPERADMIN';
+const AdminPortalRoute = ({ onItemsUpdated }) => {
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
+    return localStorage.getItem('admin_authenticated') === 'true';
+  });
 
-  // If user doesn't have superadmin privileges, send to home workspace
-  if (!isSuperadmin) {
-    return <Navigate to="/" replace />;
+  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('user') || '{}');
+  const isAdmin = user?.is_superuser || user?.is_staff || user?.can_access_admin || ['SUPERADMIN', 'ADMIN'].includes(user?.role);
+
+  // Direct access to /admin requires authenticating through AdminLogin first
+  if (!token || !isAdmin || !isAdminAuthenticated) {
+    return (
+      <AdminLogin
+        onLoginSuccess={(adminUser) => {
+          localStorage.setItem('admin_authenticated', 'true');
+          setIsAdminAuthenticated(true);
+        }}
+      />
+    );
   }
 
   return <AdminDashboard onItemsUpdated={onItemsUpdated} />;
@@ -98,7 +108,7 @@ const ManagementRoute = () => {
 };
 
 /* =========================================================
-   EXACT MATCH DASHBOARD OVERVIEW COMPONENT
+   DASHBOARD OVERVIEW COMPONENT
 ========================================================= */
 
 function ManagementDashboardCards({ selectedBranch }) {
@@ -576,7 +586,7 @@ function ManagementDashboardCards({ selectedBranch }) {
 
       </div>
 
-      {/* SALES PERFORMANCE TRAJECTORY GRAPH WITH MULTI-BAR METRICS */}
+      {/* SALES PERFORMANCE TRAJECTORY GRAPH */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-2xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
@@ -675,7 +685,6 @@ function UserDashboard({ items, fetchItems }) {
     return { username: 'Store Manager', role: 'User' };
   });
 
-  // Automatically fetch fresh user permissions on mount to reflect live changes
   useEffect(() => {
     API.get('auth/profile/')
       .then((res) => {
@@ -694,7 +703,6 @@ function UserDashboard({ items, fetchItems }) {
     return currentUser?.permissions || {};
   }, [currentUser]);
 
-  // Evaluates permissions against backend model defaults and exact sub-menu keys
   const hasAccess = useCallback((key) => {
     if (currentUser?.is_superuser || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN') {
       return true;
@@ -761,8 +769,6 @@ function UserDashboard({ items, fetchItems }) {
     loadingBranches = false,
   } = branchContext;
 
-  // Exact requested order:
-  // 1. Dashboard, 2. Sales, 3. Receipts, 4. Purchase, 5. Payments, 6. Inventory, 7. Customer, 8. Supplier, 9. Reports
   const menuGroups = useMemo(() => [
     {
       group: 'Dashboard',
@@ -1197,16 +1203,12 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Unified Auth Entrypoint */}
+      {/* General Auth Entrypoint */}
       <Route path="/login" element={<AuthPage />} />
-      
-      {/* Redirect explicit legacy login routes to unified AuthPage */}
-      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-      <Route path="/management/login" element={<Navigate to="/login" replace />} />
 
       {/* Role-guarded workspaces */}
       <Route path="/management" element={<ManagementRoute />} />
-      <Route path="/admin" element={<AdminRoute onItemsUpdated={fetchItems} />} />
+      <Route path="/admin" element={<AdminPortalRoute onItemsUpdated={fetchItems} />} />
       
       {/* General workspace protected route */}
       <Route element={<ProtectedRoute />}>
