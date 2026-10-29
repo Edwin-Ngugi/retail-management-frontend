@@ -115,7 +115,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     document.body.removeChild(link);
   };
 
-  const summary = overviewData?.summary || analysisData?.branch_summary || {};
+  const summary = {
+    ...(overviewData?.summary || {}),
+    ...(analysisData?.branch_summary || {}),
+  };
   const health = overviewData?.operational_health || {};
   const dailyTrends = analysisData?.daily_trends || [];
   const topPerformers = analysisData?.top_performers || [];
