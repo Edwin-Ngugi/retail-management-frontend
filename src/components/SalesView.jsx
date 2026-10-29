@@ -9,6 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from 'recharts';
 
 const fmtCurr = (val) =>
@@ -65,9 +66,46 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const handlePrint = () => window.print();
 
   const summary = detailedReport?.summary || {};
-  const hourlyTrends = detailedReport?.hourly_trends || [];
-  const categories = detailedReport?.category_breakdown || [];
-  const paymentBreakdown = detailedReport?.payment_breakdown || [];
+  const dailyTrends = detailedReport?.daily_trends || [];
+  const rawPaymentBreakdown = detailedReport?.payment_breakdown || [];
+  const insights = detailedReport?.insights || [];
+
+  // Strictly exclude 'SPLIT' row and distribute only concrete liquid payment methods
+  const paymentBreakdown = useMemo(() => {
+    return rawPaymentBreakdown.filter(
+      (pm) => String(pm.method).toUpperCase() !== 'SPLIT' && pm.amount > 0
+    );
+  }, [rawPaymentBreakdown]);
+
+  const fastMovers = useMemo(() => {
+    return (
+      detailedReport?.fast_movers ||
+      detailedReport?.top_performers ||
+      detailedReport?.top_fast_movers ||
+      []
+    );
+  }, [detailedReport]);
+
+  const slowMovers = useMemo(() => {
+    return (
+      detailedReport?.slow_movers ||
+      detailedReport?.bottom_performers ||
+      []
+    );
+  }, [detailedReport]);
+
+  const getInsightStyle = (type) => {
+    switch (type) {
+      case 'danger':
+        return 'bg-rose-50 border-rose-200 text-rose-800';
+      case 'warning':
+        return 'bg-amber-50 border-amber-200 text-amber-800';
+      case 'success':
+        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+      default:
+        return 'bg-teal-50 border-teal-200 text-teal-800';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 p-6 space-y-6 font-sans">
@@ -107,14 +145,14 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
           <button
             onClick={fetchAllAnalytics}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all border border-slate-200"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all border border-slate-200 cursor-pointer"
           >
             ↻ Refresh
           </button>
 
           <button
             onClick={handlePrint}
-            className="bg-teal-800 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-black tracking-wide transition-all shadow-xs"
+            className="bg-teal-800 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer"
           >
             🖨️ Export PDF
           </button>
@@ -174,7 +212,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
-          {/* SECONDARY BASKET STATS */}
+          {/* SECONDARY BASKET & CREDIT STATS */}
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-4 rounded-xl">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Orders</span>
@@ -198,79 +236,122 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
 
             <div className="bg-white border border-slate-200 p-4 rounded-xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Discounts Granted</span>
-              <span className="text-base font-extrabold text-rose-700 font-mono mt-0.5 block">
-                {fmtCurr(summary.total_discounts)} ({summary.discount_rate_percent || 0}%)
+              <span className="text-[10px] font-bold text-amber-700 uppercase block">Credit Sales Exposure</span>
+              <span className="text-base font-extrabold text-amber-800 font-mono mt-0.5 block">
+                {fmtCurr(summary.credit_sales_exposure)}
               </span>
             </div>
           </section>
 
-          {/* HOURLY CHART */}
+          {/* STRATEGIC INSIGHTS & EXECUTIVE NOTES */}
+          {insights.length > 0 && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                <span className="text-base">💡</span>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Executive Insights & Decision Notes
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {insights.map((note, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3.5 rounded-xl border text-xs font-medium space-y-1 ${getInsightStyle(
+                      note.type
+                    )}`}
+                  >
+                    <span className="font-bold block text-[11px] uppercase tracking-wider">
+                      {note.title}
+                    </span>
+                    <p className="leading-relaxed opacity-90">{note.message}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* COMPREHENSIVE FINANCIAL COMPARISON GRAPH: REVENUE vs COGS vs PROFIT */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Peak Operating Hours (Hourly Sales Velocity)
-              </h3>
+              <div>
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Daily Financial Breakdown (Revenue vs COGS vs Gross Profit)
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Comparative analysis of daily sales income against direct product cost and generated profit
+                </p>
+              </div>
               <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
-                24-Hour Timeline
+                Financial Velocity
               </span>
             </div>
 
-            <div className="h-64 w-full">
-              {hourlyTrends.length > 0 ? (
+            <div className="h-72 w-full">
+              {dailyTrends.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hourlyTrends}>
+                  <BarChart data={dailyTrends} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${v}`} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#CBD5E1', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      formatter={(val) => [fmtCurr(val), 'Revenue']}
+                      contentStyle={{
+                        backgroundColor: '#FFFFFF',
+                        borderColor: '#CBD5E1',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      }}
+                      formatter={(val, name) => [fmtCurr(val), name]}
                     />
-                    <Bar dataKey="revenue" fill="#0D9488" radius={[4, 4, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                    <Bar dataKey="revenue" name="Gross Revenue" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                    <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                    <Bar dataKey="profit" name="Gross Profit" fill="#059669" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center text-xs text-slate-400 font-mono">
-                  No sales activity registered for this timeframe.
+                  No daily sales or financial trends recorded for this range.
                 </div>
               )}
             </div>
           </section>
 
-          {/* CATEGORY & PAYMENT BREAKDOWNS */}
+          {/* FAST & SLOW MOVING GOODS ANALYSIS */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Category Performance */}
+            {/* Fast-Moving Goods */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
-                Category Contribution
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  🚀 Fast-Moving Products (Top Performers)
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  Top Revenue Drivers
+                </span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
-                      <th className="py-2.5">Category</th>
-                      <th className="py-2.5 text-right">Units</th>
+                      <th className="py-2.5">Product</th>
+                      <th className="py-2.5 text-center">Units Sold</th>
                       <th className="py-2.5 text-right">Revenue</th>
-                      <th className="py-2.5 text-right">Gross Profit</th>
+                      <th className="py-2.5 text-right">Margin %</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {categories.length > 0 ? (
-                      categories.map((cat, idx) => (
+                    {fastMovers.length > 0 ? (
+                      fastMovers.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 font-bold text-slate-800">{cat.category}</td>
-                          <td className="py-3 text-right font-mono text-slate-600">{cat.units}</td>
-                          <td className="py-3 text-right font-mono font-bold text-teal-800">{fmtCurr(cat.revenue)}</td>
-                          <td className="py-3 text-right font-mono text-emerald-700">{fmtCurr(cat.profit)}</td>
+                          <td className="py-3 font-bold text-slate-800">{item.item_name}</td>
+                          <td className="py-3 text-center font-mono text-slate-600">{item.units_sold}</td>
+                          <td className="py-3 text-right font-mono font-bold text-teal-800">{fmtCurr(item.gross_revenue)}</td>
+                          <td className="py-3 text-right font-mono text-emerald-700 font-bold">{item.profit_margin_percent}%</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-slate-400 font-mono">
-                          No category data recorded.
-                        </td>
+                        <td colSpan="4" className="py-6 text-center text-slate-400 font-mono">No fast-moving items recorded.</td>
                       </tr>
                     )}
                   </tbody>
@@ -278,32 +359,39 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
               </div>
             </div>
 
-            {/* Payment Methods */}
+            {/* Slow-Moving Goods */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
-                Payment Channel Distribution
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  🐢 Slow-Moving Products (Stagnant Inventory)
+                </h3>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
+                  Lowest Velocity
+                </span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
-                      <th className="py-2.5">Channel / Method</th>
-                      <th className="py-2.5 text-right">Settled Total</th>
+                      <th className="py-2.5">Product</th>
+                      <th className="py-2.5 text-center">Units Sold</th>
+                      <th className="py-2.5 text-right">Revenue</th>
+                      <th className="py-2.5 text-right">Margin %</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {paymentBreakdown.length > 0 ? (
-                      paymentBreakdown.map((pm, idx) => (
+                    {slowMovers.length > 0 ? (
+                      slowMovers.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 font-bold text-slate-800">{pm.method}</td>
-                          <td className="py-3 text-right font-mono font-bold text-indigo-700">{fmtCurr(pm.amount)}</td>
+                          <td className="py-3 font-bold text-slate-800">{item.item_name}</td>
+                          <td className="py-3 text-center font-mono text-slate-600">{item.units_sold}</td>
+                          <td className="py-3 text-right font-mono font-bold text-slate-800">{fmtCurr(item.gross_revenue)}</td>
+                          <td className="py-3 text-right font-mono text-slate-500">{item.profit_margin_percent}%</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="2" className="py-6 text-center text-slate-400 font-mono">
-                          No payment transactions found.
-                        </td>
+                        <td colSpan="4" className="py-6 text-center text-slate-400 font-mono">No slow-moving items recorded.</td>
                       </tr>
                     )}
                   </tbody>
@@ -311,6 +399,42 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
               </div>
             </div>
 
+          </section>
+
+          {/* RESOLVED PAYMENT BREAKDOWN */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Resolved Payment Channel Distribution
+              </h3>
+              <span className="text-[10px] font-semibold text-slate-400">Fully Split-Resolved</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
+                    <th className="py-2.5">Channel / Method</th>
+                    <th className="py-2.5 text-right">Settled Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {paymentBreakdown.length > 0 ? (
+                    paymentBreakdown.map((pm, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 font-bold text-slate-800">{pm.method}</td>
+                        <td className="py-3 text-right font-mono font-bold text-indigo-700">{fmtCurr(pm.amount)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="2" className="py-6 text-center text-slate-400 font-mono">
+                        No payment transactions found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
 
         </div>
