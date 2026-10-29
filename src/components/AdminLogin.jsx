@@ -27,7 +27,7 @@ export default function AdminLogin({ onLoginSuccess }) {
     try {
       // Direct call to dedicated Admin Login endpoint
       const response = await API.post(
-        'auth/admin-login/',
+        'aadmin-auth/login/',
         {
           username: formData.username.trim(),
           password: formData.password,
