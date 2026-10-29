@@ -51,12 +51,12 @@ export default function PurchaseView({ branchId, startDate, endDate }) {
 
     try {
       const [resOverview, resOrders, resGrn, resInvoices, resPayments, resSuppliers] = await Promise.allSettled([
-        API.get('management-analytics/purchases-overview/', { params }),
-        API.get('management-analytics/purchase-orders/', { params }),
-        API.get('management-analytics/goods-received/', { params }),
-        API.get('management-analytics/supplier-invoices/', { params }),
-        API.get('management-analytics/supplier-payments/', { params }),
-        API.get('management-analytics/suppliers-list/', { params }),
+        API.get('purchases-analytics/purchases-overview/', { params }),
+        API.get('purchases-analytics/purchase-orders/', { params }),
+        API.get('purchases-analytics/goods-received/', { params }),
+        API.get('purchases-analytics/supplier-invoices/', { params }),
+        API.get('purchases-analytics/supplier-payments/', { params }),
+        API.get('purchases-analytics/suppliers-list/', { params }),
       ]);
 
       if (resOverview.status === 'fulfilled') setOverviewData(resOverview.value.data);
