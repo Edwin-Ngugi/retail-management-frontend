@@ -40,7 +40,6 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     setLoading(true);
     setError(null);
 
-    // Debtors/Receivables is a cumulative report as of date
     const params = {
       branch_id: activeBranch,
       branch: activeBranch,
@@ -48,14 +47,29 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     };
 
     try {
-      // Try primary management report endpoint first, then analytics fallback
       let resData = null;
-      try {
-        const res = await API.get('/management-reports/customer-receivables/', { params });
-        resData = res.data;
-      } catch {
-        const res = await API.get('/management-analytics/customer-receivables/', { params });
-        resData = res.data;
+      // Fallback network attempts across configured ViewSet base paths
+      const endpoints = [
+        'management-analytics/customer-receivables/',
+        '/management-analytics/customer-receivables/',
+        'management-reports/customer-receivables/',
+        '/management-reports/customer-receivables/',
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await API.get(endpoint, { params });
+          if (res.data) {
+            resData = res.data;
+            break;
+          }
+        } catch (e) {
+          // Continue to next endpoint fallback
+        }
+      }
+
+      if (!resData) {
+        throw new Error('No valid response from customer-receivables endpoint.');
       }
 
       setReceivablesData(resData);
@@ -114,8 +128,11 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
 
   // Total Overdue Invoices Count
   const totalUnpaidInvoices = useMemo(() => {
+    if (receivablesData?.total_unpaid_invoices !== undefined) {
+      return Number(receivablesData.total_unpaid_invoices || 0);
+    }
     return debtorsList.reduce((acc, d) => acc + Number(d.unpaid_invoices_count || d.unpaid_invoices || 0), 0);
-  }, [debtorsList]);
+  }, [debtorsList, receivablesData]);
 
   // Top Debtors Bar Chart
   const topDebtorsChart = useMemo(() => {
