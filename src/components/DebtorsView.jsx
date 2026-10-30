@@ -48,7 +48,6 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
 
     try {
       let resData = null;
-      // Fallback network attempts across configured ViewSet base paths
       const endpoints = [
         'management-analytics/customer-receivables/',
         '/management-analytics/customer-receivables/',
@@ -95,12 +94,11 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     const debtorsList = receivablesData?.debtors_summary || receivablesData?.results || [];
     if (!debtorsList || debtorsList.length === 0) return;
 
-    const headers = ['Customer Name', 'Contact Phone', 'Unpaid Invoices', 'Credit Limit', 'Outstanding Balance'];
+    const headers = ['Customer Name', 'Contact Phone', 'Unpaid Invoices', 'Outstanding Balance'];
     const rows = debtorsList.map((d) => [
       `"${String(d.customer_name || d.name || '').replace(/"/g, '""')}"`,
       `"${d.phone || d.phone_number || 'N/A'}"`,
       d.unpaid_invoices_count || d.unpaid_invoices || 0,
-      Number(d.credit_limit || 0).toFixed(2),
       Number(d.outstanding_balance || d.balance || 0).toFixed(2),
     ]);
 
@@ -125,6 +123,23 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     }
     return debtorsList.reduce((acc, d) => acc + Number(d.outstanding_balance || d.balance || 0), 0);
   }, [debtorsList, receivablesData]);
+
+  // Repayments and Recovery Calculations
+  const totalRecovered = useMemo(() => {
+    return Number(receivablesData?.total_recovered || receivablesData?.total_repayments || 0);
+  }, [receivablesData]);
+
+  const totalCreditIssued = useMemo(() => {
+    if (receivablesData?.total_credit_issued !== undefined) {
+      return Number(receivablesData.total_credit_issued);
+    }
+    return totalDebt + totalRecovered;
+  }, [totalDebt, totalRecovered]);
+
+  const recoveryRate = useMemo(() => {
+    if (totalCreditIssued <= 0) return 0;
+    return ((totalRecovered / totalCreditIssued) * 100).toFixed(1);
+  }, [totalCreditIssued, totalRecovered]);
 
   // Total Overdue Invoices Count
   const totalUnpaidInvoices = useMemo(() => {
@@ -179,7 +194,7 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
       <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight">Executive Debtors & Accounts Receivable Report</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Comprehensive audit of unpaid customer invoices, credit limits, and aging ledgers.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Comprehensive audit of unpaid customer invoices, repayments, and aging ledgers.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -276,10 +291,55 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
             </div>
           </div>
 
-          {/* 2. CHARTS SECTION: TOP DEBTORS & AGING MIX */}
-          <div className="space-y-3 pt-4">
+          {/* 2. CREDIT REPAYMENTS & RECOVERY ANALYSIS */}
+          <div className="space-y-3 pt-2 chart-card-print">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-              2. Highest Exposure Debtors & Receivables Aging Analysis
+              2. Credit Repayments & Debt Recovery Analysis
+            </h3>
+            <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-200 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Gross Credit Issued</span>
+                  <span className="text-lg font-black font-mono text-slate-900 mt-1 block">
+                    {fmtCurr(totalCreditIssued)}
+                  </span>
+                </div>
+
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-emerald-800 uppercase block">Total Recovered Repayments</span>
+                  <span className="text-lg font-black font-mono text-emerald-900 mt-1 block">
+                    {fmtCurr(totalRecovered)}
+                  </span>
+                </div>
+
+                <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-teal-800 uppercase block">Recovery Rate</span>
+                  <span className="text-lg font-black font-mono text-teal-900 mt-1 block">
+                    {recoveryRate}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar Visualizer */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span className="text-emerald-800">Recovered: {fmtCurr(totalRecovered)} ({recoveryRate}%)</span>
+                  <span className="text-rose-800">Outstanding: {fmtCurr(totalDebt)} ({totalCreditIssued > 0 ? (100 - recoveryRate).toFixed(1) : 0}%)</span>
+                </div>
+                <div className="w-full bg-rose-200 h-3 rounded-full overflow-hidden flex">
+                  <div
+                    className="bg-emerald-600 h-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.max(0, recoveryRate))}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. CHARTS SECTION: TOP DEBTORS & AGING MIX */}
+          <div className="space-y-3 pt-2">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+              3. Highest Exposure Debtors & Receivables Aging Analysis
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
@@ -331,10 +391,10 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
             </div>
           </div>
 
-          {/* 3. CUSTOMER RECEIVABLES LEDGER */}
-          <div className="space-y-3 pt-4 chart-card-print">
+          {/* 4. CUSTOMER RECEIVABLES LEDGER */}
+          <div className="space-y-3 pt-2 chart-card-print">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-              3. Customer Debtors Master Ledger ({debtorsList.length} Customers)
+              4. Customer Debtors Master Ledger ({debtorsList.length} Customers)
             </h3>
             <div className="overflow-x-auto border border-slate-200 rounded-2xl">
               <table className="w-full text-left text-xs">
@@ -342,7 +402,6 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
                   <tr>
                     <th className="p-3">Customer Name</th>
                     <th className="p-3 text-center">Unpaid Invoices</th>
-                    <th className="p-3 text-right">Credit Limit</th>
                     <th className="p-3 text-right">Outstanding Balance</th>
                   </tr>
                 </thead>
@@ -354,7 +413,6 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
                           <td className="p-3 font-bold text-slate-900">{d.customer_name || d.name}</td>
                           <td className="p-3 text-center font-mono font-bold text-slate-700">{d.unpaid_invoices_count || d.unpaid_invoices || 0}</td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-700">{fmtCurr(d.credit_limit || 0)}</td>
                           <td className={`p-3 text-right font-mono font-black ${balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                             {fmtCurr(balance)}
                           </td>
@@ -363,7 +421,7 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="4" className="p-8 text-center text-slate-400 font-mono">
+                      <td colSpan="3" className="p-8 text-center text-slate-400 font-mono">
                         No debtor records found for this branch.
                       </td>
                     </tr>
