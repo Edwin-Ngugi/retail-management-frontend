@@ -3,14 +3,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import API from '../api';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   Legend,
 } from 'recharts';
@@ -51,7 +46,7 @@ export default function InventoryView({ branchId, startDate, endDate }) {
     };
 
     try {
-      // Primary backend endpoint provided: management-analytics/inventory-valuation/
+      // Primary backend endpoint: management-analytics/inventory-valuation/
       const endpoints = [
         'management-analytics/inventory-valuation/',
         '/management-analytics/inventory-valuation/',
@@ -138,35 +133,50 @@ export default function InventoryView({ branchId, startDate, endDate }) {
     return inventoryData?.inventory_summary || inventoryData?.results || [];
   }, [inventoryData]);
 
-  // Top Stock Items Valuation Chart Data
-  const topValuedItemsChart = useMemo(() => {
-    return stockLevelsData
-      .map((s) => {
-        const value = Number(
-          s.total_valuation || 
-          s.stock_asset_value || 
-          (Number(s.remaining_stock || 0) * Number(s.unit_cost_price || s.wac_unit_cost || 0))
-        );
-        return {
-          name: s.item_name || 'Item',
-          value: value,
-          stock: Number(s.remaining_stock || 0),
-        };
-      })
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+  // Movement Logs Resolution
+  const inwardsDataList = useMemo(() => {
+    if (inventoryData?.recent_inbound && inventoryData.recent_inbound.length > 0) {
+      return inventoryData.recent_inbound;
+    }
+    return inwardsData;
+  }, [inventoryData, inwardsData]);
+
+  const outwardsDataList = useMemo(() => {
+    if (inventoryData?.recent_outbound && inventoryData.recent_outbound.length > 0) {
+      return inventoryData.recent_outbound;
+    }
+    return outwardsData;
+  }, [inventoryData, outwardsData]);
+
+  // Asset Value Concentration Breakdown
+  const assetDistribution = useMemo(() => {
+    let highVal = 0;
+    let midVal = 0;
+    let lowVal = 0;
+
+    stockLevelsData.forEach((item) => {
+      const val = Number(item.total_valuation || item.stock_asset_value || 0);
+      if (val >= 50000) highVal += val;
+      else if (val >= 10000) midVal += val;
+      else lowVal += val;
+    });
+
+    return [
+      { name: 'Tier 1 (> KSh 50k Value)', value: highVal },
+      { name: 'Tier 2 (KSh 10k - 50k Value)', value: midVal },
+      { name: 'Tier 3 (< KSh 10k Value)', value: lowVal },
+    ];
   }, [stockLevelsData]);
 
   // Movement Ratio Pie Chart
   const movementMix = useMemo(() => {
-    const inQty = Number(inventoryData?.inbound_stock_units || inwardsData.reduce((acc, i) => acc + Number(i.quantity || 0), 0));
-    const outQty = Number(inventoryData?.outbound_stock_units || outwardsData.reduce((acc, o) => acc + Number(o.quantity || 0), 0));
+    const inQty = Number(inventoryData?.inbound_stock_units || inwardsDataList.reduce((acc, i) => acc + Number(i.quantity || 0), 0));
+    const outQty = Number(inventoryData?.outbound_stock_units || outwardsDataList.reduce((acc, o) => acc + Number(o.quantity || 0), 0));
     return [
       { name: 'Inbound Restocks', value: inQty },
       { name: 'Outbound Dispatches', value: outQty },
     ];
-  }, [inwardsData, outwardsData, inventoryData]);
+  }, [inwardsDataList, outwardsDataList, inventoryData]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 font-sans text-slate-800 pb-12">
@@ -297,39 +307,34 @@ export default function InventoryView({ branchId, startDate, endDate }) {
             </div>
           </div>
 
-          {/* 2. CHARTS SECTION: STOCK VALUATION & MOVEMENT MIX */}
+          {/* 2. CHARTS SECTION: ASSET CONCENTRATION & MOVEMENT MIX */}
           <div className="space-y-3 pt-4">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
-              2. Stock Asset Allocation & Inbound/Outbound Movement Mix
+              2. Asset Valuation Distribution & Inbound/Outbound Movement Mix
             </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 space-y-3 chart-card-print">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase">Highest Valuation Inventory Items</h4>
-                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
-                    Asset Value
-                  </span>
-                </div>
+              {/* Asset Valuation Concentration Mix */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 chart-card-print">
+                <h4 className="text-xs font-bold text-slate-800 uppercase border-b border-slate-100 pb-2">
+                  Inventory Asset Value Tier Distribution
+                </h4>
                 <div className="h-64 w-full chart-container-print">
-                  {topValuedItemsChart.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={topValuedItemsChart} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#334155' }} />
-                        <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${v}`} />
-                        <Tooltip formatter={(val) => [fmtCurr(val), 'Asset Value']} />
-                        <Bar dataKey="value" fill="#0D9488" radius={[8, 8, 0, 0]} barSize={36} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 font-mono">
-                      No stock valuation data recorded.
-                    </div>
-                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={assetDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} innerRadius={40} paddingAngle={4}>
+                        {assetDistribution.map((_, idx) => (
+                          <Cell key={`asset-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val) => [fmtCurr(val), 'Valuation']} />
+                      <Legend wrapperStyle={{ fontSize: '10px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
+              {/* Inbound vs Outbound Quantity Chart */}
               <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 chart-card-print">
                 <h4 className="text-xs font-bold text-slate-800 uppercase border-b border-slate-100 pb-2">
                   Inbound vs Outbound Quantity
@@ -339,7 +344,7 @@ export default function InventoryView({ branchId, startDate, endDate }) {
                     <PieChart>
                       <Pie data={movementMix} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} innerRadius={40} paddingAngle={4}>
                         {movementMix.map((_, idx) => (
-                          <Cell key={`mov-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                          <Cell key={`mov-${idx}`} fill={CHART_COLORS[(idx + 2) % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip formatter={(val) => [`${val} Units`, 'Quantity']} />
@@ -420,8 +425,8 @@ export default function InventoryView({ branchId, startDate, endDate }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {inwardsData.length > 0 ? (
-                      inwardsData.slice(0, 10).map((m, idx) => (
+                    {inwardsDataList.length > 0 ? (
+                      inwardsDataList.slice(0, 10).map((m, idx) => (
                         <tr key={m.id || idx} className="hover:bg-slate-50">
                           <td className="py-2 font-mono font-bold text-teal-700">{m.ref_code || m.reference || `IN-${m.id}`}</td>
                           <td className="py-2 font-bold text-slate-800">{m.item_name}</td>
@@ -454,8 +459,8 @@ export default function InventoryView({ branchId, startDate, endDate }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {outwardsData.length > 0 ? (
-                      outwardsData.slice(0, 10).map((m, idx) => (
+                    {outwardsDataList.length > 0 ? (
+                      outwardsDataList.slice(0, 10).map((m, idx) => (
                         <tr key={m.id || idx} className="hover:bg-slate-50">
                           <td className="py-2 font-mono font-bold text-teal-700">{m.ref_code || m.reference || `OUT-${m.id}`}</td>
                           <td className="py-2 font-bold text-slate-800">{m.item_name}</td>
