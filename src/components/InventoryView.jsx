@@ -27,13 +27,10 @@ export default function InventoryView({ branchId, startDate, endDate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Aggregated live analytics state
-  const [overviewData, setOverviewData] = useState(null);
-  const [stockLevelsData, setStockLevelsData] = useState([]);
+  // Aggregated live analytics state from inventory-valuation endpoint
+  const [inventoryData, setInventoryData] = useState(null);
   const [inwardsData, setInwardsData] = useState([]);
   const [outwardsData, setOutwardsData] = useState([]);
-  const [transfersData, setTransfersData] = useState([]);
-  const [adjustmentsData, setAdjustmentsData] = useState([]);
 
   // Query parameter fallbacks
   const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -41,7 +38,7 @@ export default function InventoryView({ branchId, startDate, endDate }) {
   const activeStart = startDate || queryParams.get('startDate') || queryParams.get('start_date') || '';
   const activeEnd = endDate || queryParams.get('endDate') || queryParams.get('end_date') || '';
 
-  /* ================= FETCH ALL LIVE ANALYTICS IN PARALLEL ================= */
+  /* ================= FETCH LIVE INVENTORY ANALYTICS ================= */
   const fetchAllAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -54,20 +51,39 @@ export default function InventoryView({ branchId, startDate, endDate }) {
     };
 
     try {
-      const [resOverview, resLevels, resInwards, resOutwards, resTransfers, resAdjustments] = await Promise.allSettled([
-        API.get('management-analytics/inventory-overview/', { params }),
-        API.get('management-analytics/stock-levels/', { params }),
+      // Primary backend endpoint provided: management-analytics/inventory-valuation/
+      const endpoints = [
+        'management-analytics/inventory-valuation/',
+        '/management-analytics/inventory-valuation/',
+        'management-reports/inventory-valuation/',
+        '/management-reports/inventory-valuation/',
+      ];
+
+      let resValuationData = null;
+      for (const endpoint of endpoints) {
+        try {
+          const res = await API.get(endpoint, { params });
+          if (res.data) {
+            resValuationData = res.data;
+            break;
+          }
+        } catch (e) {
+          // Fallback loop
+        }
+      }
+
+      if (resValuationData) {
+        setInventoryData(resValuationData);
+      } else {
+        throw new Error('No response received from inventory-valuation endpoint.');
+      }
+
+      // Supplementary movement logs
+      const [resInwards, resOutwards] = await Promise.allSettled([
         API.get('management-analytics/stock-inwards/', { params }),
         API.get('management-analytics/stock-outwards/', { params }),
-        API.get('management-analytics/stock-transfers/', { params }),
-        API.get('management-analytics/stock-adjustments/', { params }),
       ]);
 
-      if (resOverview.status === 'fulfilled') setOverviewData(resOverview.value.data);
-      if (resLevels.status === 'fulfilled') {
-        const d = resLevels.value.data;
-        setStockLevelsData(Array.isArray(d) ? d : d?.results || []);
-      }
       if (resInwards.status === 'fulfilled') {
         const d = resInwards.value.data;
         setInwardsData(Array.isArray(d) ? d : d?.results || []);
@@ -75,14 +91,6 @@ export default function InventoryView({ branchId, startDate, endDate }) {
       if (resOutwards.status === 'fulfilled') {
         const d = resOutwards.value.data;
         setOutwardsData(Array.isArray(d) ? d : d?.results || []);
-      }
-      if (resTransfers.status === 'fulfilled') {
-        const d = resTransfers.value.data;
-        setTransfersData(Array.isArray(d) ? d : d?.results || []);
-      }
-      if (resAdjustments.status === 'fulfilled') {
-        const d = resAdjustments.value.data;
-        setAdjustmentsData(Array.isArray(d) ? d : d?.results || []);
       }
     } catch (err) {
       console.error('Failed to fetch inventory report data:', err);
@@ -103,17 +111,17 @@ export default function InventoryView({ branchId, startDate, endDate }) {
 
   /* ================= CSV EXPORT ================= */
   const handleExportCSV = () => {
-    if (!stockLevelsData || stockLevelsData.length === 0) return;
+    const stockList = inventoryData?.inventory_summary || inventoryData?.results || [];
+    if (!stockList || stockList.length === 0) return;
 
-    const headers = ['SKU / Code', 'Item Name', 'Remaining Stock', 'Min Threshold', 'WAC Unit Cost', 'Selling Price', 'Stock Asset Value'];
-    const rows = stockLevelsData.map((row) => [
-      `"${row.sku_code || row.code || row.sku || `ITEM-${row.id}`}"`,
+    const headers = ['SKU / Code', 'Item Name', 'Remaining Stock', 'WAC Unit Cost', 'Selling Price', 'Stock Asset Value'];
+    const rows = stockList.map((row) => [
+      `"${row.sku || row.sku_code || `ITEM-${row.item_id || row.id}`}"`,
       `"${String(row.item_name || '').replace(/"/g, '""')}"`,
       row.remaining_stock || 0,
-      row.min_threshold ?? row.reorder_level ?? 0,
-      Number(row.wac_unit_cost || row.unit_cost_price || 0).toFixed(2),
-      Number(row.selling_price || row.unit_selling_price || 0).toFixed(2),
-      Number(row.stock_asset_value || row.stock_value || 0).toFixed(2),
+      Number(row.unit_cost_price || row.wac_unit_cost || 0).toFixed(2),
+      Number(row.unit_selling_price || row.selling_price || 0).toFixed(2),
+      Number(row.total_valuation || row.stock_asset_value || 0).toFixed(2),
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -125,37 +133,40 @@ export default function InventoryView({ branchId, startDate, endDate }) {
     document.body.removeChild(link);
   };
 
-  const summary = overviewData?.summary || {};
+  const stockLevelsData = useMemo(() => {
+    if (Array.isArray(inventoryData)) return inventoryData;
+    return inventoryData?.inventory_summary || inventoryData?.results || [];
+  }, [inventoryData]);
 
   // Top Stock Items Valuation Chart Data
   const topValuedItemsChart = useMemo(() => {
-  return stockLevelsData
-    .map((s) => {
-      const value = Number(
-        s.stock_asset_value || 
-        s.stock_value || 
-        (Number(s.remaining_stock || 0) * Number(s.wac_unit_cost || s.unit_cost_price || 0))
-      );
-      return {
-        name: s.item_name || 'Item',
-        value: value,
-        stock: Number(s.remaining_stock || 0),
-      };
-    })
-    .filter((item) => item.value > 0) // Remove items with 0 valuation
-    .sort((a, b) => b.value - a.value) // Sort descending so the highest values display
-    .slice(0, 5);
-}, [stockLevelsData]);
+    return stockLevelsData
+      .map((s) => {
+        const value = Number(
+          s.total_valuation || 
+          s.stock_asset_value || 
+          (Number(s.remaining_stock || 0) * Number(s.unit_cost_price || s.wac_unit_cost || 0))
+        );
+        return {
+          name: s.item_name || 'Item',
+          value: value,
+          stock: Number(s.remaining_stock || 0),
+        };
+      })
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [stockLevelsData]);
 
   // Movement Ratio Pie Chart
   const movementMix = useMemo(() => {
-    const inQty = Number(summary.inbound_quantity || inwardsData.reduce((acc, i) => acc + Number(i.quantity || 0), 0));
-    const outQty = Number(summary.outbound_quantity || outwardsData.reduce((acc, o) => acc + Number(o.quantity || 0), 0));
+    const inQty = Number(inventoryData?.inbound_stock_units || inwardsData.reduce((acc, i) => acc + Number(i.quantity || 0), 0));
+    const outQty = Number(inventoryData?.outbound_stock_units || outwardsData.reduce((acc, o) => acc + Number(o.quantity || 0), 0));
     return [
       { name: 'Inbound Restocks', value: inQty },
       { name: 'Outbound Dispatches', value: outQty },
     ];
-  }, [inwardsData, outwardsData, summary]);
+  }, [inwardsData, outwardsData, inventoryData]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 font-sans text-slate-800 pb-12">
@@ -244,28 +255,28 @@ export default function InventoryView({ branchId, startDate, endDate }) {
               <div className="bg-teal-50/70 p-4 rounded-2xl border border-teal-200/80">
                 <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider block">Total Stock Valuation</span>
                 <span className="text-xl font-black font-mono text-teal-900 mt-1 block">
-                  {fmtCurr(summary.total_asset_value)}
+                  {fmtCurr(inventoryData?.total_stock_valuation)}
                 </span>
               </div>
 
               <div className="bg-blue-50/70 p-4 rounded-2xl border border-blue-200/80">
                 <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-wider block">Active Catalog SKUs</span>
                 <span className="text-xl font-black font-mono text-blue-900 mt-1 block">
-                  {summary.total_items_count || stockLevelsData.length || 0} Items
+                  {inventoryData?.active_catalog_skus || stockLevelsData.length || 0} Items
                 </span>
               </div>
 
               <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80">
                 <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider block">Low Stock Threshold Alerts</span>
                 <span className="text-xl font-black font-mono text-amber-900 mt-1 block">
-                  {summary.low_stock_count || stockLevelsData.filter((i) => i.remaining_stock <= (i.min_threshold || i.reorder_level || 0)).length || 0} Items
+                  {inventoryData?.low_stock_threshold_alerts || stockLevelsData.filter((i) => i.is_low_stock).length || 0} Items
                 </span>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
                 <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Inter-Branch Transfers</span>
                 <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
-                  {summary.transfers_count || transfersData.length || 0} Logs
+                  {inventoryData?.inter_branch_transfers || 0} Logs
                 </span>
               </div>
             </div>
@@ -273,15 +284,15 @@ export default function InventoryView({ branchId, startDate, endDate }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
                 <span className="text-[9px] font-bold text-slate-400 uppercase block">Inbound Stock Units</span>
-                <span className="text-sm font-extrabold text-emerald-700 font-mono">+{summary.inbound_quantity || 0} Units</span>
+                <span className="text-sm font-extrabold text-emerald-700 font-mono">+{inventoryData?.inbound_stock_units || 0} Units</span>
               </div>
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
                 <span className="text-[9px] font-bold text-slate-400 uppercase block">Outbound Stock Units</span>
-                <span className="text-sm font-extrabold text-rose-700 font-mono">-{summary.outbound_quantity || 0} Units</span>
+                <span className="text-sm font-extrabold text-rose-700 font-mono">-{inventoryData?.outbound_stock_units || 0} Units</span>
               </div>
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
                 <span className="text-[9px] font-bold text-slate-400 uppercase block">Damaged / Shrinkage Logs</span>
-                <span className="text-sm font-extrabold text-rose-700 font-mono">{adjustmentsData.length} Records</span>
+                <span className="text-sm font-extrabold text-rose-700 font-mono">{inventoryData?.damaged_shrinkage_logs || 0} Records</span>
               </div>
             </div>
           </div>
@@ -353,7 +364,6 @@ export default function InventoryView({ branchId, startDate, endDate }) {
                     <th className="p-3">SKU / Code</th>
                     <th className="p-3">Item Name</th>
                     <th className="p-3 text-right">Remaining Qty</th>
-                    <th className="p-3 text-right">Min Reorder</th>
                     <th className="p-3 text-right">WAC Unit Cost</th>
                     <th className="p-3 text-right">Selling Price</th>
                     <th className="p-3 text-right">Stock Asset Value</th>
@@ -362,23 +372,22 @@ export default function InventoryView({ branchId, startDate, endDate }) {
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {stockLevelsData.length > 0 ? (
                     stockLevelsData.map((row, idx) => (
-                      <tr key={row.id || idx} className="hover:bg-slate-50 transition-colors">
+                      <tr key={row.item_id || row.id || idx} className="hover:bg-slate-50 transition-colors">
                         <td className="p-3 font-mono font-bold text-teal-700">
-                          {row.sku_code || row.code || row.sku || `ITEM-${row.id}`}
+                          {row.sku || row.sku_code || `ITEM-${row.item_id || row.id}`}
                         </td>
                         <td className="p-3 font-bold text-slate-900">{row.item_name}</td>
-                        <td className={`p-3 text-right font-mono font-black ${row.remaining_stock <= (row.min_threshold ?? row.reorder_level ?? 0) ? 'text-rose-600' : 'text-slate-800'}`}>
-                          {row.remaining_stock} {row.remaining_stock <= (row.min_threshold ?? row.reorder_level ?? 0) && '⚠️'}
+                        <td className={`p-3 text-right font-mono font-black ${row.is_low_stock ? 'text-rose-600' : 'text-slate-800'}`}>
+                          {row.remaining_stock} {row.is_low_stock && '⚠️'}
                         </td>
-                        <td className="p-3 text-right font-mono text-slate-400">{row.min_threshold ?? row.reorder_level ?? 0}</td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-700">{fmtCurr(row.wac_unit_cost || row.unit_cost_price)}</td>
-                        <td className="p-3 text-right font-mono font-semibold text-emerald-700">{fmtCurr(row.selling_price || row.unit_selling_price)}</td>
-                        <td className="p-3 text-right font-mono font-black text-teal-900">{fmtCurr(row.stock_asset_value || row.stock_value)}</td>
+                        <td className="p-3 text-right font-mono font-bold text-slate-700">{fmtCurr(row.unit_cost_price || row.wac_unit_cost)}</td>
+                        <td className="p-3 text-right font-mono font-semibold text-emerald-700">{fmtCurr(row.unit_selling_price || row.selling_price)}</td>
+                        <td className="p-3 text-right font-mono font-black text-teal-900">{fmtCurr(row.total_valuation || row.stock_asset_value)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="p-8 text-center text-slate-400 font-mono">
+                      <td colSpan="6" className="p-8 text-center text-slate-400 font-mono">
                         No active stock items registered for this branch.
                       </td>
                     </tr>
