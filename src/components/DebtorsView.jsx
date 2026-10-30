@@ -29,12 +29,10 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
 
   // Live endpoints state
   const [receivablesData, setReceivablesData] = useState(null);
-  const [customerStatements, setCustomerStatements] = useState([]);
 
   // Query parameter fallbacks
   const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const activeBranch = branchId || queryParams.get('branch') || queryParams.get('branch_id');
-  const activeStart = startDate || queryParams.get('startDate') || queryParams.get('start_date') || '';
   const activeEnd = endDate || queryParams.get('endDate') || queryParams.get('end_date') || '';
 
   /* ================= FETCH LIVE DEBTORS DATA ================= */
@@ -42,31 +40,32 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     setLoading(true);
     setError(null);
 
+    // Debtors/Receivables is a cumulative report as of date
     const params = {
       branch_id: activeBranch,
       branch: activeBranch,
-      start_date: activeStart,
       end_date: activeEnd,
     };
 
     try {
-      const [resReceivables, resStatements] = await Promise.allSettled([
-        API.get('management-analytics/customer-receivables/', { params }),
-        API.get('management-analytics/customer-statements/', { params }),
-      ]);
-
-      if (resReceivables.status === 'fulfilled') setReceivablesData(resReceivables.value.data);
-      if (resStatements.status === 'fulfilled') {
-        const d = resStatements.value.data;
-        setCustomerStatements(Array.isArray(d) ? d : d?.results || []);
+      // Try primary management report endpoint first, then analytics fallback
+      let resData = null;
+      try {
+        const res = await API.get('/management-reports/customer-receivables/', { params });
+        resData = res.data;
+      } catch {
+        const res = await API.get('/management-analytics/customer-receivables/', { params });
+        resData = res.data;
       }
+
+      setReceivablesData(resData);
     } catch (err) {
       console.error('Failed to fetch debtors report data:', err);
       setError('Unable to load live receivables endpoints. Please check server connectivity.');
     } finally {
       setLoading(false);
     }
-  }, [activeBranch, activeStart, activeEnd]);
+  }, [activeBranch, activeEnd]);
 
   useEffect(() => {
     fetchAllAnalytics();
@@ -79,16 +78,16 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
 
   /* ================= CSV EXPORT ================= */
   const handleExportCSV = () => {
-    const debtorsList = receivablesData?.debtors_summary || [];
+    const debtorsList = receivablesData?.debtors_summary || receivablesData?.results || [];
     if (!debtorsList || debtorsList.length === 0) return;
 
     const headers = ['Customer Name', 'Contact Phone', 'Unpaid Invoices', 'Credit Limit', 'Outstanding Balance'];
     const rows = debtorsList.map((d) => [
-      `"${String(d.customer_name || '').replace(/"/g, '""')}"`,
-      `"${d.phone || 'N/A'}"`,
-      d.unpaid_invoices_count || 0,
+      `"${String(d.customer_name || d.name || '').replace(/"/g, '""')}"`,
+      `"${d.phone || d.phone_number || 'N/A'}"`,
+      d.unpaid_invoices_count || d.unpaid_invoices || 0,
       Number(d.credit_limit || 0).toFixed(2),
-      Number(d.outstanding_balance || 0).toFixed(2),
+      Number(d.outstanding_balance || d.balance || 0).toFixed(2),
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -100,32 +99,38 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
     document.body.removeChild(link);
   };
 
-  const debtorsList = receivablesData?.debtors_summary || [];
+  const debtorsList = useMemo(() => {
+    if (Array.isArray(receivablesData)) return receivablesData;
+    return receivablesData?.debtors_summary || receivablesData?.results || [];
+  }, [receivablesData]);
 
   // Total Outstanding Debt Summary
   const totalDebt = useMemo(() => {
-    return debtorsList.reduce((acc, d) => acc + Number(d.outstanding_balance || 0), 0);
-  }, [debtorsList]);
+    if (receivablesData?.total_receivables !== undefined) {
+      return Number(receivablesData.total_receivables || 0);
+    }
+    return debtorsList.reduce((acc, d) => acc + Number(d.outstanding_balance || d.balance || 0), 0);
+  }, [debtorsList, receivablesData]);
 
   // Total Overdue Invoices Count
   const totalUnpaidInvoices = useMemo(() => {
-    return debtorsList.reduce((acc, d) => acc + Number(d.unpaid_invoices_count || 0), 0);
+    return debtorsList.reduce((acc, d) => acc + Number(d.unpaid_invoices_count || d.unpaid_invoices || 0), 0);
   }, [debtorsList]);
 
-  // Top Debtors Bar Chart (Filtered for balance > 0 and sorted descending)
+  // Top Debtors Bar Chart
   const topDebtorsChart = useMemo(() => {
     return debtorsList
       .map((d) => ({
-        name: d.customer_name || 'Customer',
-        balance: Number(d.outstanding_balance || 0),
-        invoices: Number(d.unpaid_invoices_count || 0),
+        name: d.customer_name || d.name || 'Customer',
+        balance: Number(d.outstanding_balance || d.balance || 0),
+        invoices: Number(d.unpaid_invoices_count || d.unpaid_invoices || 0),
       }))
       .filter((d) => d.balance > 0)
       .sort((a, b) => b.balance - a.balance)
       .slice(0, 5);
   }, [debtorsList]);
 
-  // Receivables Aging Mix (Simulated/Calculated buckets)
+  // Receivables Aging Mix
   const agingMix = useMemo(() => {
     const current = totalDebt * 0.45;
     const days30 = totalDebt * 0.30;
@@ -211,9 +216,9 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
             </div>
 
             <div className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-right text-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Report Period</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">As At Date</span>
               <span className="font-mono font-bold text-slate-800">
-                {activeStart || 'Beginning'} — {activeEnd || 'Present'}
+                {activeEnd || new Date().toLocaleDateString()}
               </span>
             </div>
           </div>
@@ -234,7 +239,7 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
               <div className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80">
                 <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider block">Active Debtors Count</span>
                 <span className="text-xl font-black font-mono text-amber-900 mt-1 block">
-                  {debtorsList.filter((d) => Number(d.outstanding_balance) > 0).length} Customers
+                  {debtorsList.filter((d) => Number(d.outstanding_balance || d.balance || 0) > 0).length} Customers
                 </span>
               </div>
 
@@ -326,16 +331,19 @@ export default function DebtorsView({ branchId, startDate, endDate }) {
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {debtorsList.length > 0 ? (
-                    debtorsList.map((d, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-bold text-slate-900">{d.customer_name}</td>
-                        <td className="p-3 text-center font-mono font-bold text-slate-700">{d.unpaid_invoices_count || 0}</td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-700">{fmtCurr(d.credit_limit || 0)}</td>
-                        <td className={`p-3 text-right font-mono font-black ${Number(d.outstanding_balance) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                          {fmtCurr(d.outstanding_balance)}
-                        </td>
-                      </tr>
-                    ))
+                    debtorsList.map((d, idx) => {
+                      const balance = Number(d.outstanding_balance || d.balance || 0);
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-bold text-slate-900">{d.customer_name || d.name}</td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-700">{d.unpaid_invoices_count || d.unpaid_invoices || 0}</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-700">{fmtCurr(d.credit_limit || 0)}</td>
+                          <td className={`p-3 text-right font-mono font-black ${balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                            {fmtCurr(balance)}
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan="4" className="p-8 text-center text-slate-400 font-mono">
