@@ -21,7 +21,7 @@ export default function SalesEntry({
   // Cart State: Array of { item, quantity, discount }
   const [cart, setCart] = useState([]);
 
-  // Payment Options (CREDIT REMOVED)
+  // Payment Options
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [splitPayments, setSplitPayments] = useState({
     cash: '',
@@ -191,16 +191,6 @@ export default function SalesEntry({
     );
   };
 
-  const handleUpdateCartDiscount = (itemId, newDiscount) => {
-    setCart((prevCart) =>
-      prevCart.map((c) => {
-        if (getItemId(c.item) !== itemId) return c;
-        const discount = Math.max(0, parseFloat(newDiscount) || 0);
-        return { ...c, discount };
-      })
-    );
-  };
-
   /* ================= TOTAL CALCULATIONS ================= */
 
   const grandTotalAmount = useMemo(() => {
@@ -239,10 +229,13 @@ export default function SalesEntry({
       return;
     }
 
-    const branchId =
-      typeof activeBranch === 'object' && activeBranch !== null
-        ? activeBranch.id ?? activeBranch.pk ?? activeBranch.value
-        : activeBranch;
+    let branchId = activeBranch;
+    if (typeof activeBranch === 'object' && activeBranch !== null) {
+      branchId = activeBranch.id ?? activeBranch.pk ?? activeBranch.value;
+    }
+    if (!isNaN(Number(branchId))) {
+      branchId = Number(branchId);
+    }
 
     if (cart.length === 0) {
       setStatus({ type: 'error', text: 'Cart is empty. Please search and add items first.' });
@@ -292,38 +285,41 @@ export default function SalesEntry({
     }
 
     const cartItems = cart.map(({ item, quantity, discount }) => {
+      const rawId = getItemId(item);
+      const cleanItemId = !isNaN(Number(rawId)) ? Number(rawId) : rawId;
       const retailPrice = getItemRetailPrice(item);
+
       return {
-        item: getItemId(item),
+        item: cleanItemId,
         quantity_sold: toMoney(quantity),
-        unit_selling_price: toMoney(retailPrice).toFixed(2),
-        discount_per_item: toMoney(discount).toFixed(2),
-        total_amount: toMoney(quantity * (retailPrice - discount)).toFixed(2),
+        unit_selling_price: toMoney(retailPrice),
+        discount_per_item: toMoney(discount),
+        total_amount: toMoney(quantity * (retailPrice - discount)),
       };
     });
 
     const payments = [];
     if (paymentMethod === 'SPLIT') {
       const cashAmount = toPositiveNumber(splitPayments.cash);
-      if (cashAmount > 0) payments.push({ method: 'CASH', amount: toMoney(cashAmount).toFixed(2) });
+      if (cashAmount > 0) payments.push({ method: 'CASH', amount: toMoney(cashAmount) });
       if (paybillAmount > 0) {
         payments.push({
           method: 'PAYBILL',
-          amount: toMoney(paybillAmount).toFixed(2),
+          amount: toMoney(paybillAmount),
           reference_code: String(splitPayments.paybill_ref || '').trim().toUpperCase(),
         });
       }
       if (sendMoneyAmount > 0) {
         payments.push({
           method: 'SEND_MONEY',
-          amount: toMoney(sendMoneyAmount).toFixed(2),
+          amount: toMoney(sendMoneyAmount),
           reference_code: String(splitPayments.send_money_ref || '').trim().toUpperCase(),
         });
       }
     } else {
       const payment = {
         method: paymentMethod.toUpperCase(),
-        amount: toMoney(grandTotalAmount).toFixed(2),
+        amount: toMoney(grandTotalAmount),
       };
       if (paymentMethod === 'PAYBILL') {
         payment.reference_code = String(splitPayments.paybill_ref || '').trim().toUpperCase();
@@ -336,16 +332,18 @@ export default function SalesEntry({
 
     const checkoutPayload = {
       branch: branchId,
+      branch_id: branchId,
       payment_method: paymentMethod.toUpperCase(),
-      customer_name: customerInfo.name,
-      invoice_number: customerInfo.invoice_number,
+      customer_name: customerInfo.name || 'Walk-in Customer',
+      invoice_number: customerInfo.invoice_number || '',
       sale_date: buildSaleDateTime(saleDate),
-      total_amount: toMoney(grandTotalAmount).toFixed(2),
+      total_amount: toMoney(grandTotalAmount),
       items: cartItems,
       payments,
     };
 
     try {
+      // POST directly to sales without query params
       const res = await API.post('sales/', checkoutPayload);
       setStatus({
         type: 'success',
@@ -363,7 +361,19 @@ export default function SalesEntry({
       if (onSalesSubmitted) onSalesSubmitted(res?.data);
     } catch (err) {
       console.error('Failed to submit sale:', err);
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to submit sale.';
+      const serverErr = err?.response?.data;
+      let msg = 'Failed to submit sale.';
+      
+      if (typeof serverErr === 'string') {
+        msg = serverErr;
+      } else if (serverErr?.detail) {
+        msg = serverErr.detail;
+      } else if (typeof serverErr === 'object') {
+        msg = JSON.stringify(serverErr);
+      } else if (err?.message) {
+        msg = err.message;
+      }
+
       setStatus({ type: 'error', text: msg });
     } finally {
       setLoading(false);
@@ -401,7 +411,7 @@ export default function SalesEntry({
     }
   };
 
-  // Payment Options (CREDIT REMOVED)
+  // Payment Options
   const paymentOptions = [
     { id: 'CASH', label: 'CASH' },
     { id: 'PAYBILL', label: 'PAYBILL' },
@@ -420,7 +430,7 @@ export default function SalesEntry({
           </p>
         </div>
 
-        {/* Styled Payment Selector (No Credit) */}
+        {/* Styled Payment Selector */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
           <span className="text-[10px] font-bold text-slate-500 uppercase px-2">Payment:</span>
           {paymentOptions.map((opt) => {
