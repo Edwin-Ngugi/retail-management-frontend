@@ -284,6 +284,7 @@ export default function SalesEntry({
       }
     }
 
+    // Direct alignment with SaleItem model in Django
     const cartItems = cart.map(({ item, quantity, discount }) => {
       const rawId = getItemId(item);
       const cleanItemId = !isNaN(Number(rawId)) ? Number(rawId) : rawId;
@@ -294,7 +295,6 @@ export default function SalesEntry({
         quantity_sold: toMoney(quantity),
         unit_selling_price: toMoney(retailPrice),
         discount_per_item: toMoney(discount),
-        total_amount: toMoney(quantity * (retailPrice - discount)),
       };
     });
 
@@ -343,7 +343,6 @@ export default function SalesEntry({
     };
 
     try {
-      // POST directly to sales without query params
       const res = await API.post('sales/', checkoutPayload);
       setStatus({
         type: 'success',
