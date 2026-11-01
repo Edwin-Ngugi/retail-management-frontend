@@ -132,6 +132,10 @@ const InlineSpinner = () => (
    DASHBOARD OVERVIEW COMPONENT
 ========================================================= */
 
+/* =========================================================
+   DASHBOARD OVERVIEW COMPONENT
+========================================================= */
+
 function ManagementDashboardCards({ selectedBranch }) {
   const currentDate = useMemo(() => new Date(), []);
   const [data, setData] = useState(null);
