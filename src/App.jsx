@@ -632,61 +632,55 @@ function ManagementDashboardCards({ selectedBranch }) {
           </div>
         </div>
 
-        <div className="h-64 border border-slate-200 rounded-xl p-4 flex flex-col justify-end bg-slate-50/50">
-          <div className="flex-1 flex items-end justify-around gap-2 px-2">
-            {loading ? (
-              <div className="w-full h-full flex flex-col items-center justify-center space-y-2">
-                <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-xs font-mono font-bold text-slate-400">Compiling performance trajectory...</span>
-              </div>
-            ) : trajectory.length === 0 ? (
-              <div className="w-full flex items-center justify-center text-xs text-slate-400 font-mono">
-                No activity recorded for this selected date range.
-              </div>
-            ) : (
-              trajectory.map((point, index) => {
-                const cogsHeight = Math.min(180, ((point.cogs || 0) / maxGraphVal) * 180);
-                const profitHeight = Math.min(180, (Math.max(0, point.net_profit || 0) / maxGraphVal) * 180);
-                const salesHeight = Math.min(180, ((point.total_sales || 0) / maxGraphVal) * 180);
-
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center group relative max-w-[80px]">
-                    <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[9px] font-mono py-1.5 px-2.5 rounded-md shadow-lg z-20 whitespace-nowrap">
-                      <span>COGS: KSh {Number(point.cogs || 0).toLocaleString()}</span>
-                      <span>Net Profit: KSh {Number(point.net_profit || 0).toLocaleString()}</span>
-                      <span>Sales: KSh {Number(point.total_sales || 0).toLocaleString()}</span>
-                    </div>
-
-                    <div className="w-full flex items-end justify-center gap-1 h-[180px]">
-                      <div
-                        style={{ height: `${Math.max(4, cogsHeight)}px` }}
-                        className="flex-1 bg-amber-500 rounded-t-xs hover:bg-amber-600 transition-all duration-200 cursor-pointer"
-                        title={`COGS: KSh ${Number(point.cogs || 0).toLocaleString()}`}
-                      ></div>
-
-                      <div
-                        style={{ height: `${Math.max(4, profitHeight)}px` }}
-                        className="flex-1 bg-emerald-500 rounded-t-xs hover:bg-emerald-600 transition-all duration-200 cursor-pointer"
-                        title={`Net Profit: KSh ${Number(point.net_profit || 0).toLocaleString()}`}
-                      ></div>
-
-                      <div
-                        style={{ height: `${Math.max(4, salesHeight)}px` }}
-                        className="flex-1 bg-teal-600 rounded-t-xs hover:bg-teal-700 transition-all duration-200 cursor-pointer"
-                        title={`Sales: KSh ${Number(point.total_sales || 0).toLocaleString()}`}
-                      ></div>
-                    </div>
-
-                    <span className="text-[9px] font-bold text-slate-500 font-mono mt-2 truncate max-w-full">
-                      {point.date}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <div className="border-t border-slate-300 w-full mt-2"></div>
+        <div className="h-72 w-full pt-2">
+          {loading ? (
+            <div className="w-full h-full flex flex-col items-center justify-center space-y-2">
+              <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs font-mono font-bold text-slate-400">Compiling performance trajectory...</span>
+            </div>
+          ) : trajectory.length === 0 || !trajectory.some(t => (t.total_sales > 0 || t.cogs > 0)) ? (
+            <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-mono bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              No sales or financial activity recorded for this selected date range.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={trajectory.filter(t => t.total_sales > 0 || t.cogs > 0 || t.net_profit > 0 || periodType !== 'month')}
+                margin={{ top: 10, right: 20, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }}
+                  axisLine={{ stroke: '#CBD5E1' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: '#64748B' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(val) => `KSh ${(val / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(val, name) => [
+                    `KSh ${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    name === 'total_sales' ? 'Total Sales' : name === 'cogs' ? 'COGS' : 'Net Profit'
+                  ]}
+                  contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', color: '#fff', fontSize: '11px', border: 'none' }}
+                  itemStyle={{ color: '#F8FAFC' }}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                  formatter={(value) => <span className="text-slate-700 font-bold">{value === 'total_sales' ? 'Total Sales' : value === 'cogs' ? 'COGS' : 'Net Profit'}</span>}
+                />
+                <Bar dataKey="cogs" fill="#F59E0B" name="cogs" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="net_profit" fill="#10B981" name="net_profit" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="total_sales" fill="#0D9488" name="total_sales" radius={[4, 4, 0, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
+      </div>
 
         <div className="flex items-center justify-center gap-6 text-[11px] font-bold">
           <div className="flex items-center gap-1.5">
