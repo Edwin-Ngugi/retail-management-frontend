@@ -108,12 +108,24 @@ const ManagementRoute = () => {
 };
 
 /* =========================================================
+   INLINE SPINNER HELPER COMPONENT
+========================================================= */
+
+const InlineSpinner = () => (
+  <span className="inline-flex items-center gap-2 my-0.5">
+    <span className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
+    <span className="text-xs font-mono font-medium text-slate-400">Loading...</span>
+  </span>
+);
+
+/* =========================================================
    DASHBOARD OVERVIEW COMPONENT
 ========================================================= */
 
 function ManagementDashboardCards({ selectedBranch }) {
   const currentDate = useMemo(() => new Date(), []);
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [periodType, setPeriodType] = useState(() => {
     if (typeof window === 'undefined') return 'month';
@@ -327,6 +339,8 @@ function ManagementDashboardCards({ selectedBranch }) {
   const fetchDashboardData = useCallback(() => {
     if (!selectedBranch) return;
 
+    setLoading(true);
+
     const queryParams = new URLSearchParams();
     queryParams.append('branch_id', String(selectedBranch));
     queryParams.append('period_type', periodType);
@@ -349,7 +363,8 @@ function ManagementDashboardCards({ selectedBranch }) {
           setData(res.data);
         }
       })
-      .catch((err) => console.error("Error fetching dashboard cards:", err));
+      .catch((err) => console.error("Error fetching dashboard cards:", err))
+      .finally(() => setLoading(false));
   }, [selectedBranch, periodType, selectedDate, startDate, endDate, year, month]);
 
   useEffect(() => {
@@ -462,8 +477,9 @@ function ManagementDashboardCards({ selectedBranch }) {
           )}
         </div>
 
-        <div className="text-[11px] font-mono font-bold text-slate-400">
-          Showing: <span className="text-slate-700 uppercase">{getPeriodLabel()}</span>
+        <div className="text-[11px] font-mono font-bold text-slate-400 flex items-center gap-2">
+          <span>Showing:</span>
+          <span className="text-slate-700 uppercase">{getPeriodLabel()}</span>
         </div>
       </div>
 
@@ -479,21 +495,27 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="my-3">
             <span className="text-[11px] text-slate-500 block">Total Sales</span>
             <span className="text-xl font-black font-mono text-slate-900 block">
-              {prof.total_sales_formatted || 'KSh 0.00'}
+              {loading ? <InlineSpinner /> : (prof.total_sales_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1 border-t border-slate-100 pt-2 text-[10px]">
             <div>
               <span className="text-amber-600 font-extrabold block">COGS</span>
-              <span className="font-mono text-slate-700">{prof.cogs_formatted || '0.00'}</span>
+              <span className="font-mono text-slate-700">
+                {loading ? '...' : (prof.cogs_formatted || '0.00')}
+              </span>
             </div>
             <div>
               <span className="text-teal-600 font-extrabold block">GROSS</span>
-              <span className="font-mono text-slate-700">{prof.gross_profit_formatted || '0.00'}</span>
+              <span className="font-mono text-slate-700">
+                {loading ? '...' : (prof.gross_profit_formatted || '0.00')}
+              </span>
             </div>
             <div>
               <span className="text-blue-600 font-extrabold block">NET</span>
-              <span className="font-mono text-slate-700">{prof.net_profit_formatted || '0.00'}</span>
+              <span className="font-mono text-slate-700">
+                {loading ? '...' : (prof.net_profit_formatted || '0.00')}
+              </span>
             </div>
           </div>
         </div>
@@ -507,7 +529,7 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="my-3">
             <span className="text-[11px] text-slate-500 block">Receivables Ledger</span>
             <span className="text-xl font-black font-mono text-rose-600 block">
-              {debt.total_customer_debts_formatted || 'KSh 0.00'}
+              {loading ? <InlineSpinner /> : (debt.total_customer_debts_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
@@ -524,21 +546,27 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="my-3">
             <span className="text-[11px] text-slate-500 block">Stock Value (Cost)</span>
             <span className="text-xl font-black font-mono text-slate-900 block">
-              {inv.total_stock_value_formatted || 'KSh 0.00'}
+              {loading ? <InlineSpinner /> : (inv.total_stock_value_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1 border-t border-slate-100 pt-2 text-center text-[10px]">
             <div className="bg-slate-50 py-1 rounded">
               <span className="text-[9px] text-slate-400 uppercase block font-bold">ACTIVE</span>
-              <span className="font-bold font-mono text-slate-800">{inv.product_skus || 0}</span>
+              <span className="font-bold font-mono text-slate-800">
+                {loading ? '...' : (inv.product_skus || 0)}
+              </span>
             </div>
             <div className="bg-amber-50 py-1 rounded">
               <span className="text-[9px] text-amber-600 uppercase block font-bold">LOW</span>
-              <span className="font-bold font-mono text-amber-700">{inv.low_stock_items || 0}</span>
+              <span className="font-bold font-mono text-amber-700">
+                {loading ? '...' : (inv.low_stock_items || 0)}
+              </span>
             </div>
             <div className="bg-rose-50 py-1 rounded">
               <span className="text-[9px] text-rose-600 uppercase block font-bold">OUT</span>
-              <span className="font-bold font-mono text-rose-700">{inv.out_of_stock_items || 0}</span>
+              <span className="font-bold font-mono text-rose-700">
+                {loading ? '...' : (inv.out_of_stock_items || 0)}
+              </span>
             </div>
           </div>
         </div>
@@ -552,17 +580,21 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="my-3">
             <span className="text-[11px] text-slate-500 block">Monthly Receipts</span>
             <span className="text-xl font-black font-mono text-slate-900 block">
-              {cash.receipts_formatted || 'KSh 0.00'}
+              {loading ? <InlineSpinner /> : (cash.receipts_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1 border-t border-slate-100 pt-2 text-[10px]">
             <div>
               <span className="text-slate-400 font-bold block font-sans">Monthly Payments</span>
-              <span className="font-mono text-slate-700">{cash.payments_formatted || 'KSh 0.00'}</span>
+              <span className="font-mono text-slate-700">
+                {loading ? '...' : (cash.payments_formatted || 'KSh 0.00')}
+              </span>
             </div>
             <div>
               <span className="text-blue-600 font-bold block font-sans">Purchases</span>
-              <span className="font-mono text-blue-700">{cash.purchases_formatted || 'KSh 0.00'}</span>
+              <span className="font-mono text-blue-700">
+                {loading ? '...' : (cash.purchases_formatted || 'KSh 0.00')}
+              </span>
             </div>
           </div>
         </div>
@@ -576,7 +608,7 @@ function ManagementDashboardCards({ selectedBranch }) {
           <div className="my-3">
             <span className="text-[11px] text-slate-500 block">Available Funds</span>
             <span className="text-xl font-black font-mono text-teal-700 block">
-              {cash.total_available_funds_formatted || 'KSh 0.00'}
+              {loading ? <InlineSpinner /> : (cash.total_available_funds_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
@@ -594,7 +626,7 @@ function ManagementDashboardCards({ selectedBranch }) {
             <div className="mt-2">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">TOTAL SALES (PERIOD)</span>
               <span className="text-lg font-black font-mono text-slate-900">
-                {prof.total_sales_formatted || 'KSh 0.00'}
+                {loading ? <InlineSpinner /> : (prof.total_sales_formatted || 'KSh 0.00')}
               </span>
             </div>
           </div>
@@ -602,7 +634,12 @@ function ManagementDashboardCards({ selectedBranch }) {
 
         <div className="h-64 border border-slate-200 rounded-xl p-4 flex flex-col justify-end bg-slate-50/50">
           <div className="flex-1 flex items-end justify-around gap-2 px-2">
-            {trajectory.length === 0 ? (
+            {loading ? (
+              <div className="w-full h-full flex flex-col items-center justify-center space-y-2">
+                <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xs font-mono font-bold text-slate-400">Compiling performance trajectory...</span>
+              </div>
+            ) : trajectory.length === 0 ? (
               <div className="w-full flex items-center justify-center text-xs text-slate-400 font-mono">
                 No activity recorded for this selected date range.
               </div>
@@ -923,7 +960,7 @@ function UserDashboard({ items, fetchItems }) {
                   }`}
                 >
                   <span className="uppercase tracking-wider text-[10px]">{group.group}</span>
-                  <span className="text-xs">{isOpen ? '▼' : '▶'}</span>
+                  <span className="text-xs">{isOpen ? '▼' : '►'}</span>
                 </button>
 
                 {isOpen && (
