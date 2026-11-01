@@ -15,6 +15,17 @@ import {
   Outlet,
 } from 'react-router-dom';
 
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+
 import API from './api';
 
 import {
@@ -78,7 +89,6 @@ const AdminPortalRoute = ({ onItemsUpdated }) => {
   const user = JSON.parse(localStorage.getItem('user_data') || localStorage.getItem('user') || '{}');
   const isAdmin = user?.is_superuser || user?.is_staff || user?.can_access_admin || ['SUPERADMIN', 'ADMIN'].includes(user?.role);
 
-  // Direct access to /admin requires authenticating through AdminLogin first
   if (!token || !isAdmin || !isAdminAuthenticated) {
     return (
       <AdminLogin
@@ -386,14 +396,6 @@ function ManagementDashboardCards({ selectedBranch }) {
   const cash = data?.cash_flow || {};
   const trajectory = data?.trajectory || [];
 
-  const maxGraphVal = useMemo(() => {
-    if (!trajectory.length) return 1;
-    const maxVal = Math.max(
-      ...trajectory.map((t) => Math.max(t.total_sales || 0, t.cogs || 0, t.net_profit || 0))
-    );
-    return maxVal > 0 ? maxVal : 1;
-  }, [trajectory]);
-
   return (
     <div className="space-y-6 w-full font-sans max-w-7xl mx-auto">
       {/* Date Range Filter Bar */}
@@ -679,22 +681,6 @@ function ManagementDashboardCards({ selectedBranch }) {
               </BarChart>
             </ResponsiveContainer>
           )}
-        </div>
-      </div>
-
-        <div className="flex items-center justify-center gap-6 text-[11px] font-bold">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-amber-500 rounded-xs"></span>
-            <span className="text-slate-600">COGS</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-emerald-500 rounded-xs"></span>
-            <span className="text-slate-600">Net Profit</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-teal-600 rounded-xs"></span>
-            <span className="text-slate-600">Total Sales</span>
-          </div>
         </div>
       </div>
     </div>
