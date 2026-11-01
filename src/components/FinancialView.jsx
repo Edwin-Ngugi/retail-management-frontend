@@ -266,7 +266,7 @@ export default function FinancialView({ branchId }) {
         API.get('/management-reports/profit-loss/', { params }),
         API.get('/management-reports/cash-flow/', { params }),
         API.get('/management-reports/balance-sheet/', { params }),
-        API.get('/management-reports/cashbook/', { params }),
+        API.get('/management-reports/cash-book/', { params }),
       ]);
 
       if (resPL.status === 'fulfilled') setPlData(resPL.value.data);
@@ -536,72 +536,77 @@ export default function FinancialView({ branchId }) {
 
     if (activeTab === 'cashbook') {
       const data = cashbookData || {};
+      const summary = data.summary || {};
       const entries = Array.isArray(data.entries) ? data.entries : Array.isArray(data.results) ? data.results : [];
 
       return (
         <div className="max-w-5xl mx-auto space-y-6 text-xs font-sans">
           <div className="bg-teal-950 text-white p-4 rounded-xl text-center space-y-1 shadow-md">
-            <h2 className="text-base font-black tracking-wider uppercase">CASHBOOK & LIQUIDITY LEDGER</h2>
-            <p className="text-xs text-teal-300 font-semibold font-mono uppercase">Period: {data?.period || getPeriodLabel()} · KSh</p>
+            <h2 className="text-base font-black tracking-wider uppercase">CASHBOOK AGGREGATION & LIQUIDITY SUMMARY</h2>
+            <p className="text-xs text-teal-300 font-semibold font-mono uppercase">Period: {getPeriodLabel()} · KSh</p>
           </div>
 
           {/* SUMMARY KPI BANNER */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-emerald-800 uppercase">Total Inflows (Receipts)</span>
-              <span className="text-lg font-black font-mono text-emerald-700 mt-2">{fmtCurr(data.total_inflows)}</span>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
+              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Inflows (Collections)</span>
+              <span className="text-xl font-black font-mono text-emerald-700 mt-2">{fmtCurr(summary.total_inflows ?? summary.total_inflow)}</span>
             </div>
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-rose-800 uppercase">Total Outflows (Payments)</span>
-              <span className="text-lg font-black font-mono text-rose-700 mt-2">{fmtCurr(data.total_outflows)}</span>
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
+              <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Total Outflows (Expenses & Purchases)</span>
+              <span className="text-xl font-black font-mono text-rose-700 mt-2">{fmtCurr(summary.total_outflows ?? summary.total_outflow)}</span>
             </div>
-            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-teal-900 uppercase">Closing Balance</span>
-              <span className="text-lg font-black font-mono text-teal-800 mt-2">{fmtCurr(data.closing_balance)}</span>
+            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
+              <span className="text-[10px] font-bold text-teal-900 uppercase tracking-wider">Net Cash Position</span>
+              <span className={`text-xl font-black font-mono mt-2 ${(summary.net_position ?? summary.net_cash_flow ?? 0) < 0 ? 'text-rose-700' : 'text-teal-800'}`}>
+                {fmtCurr(summary.net_position ?? summary.net_cash_flow)}
+              </span>
             </div>
           </div>
 
-          {/* CASHBOOK TRANSACTIONS TABLE */}
+          {/* CASHBOOK CHANNEL TABLE */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-extrabold uppercase text-slate-600 tracking-wider">
-                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Ref Code</th>
+                    <th className="py-3 px-4">Channel / Category Description</th>
                     <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Reference / Details</th>
-                    <th className="py-3 px-4 text-right">Debit (Inflow)</th>
-                    <th className="py-3 px-4 text-right">Credit (Outflow)</th>
-                    <th className="py-3 px-4 text-right">Running Balance</th>
+                    <th className="py-3 px-4 text-right">Inflow (Debit)</th>
+                    <th className="py-3 px-4 text-right">Outflow (Credit)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono text-slate-800">
                   {entries.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-400 font-sans italic text-xs">
-                        No cash or liquidity entries recorded for this selected period.
+                      <td colSpan="5" className="py-8 text-center text-slate-400 font-sans italic text-xs">
+                        No financial or channel transactions aggregated for this selected date range.
                       </td>
                     </tr>
                   ) : (
                     entries.map((entry, idx) => (
                       <tr key={entry.id || idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 px-4 font-sans text-xs font-semibold text-slate-700 whitespace-nowrap">
-                          {entry.date}
+                        <td className="py-3 px-4 font-mono text-xs font-bold text-slate-500 whitespace-nowrap">
+                          {entry.reference || entry.id}
                         </td>
-                        <td className="py-2.5 px-4 font-sans text-[11px] font-bold text-teal-900 uppercase">
-                          {entry.type || entry.transaction_type}
+                        <td className="py-3 px-4 font-sans text-xs font-semibold text-slate-800">
+                          {entry.description}
                         </td>
-                        <td className="py-2.5 px-4 font-sans text-xs text-slate-600 truncate max-w-xs">
-                          {entry.reference || entry.description}
+                        <td className="py-3 px-4 font-sans text-[10px]">
+                          <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${
+                            entry.type === 'INFLOW' 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {entry.type}
+                          </span>
                         </td>
-                        <td className="py-2.5 px-4 text-right font-bold text-emerald-600">
-                          {entry.debit > 0 ? fmtCurr(entry.debit) : '-'}
+                        <td className="py-3 px-4 text-right font-bold text-emerald-600">
+                          {entry.inflow > 0 ? fmtCurr(entry.inflow) : '-'}
                         </td>
-                        <td className="py-2.5 px-4 text-right font-bold text-rose-600">
-                          {entry.credit > 0 ? fmtCurr(entry.credit) : '-'}
-                        </td>
-                        <td className="py-2.5 px-4 text-right font-black text-slate-900">
-                          {fmtCurr(entry.balance)}
+                        <td className="py-3 px-4 text-right font-bold text-rose-600">
+                          {entry.outflow > 0 ? fmtCurr(entry.outflow) : '-'}
                         </td>
                       </tr>
                     ))
