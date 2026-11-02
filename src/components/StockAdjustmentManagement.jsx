@@ -79,16 +79,23 @@ export default function StockAdjustmentManagement({
     setSubmitting(true);
 
     try {
-      // Post each item adjustment
-      const promises = validRows.map((row) => {
+      const timestamp = Date.now();
+
+      // Post each item adjustment with unique reference parameters
+      const promises = validRows.map((row, index) => {
+        const isIncrease = row.direction === 'INCREASE';
+        const refId = `ADJ-${timestamp}-${row.item_id}-${index}`;
+
         const payload = {
           branch: selectedBranch,
           item: row.item_id,
-          movement_type: row.direction === 'INCREASE' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+          movement_type: isIncrease ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
           adjustment_type: row.direction,
           quantity: parseFloat(row.quantity),
           unit_cost_price: row.unit_cost ? parseFloat(row.unit_cost).toFixed(2) : '0.00',
           date: adjustmentDate,
+          reference_id: refId,
+          reference: refId,
           notes: `${reason}: ${notes.trim() || 'Stock count adjustment'}`,
         };
         return API.post('stock-movements/', payload);
@@ -113,7 +120,20 @@ export default function StockAdjustmentManagement({
       }
     } catch (err) {
       console.error('Failed to save stock adjustments:', err);
-      const msg = err?.response?.data?.detail || 'Failed to submit stock adjustments.';
+      
+      const errData = err?.response?.data;
+      let msg = 'Failed to submit stock adjustments.';
+      
+      if (typeof errData === 'string') {
+        msg = errData;
+      } else if (errData?.detail) {
+        msg = errData.detail;
+      } else if (typeof errData === 'object') {
+        msg = Object.entries(errData)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+          .join(' | ');
+      }
+
       setFeedback({ type: 'error', message: msg });
     } finally {
       setSubmitting(false);
