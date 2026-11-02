@@ -189,6 +189,29 @@ export default function CreditSalesEntry({
     return number;
   };
 
+  /* ================= REAL-TIME ITEM & CART STOCK SYNC ================= */
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+
+    // 1. Re-sync active item configuration box stock badge
+    if (selectedCatalogItem) {
+      const pickedId = getItemId(selectedCatalogItem);
+      const updatedPicked = items.find((i) => getItemId(i) === pickedId);
+      if (updatedPicked) {
+        setSelectedCatalogItem(updatedPicked);
+      }
+    }
+
+    // 2. Re-sync cart items stock reference
+    setCart((prevCart) =>
+      prevCart.map((cartEntry) => {
+        const cartItemId = getItemId(cartEntry.item);
+        const freshItem = items.find((i) => getItemId(i) === cartItemId);
+        return freshItem ? { ...cartEntry, item: freshItem } : cartEntry;
+      })
+    );
+  }, [items]);
+
   /* ================= SEARCH FILTERING ================= */
   const filteredCatalogItems = useMemo(() => {
     if (!searchTerm.trim()) return [];
@@ -353,7 +376,6 @@ export default function CreditSalesEntry({
         text: `Credit Sale (Invoice #${invoiceNumber}) recorded successfully!`,
       });
 
-      // Clear persistent memory on completed transaction
       clearCartAndState();
 
       if (onCreditSaleSubmitted) onCreditSaleSubmitted(res.data);

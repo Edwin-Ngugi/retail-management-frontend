@@ -135,8 +135,19 @@ const InlineSpinner = () => (
 
 function ManagementDashboardCards({ selectedBranch, socketEvent }) {
   const currentDate = useMemo(() => new Date(), []);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  
+  const cacheKey = `dash_cache_${selectedBranch}`;
+
+  const [data, setData] = useState(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [loading, setLoading] = useState(() => !data);
 
   const [periodType, setPeriodType] = useState(() => {
     if (typeof window === 'undefined') return 'month';
@@ -347,10 +358,10 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
     });
   };
 
-  const fetchDashboardData = useCallback(() => {
+  const fetchDashboardData = useCallback((silent = false) => {
     if (!selectedBranch) return;
 
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     const queryParams = new URLSearchParams();
     queryParams.append('branch_id', String(selectedBranch));
@@ -372,22 +383,26 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
       .then((res) => {
         if (res.data) {
           setData(res.data);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(res.data));
+          } catch (e) {}
         }
       })
       .catch((err) => console.error("Error fetching dashboard cards:", err))
       .finally(() => setLoading(false));
-  }, [selectedBranch, periodType, selectedDate, startDate, endDate, year, month]);
+  }, [selectedBranch, periodType, selectedDate, startDate, endDate, year, month, cacheKey]);
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(Boolean(data));
   }, [fetchDashboardData]);
 
-  // Live WebSocket refresh for dashboard totals
+  const lastAction = socketEvent?.action || socketEvent?.event;
+
   useEffect(() => {
-    if (socketEvent && ['SALE_CHANGED', 'EXPENSE_CHANGED', 'CREDIT_REPAYMENT_UPDATED', 'STOCK_UPDATED'].includes(socketEvent.action || socketEvent.event)) {
-      fetchDashboardData();
+    if (['SALE_CHANGED', 'EXPENSE_CHANGED', 'CREDIT_REPAYMENT_UPDATED', 'STOCK_UPDATED', 'STOCK_MOVEMENT_CHANGED', 'STOCK_ADJUSTED'].includes(lastAction)) {
+      fetchDashboardData(true);
     }
-  }, [socketEvent, fetchDashboardData]);
+  }, [lastAction, fetchDashboardData]);
 
   const getPeriodLabel = () => {
     if (periodType === 'day') return `DATE: ${selectedDate}`;
@@ -1248,7 +1263,14 @@ function AppContent() {
             : item
         )
       );
-    } else if (action === 'DATA_CHANGED' || action === 'SALE_CHANGED') {
+    } 
+    // Triggers full items refresh on stock adjustments, restocks, sales, and movement broadcasts
+    else if ([
+      'DATA_CHANGED', 
+      'SALE_CHANGED', 
+      'STOCK_MOVEMENT_CHANGED', 
+      'STOCK_ADJUSTED'
+    ].includes(action)) {
       fetchItems();
     }
   });
