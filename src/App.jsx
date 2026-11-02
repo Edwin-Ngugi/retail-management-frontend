@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 
 import API from './api';
+import { useAnalyticsSocket } from './hooks/useAnalyticsSocket';
 
 import {
   BranchProvider,
@@ -92,7 +93,7 @@ const AdminPortalRoute = ({ onItemsUpdated }) => {
   if (!token || !isAdmin || !isAdminAuthenticated) {
     return (
       <AdminLogin
-        onLoginSuccess={(adminUser) => {
+        onLoginSuccess={() => {
           localStorage.setItem('admin_authenticated', 'true');
           setIsAdminAuthenticated(true);
         }}
@@ -132,11 +133,7 @@ const InlineSpinner = () => (
    DASHBOARD OVERVIEW COMPONENT
 ========================================================= */
 
-/* =========================================================
-   DASHBOARD OVERVIEW COMPONENT
-========================================================= */
-
-function ManagementDashboardCards({ selectedBranch }) {
+function ManagementDashboardCards({ selectedBranch, socketEvent }) {
   const currentDate = useMemo(() => new Date(), []);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -384,6 +381,13 @@ function ManagementDashboardCards({ selectedBranch }) {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Live WebSocket refresh for dashboard totals
+  useEffect(() => {
+    if (socketEvent && ['SALE_CHANGED', 'EXPENSE_CHANGED', 'CREDIT_REPAYMENT_UPDATED', 'STOCK_UPDATED'].includes(socketEvent.action || socketEvent.event)) {
+      fetchDashboardData();
+    }
+  }, [socketEvent, fetchDashboardData]);
 
   const getPeriodLabel = () => {
     if (periodType === 'day') return `DATE: ${selectedDate}`;
@@ -695,7 +699,7 @@ function ManagementDashboardCards({ selectedBranch }) {
    USER DASHBOARD PORTAL
 ========================================================= */
 
-function UserDashboard({ items, fetchItems }) {
+function UserDashboard({ items, fetchItems, socketEvent }) {
   const navigate = useNavigate();
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -1036,7 +1040,7 @@ function UserDashboard({ items, fetchItems }) {
         <main className="flex-1 overflow-y-auto p-6 w-full bg-slate-50/50">
           {activeTab === 'dashboard' && (
             hasAccess('dashboard') ? (
-              <ManagementDashboardCards selectedBranch={selectedBranch} />
+              <ManagementDashboardCards selectedBranch={selectedBranch} socketEvent={socketEvent} />
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
                 <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-2xl font-bold">
@@ -1204,6 +1208,7 @@ function UserDashboard({ items, fetchItems }) {
 
 function AppContent() {
   const [items, setItems] = useState([]);
+  const [latestSocketEvent, setLatestSocketEvent] = useState(null);
   const branchContext = useBranch() || {};
   const { selectedBranch = null } = branchContext;
 
@@ -1222,6 +1227,32 @@ function AppContent() {
     fetchItems();
   }, [fetchItems]);
 
+  // Live Real-Time WebSockets Listener
+  useAnalyticsSocket(selectedBranch, (event) => {
+    setLatestSocketEvent(event);
+
+    const action = event?.action || event?.event;
+
+    // Direct O(1) state mutation for live remaining stock updates
+    if (action === 'STOCK_UPDATED' && event?.item_id !== undefined) {
+      const targetStock = event.new_stock !== undefined ? event.new_stock : event.remaining_stock;
+
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          String(item.id) === String(event.item_id)
+            ? {
+                ...item,
+                remaining_stock: targetStock,
+                current_stock: targetStock,
+              }
+            : item
+        )
+      );
+    } else if (action === 'DATA_CHANGED' || action === 'SALE_CHANGED') {
+      fetchItems();
+    }
+  });
+
   return (
     <Routes>
       {/* General Auth Entrypoint */}
@@ -1233,7 +1264,16 @@ function AppContent() {
       
       {/* General workspace protected route */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<UserDashboard items={items} fetchItems={fetchItems} />} />
+        <Route
+          path="/"
+          element={
+            <UserDashboard
+              items={items}
+              fetchItems={fetchItems}
+              socketEvent={latestSocketEvent}
+            />
+          }
+        />
       </Route>
       
       {/* Catch-all fallback */}
