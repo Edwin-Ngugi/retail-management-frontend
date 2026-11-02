@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const PRODUCTION_API_URL = 'https://api.melvexbusinesssolutions.com/api/';
 
+// Helper to determine HTTP API base URL
 const getBaseURL = () => {
   const hostname = window.location.hostname;
   const isLocal =
@@ -17,6 +18,21 @@ const getBaseURL = () => {
   return import.meta.env?.VITE_API_BASE_URL || PRODUCTION_API_URL;
 };
 
+// Export dynamic WebSocket Base URL helper for Channels
+export const getWebSocketURL = (path = '') => {
+  const httpUrl = getBaseURL();
+  const protocol = httpUrl.startsWith('https') ? 'wss:' : 'ws:';
+  
+  // Extract base host domain (e.g., api.melvexbusinesssolutions.com or 127.0.0.1:8000)
+  const host = httpUrl.replace(/^https?:\/\//, '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+  
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+  const tokenParam = token ? `?token=${token}` : '';
+
+  return `${protocol}//${host}${cleanPath}${tokenParam}`;
+};
+
 const BASE_URL = getBaseURL().endsWith('/') ? getBaseURL() : `${getBaseURL()}/`;
 
 const API = axios.create({
@@ -28,14 +44,17 @@ const API = axios.create({
 
 API.interceptors.request.use(
   (config) => {
-    // Standardize relative URLs with proper trailing slashes
+    // 1. Remove forced JSON header if sending FormData (fixes file/image uploads)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
+    // 2. Standardize relative URLs with proper trailing slashes for Django
     if (config.url && typeof config.url === 'string' && !config.url.startsWith('http')) {
-      // Clean leading slash so standard baseURL concatenation works properly
       if (config.url.startsWith('/')) {
         config.url = config.url.slice(1);
       }
 
-      // Ensure trailing slash before query parameters
       if (config.url.includes('?')) {
         const [path, query] = config.url.split('?');
         const formattedPath = path.endsWith('/') ? path : `${path}/`;
@@ -45,7 +64,7 @@ API.interceptors.request.use(
       }
     }
 
-    // Attach JWT Bearer Token if logged in
+    // 3. Attach JWT Bearer Token if available
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -60,7 +79,10 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.clear();
+      // Clear token keys specifically instead of entire localStorage to preserve app preferences
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
+      
       const path = window.location.pathname;
 
       if (path.startsWith('/admin') && !path.includes('/admin/login')) {
