@@ -18,18 +18,52 @@ export default function SalesEntry({
   const [inputQty, setInputQty] = useState('');
   const [inputDiscount, setInputDiscount] = useState('');
 
-  // Cart State: Array of { item, quantity, discount }
-  const [cart, setCart] = useState([]);
-
-  // Payment Options
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [splitPayments, setSplitPayments] = useState({
-    cash: '',
-    paybill: '',
-    paybill_ref: '',
-    send_money: '',
-    send_money_ref: '',
+  // Local Storage Cart Persistence
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cash_sale_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse cash_sale_cart:', e);
+      return [];
+    }
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cash_sale_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.error('Failed to save cash_sale_cart:', e);
+    }
+  }, [cart]);
+
+  // Payment Options & Local Storage Persistence
+  const [paymentMethod, setPaymentMethod] = useState(() => {
+    return localStorage.getItem('cash_sale_payment_method') || 'CASH';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cash_sale_payment_method', paymentMethod);
+  }, [paymentMethod]);
+
+  const [splitPayments, setSplitPayments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cash_sale_split_payments');
+      return saved
+        ? JSON.parse(saved)
+        : { cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '' };
+    } catch (e) {
+      return { cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '' };
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cash_sale_split_payments', JSON.stringify(splitPayments));
+    } catch (e) {
+      console.error('Failed to save split payments:', e);
+    }
+  }, [splitPayments]);
 
   const getLocalDateString = () => {
     const now = new Date();
@@ -50,8 +84,20 @@ export default function SalesEntry({
   const [requestMessage, setRequestMessage] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
 
-  /* ================= HELPERS ================= */
+  /* ================= CLEAR PERSISTENCE ================= */
+  const clearCartAndState = () => {
+    setCart([]);
+    setSelectedCatalogItem(null);
+    setSearchTerm('');
+    setCustomerInfo({ name: '', invoice_number: '', notes: '' });
+    setSplitPayments({ cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '' });
+    setPaymentMethod('CASH');
+    localStorage.removeItem('cash_sale_cart');
+    localStorage.removeItem('cash_sale_payment_method');
+    localStorage.removeItem('cash_sale_split_payments');
+  };
 
+  /* ================= HELPERS ================= */
   const getItemId = (item) => {
     if (!item) return null;
     if (typeof item.id === 'object' && item.id !== null) {
@@ -106,7 +152,6 @@ export default function SalesEntry({
   };
 
   /* ================= SEARCH FILTERING ================= */
-
   const filteredCatalogItems = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const term = searchTerm.toLowerCase();
@@ -118,7 +163,6 @@ export default function SalesEntry({
   }, [items, searchTerm]);
 
   /* ================= CART MANAGEMENT ================= */
-
   const handleSelectItem = (item) => {
     setSelectedCatalogItem(item);
     setSearchTerm('');
@@ -171,7 +215,6 @@ export default function SalesEntry({
       return [...prevCart, { item: selectedCatalogItem, quantity: qty, discount }];
     });
 
-    // Reset picker
     setSelectedCatalogItem(null);
     setInputQty('');
     setInputDiscount('');
@@ -192,7 +235,6 @@ export default function SalesEntry({
   };
 
   /* ================= TOTAL CALCULATIONS ================= */
-
   const grandTotalAmount = useMemo(() => {
     return cart.reduce((sum, entry) => {
       const price = getItemRetailPrice(entry.item);
@@ -215,7 +257,6 @@ export default function SalesEntry({
   };
 
   /* ================= SUBMIT TRANSACTION ================= */
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -284,7 +325,6 @@ export default function SalesEntry({
       }
     }
 
-    // Direct alignment with SaleItem model in Django
     const cartItems = cart.map(({ item, quantity, discount }) => {
       const rawId = getItemId(item);
       const cleanItemId = !isNaN(Number(rawId)) ? Number(rawId) : rawId;
@@ -349,13 +389,8 @@ export default function SalesEntry({
         text: `Sale recorded successfully for ${cart.length} item(s)!`,
       });
 
-      // Reset
-      setCart([]);
-      setSelectedCatalogItem(null);
-      setSearchTerm('');
-      setCustomerInfo({ name: '', invoice_number: '', notes: '' });
-      setSplitPayments({ cash: '', paybill: '', paybill_ref: '', send_money: '', send_money_ref: '' });
-      setPaymentMethod('CASH');
+      // Clear local storage and state upon success
+      clearCartAndState();
 
       if (onSalesSubmitted) onSalesSubmitted(res?.data);
     } catch (err) {
@@ -380,7 +415,6 @@ export default function SalesEntry({
   };
 
   /* ================= MANAGEMENT REQUEST ================= */
-
   const handleSendManagementRequest = async (e) => {
     e.preventDefault();
     if (!requestMessage.trim()) return;
@@ -410,7 +444,6 @@ export default function SalesEntry({
     }
   };
 
-  // Payment Options
   const paymentOptions = [
     { id: 'CASH', label: 'CASH' },
     { id: 'PAYBILL', label: 'PAYBILL' },
@@ -692,7 +725,7 @@ export default function SalesEntry({
               </h2>
               {cart.length > 0 && (
                 <button
-                  onClick={() => setCart([])}
+                  onClick={clearCartAndState}
                   className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
                 >
                   Clear Cart

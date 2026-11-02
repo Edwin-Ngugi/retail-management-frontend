@@ -1,5 +1,5 @@
 // src/components/StockAdjustmentManagement.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import API from '../api';
 
 export default function StockAdjustmentManagement({
@@ -15,46 +15,19 @@ export default function StockAdjustmentManagement({
 
   // Multi-Item Adjustment Rows
   const [adjustmentRows, setAdjustmentRows] = useState([
-    { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '' },
+    { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '', search_term: '' },
   ]);
 
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // History State
-  const [historyLogs, setHistoryLogs] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   const safeItems = Array.isArray(items) ? items : [];
-
-  /* ================= FETCH HISTORY ================= */
-  const fetchAdjustmentHistory = useCallback(async () => {
-    if (!selectedBranch) return;
-    setLoadingHistory(true);
-    try {
-      const res = await API.get(`stock-movements/activity-history/?branch=${selectedBranch}`);
-      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-      // Filter for stock adjustments only
-      const adjustmentsOnly = data.filter((log) => {
-        const type = String(log.activity_type || log.movement_type || '').toUpperCase();
-        return type.includes('ADJUSTMENT');
-      });
-      setHistoryLogs(adjustmentsOnly);
-    } catch (err) {
-      console.error('Failed to fetch stock adjustments history:', err);
-    } font-mono
-      setLoadingHistory(false);
-  }, [selectedBranch]);
-
-  useEffect(() => {
-    fetchAdjustmentHistory();
-  }, [fetchAdjustmentHistory]);
 
   /* ================= DYNAMIC ROW CONTROLS ================= */
   const handleAddRow = () => {
     setAdjustmentRows((prev) => [
       ...prev,
-      { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '' },
+      { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '', search_term: '' },
     ]);
   };
 
@@ -73,6 +46,7 @@ export default function StockAdjustmentManagement({
           const matched = safeItems.find((i) => String(i.id) === String(value));
           if (matched) {
             updated.unit_cost = matched.unit_cost_price || matched.cost_price || matched.buying_price || '';
+            updated.search_term = `${matched.name} (${matched.code || 'No Code'})`;
           }
         }
         return updated;
@@ -130,11 +104,13 @@ export default function StockAdjustmentManagement({
       // Reset Form
       setNotes('');
       setAdjustmentRows([
-        { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '' },
+        { id: Date.now(), item_id: '', direction: 'DECREASE', quantity: '', unit_cost: '', search_term: '' },
       ]);
 
-      fetchAdjustmentHistory();
-      if (onAdjustmentSuccess) onAdjustmentSuccess();
+      // Instantly trigger parent state update to reflect new stock levels without page refresh
+      if (onAdjustmentSuccess) {
+        onAdjustmentSuccess();
+      }
     } catch (err) {
       console.error('Failed to save stock adjustments:', err);
       const msg = err?.response?.data?.detail || 'Failed to submit stock adjustments.';
@@ -237,67 +213,98 @@ export default function StockAdjustmentManagement({
             </div>
 
             <div className="space-y-2.5">
-              {adjustmentRows.map((row, idx) => (
-                <div
-                  key={row.id}
-                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-xs"
-                >
-                  <div className="sm:col-span-1 text-[10px] font-bold text-slate-400 font-mono text-center">
-                    #{idx + 1}
-                  </div>
+              {adjustmentRows.map((row, idx) => {
+                const filteredItems = safeItems.filter((i) => {
+                  const term = (row.search_term || '').toLowerCase();
+                  return (
+                    i.name.toLowerCase().includes(term) ||
+                    (i.code && i.code.toLowerCase().includes(term))
+                  );
+                });
 
-                  <div className="sm:col-span-5">
-                    <select
-                      value={row.item_id}
-                      onChange={(e) => handleRowChange(row.id, 'item_id', e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-                      required
-                    >
-                      <option value="">-- Choose Stock Item --</option>
-                      {safeItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} ({item.code || 'No Code'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                return (
+                  <div
+                    key={row.id}
+                    className="p-3 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-xs"
+                  >
+                    <div className="sm:col-span-1 text-[10px] font-bold text-slate-400 font-mono text-center">
+                      #{idx + 1}
+                    </div>
 
-                  <div className="sm:col-span-3">
-                    <select
-                      value={row.direction}
-                      onChange={(e) => handleRowChange(row.id, 'direction', e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-                    >
-                      <option value="DECREASE">Decrease Stock (-)</option>
-                      <option value="INCREASE">Increase Stock (+)</option>
-                    </select>
-                  </div>
+                    {/* Searchable Item Input */}
+                    <div className="sm:col-span-5 relative">
+                      <input
+                        type="text"
+                        list={`item-options-${row.id}`}
+                        placeholder="Search item by name or code..."
+                        value={row.search_term || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleRowChange(row.id, 'search_term', val);
 
-                  <div className="sm:col-span-2">
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Qty"
-                      value={row.quantity}
-                      onChange={(e) => handleRowChange(row.id, 'quantity', e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
-                      required
-                    />
-                  </div>
+                          const matched = safeItems.find(
+                            (i) =>
+                              i.name.toLowerCase() === val.toLowerCase() ||
+                              (i.code && i.code.toLowerCase() === val.toLowerCase()) ||
+                              `${i.name} (${i.code || 'No Code'})`.toLowerCase() === val.toLowerCase()
+                          );
 
-                  <div className="sm:col-span-1 text-right">
-                    {adjustmentRows.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRow(row.id)}
-                        className="text-xs text-slate-400 hover:text-rose-600 font-bold"
+                          if (matched) {
+                            handleRowChange(row.id, 'item_id', matched.id);
+                          } else {
+                            handleRowChange(row.id, 'item_id', '');
+                          }
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                      <datalist id={`item-options-${row.id}`}>
+                        {filteredItems.map((item) => (
+                          <option
+                            key={item.id}
+                            value={`${item.name} (${item.code || 'No Code'})`}
+                          />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <select
+                        value={row.direction}
+                        onChange={(e) => handleRowChange(row.id, 'direction', e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
                       >
-                        ✕
-                      </button>
-                    )}
+                        <option value="DECREASE">Decrease Stock (-)</option>
+                        <option value="INCREASE">Increase Stock (+)</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Qty"
+                        value={row.quantity}
+                        onChange={(e) => handleRowChange(row.id, 'quantity', e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1 text-right">
+                      {adjustmentRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(row.id)}
+                          className="text-xs text-slate-400 hover:text-rose-600 font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -311,76 +318,6 @@ export default function StockAdjustmentManagement({
             </button>
           </div>
         </form>
-      </div>
-
-      {/* History Table */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-          <h2 className="text-base font-extrabold text-slate-900">Adjustment History</h2>
-          <button
-            onClick={fetchAdjustmentHistory}
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer"
-          >
-            Refresh
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b bg-slate-50 text-[10px] text-slate-500 uppercase font-extrabold tracking-wider">
-                <th className="p-3">Date</th>
-                <th className="p-3">Item</th>
-                <th className="p-3">Direction</th>
-                <th className="p-3 text-center">Qty</th>
-                <th className="p-3">Reason / Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {loadingHistory ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-400 font-mono">
-                    Loading adjustment logs...
-                  </td>
-                </tr>
-              ) : historyLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-400">
-                    No adjustments recorded for this branch.
-                  </td>
-                </tr>
-              ) : (
-                historyLogs.map((log, i) => (
-                  <tr key={log.id || i} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-mono text-slate-600">
-                      {log.date || log.created_at ? new Date(log.date || log.created_at).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="p-3 font-bold text-slate-900">
-                      {log.item_name || log.item?.name || `Item #${log.item}`}
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                          String(log.movement_type || '').includes('IN') || String(log.adjustment_type || '').includes('INCREASE')
-                            ? 'bg-teal-100 text-teal-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {String(log.movement_type || log.adjustment_type || 'ADJUSTMENT').replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center font-mono font-bold text-slate-800">
-                      {log.quantity}
-                    </td>
-                    <td className="p-3 text-slate-500">
-                      {log.notes || log.reason || '-'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );

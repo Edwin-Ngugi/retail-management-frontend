@@ -14,15 +14,59 @@ export default function CreditSalesEntry({
   // Customer State
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => {
+    return localStorage.getItem('credit_sale_customer_id') || '';
+  });
+
+  useEffect(() => {
+    if (selectedCustomerId) {
+      localStorage.setItem('credit_sale_customer_id', selectedCustomerId);
+    } else {
+      localStorage.removeItem('credit_sale_customer_id');
+    }
+  }, [selectedCustomerId]);
+
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [isAddingNewCustomer, setIsAddingNewCustomer] = useState(false);
 
-  // Transaction Details
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [notes, setNotes] = useState('');
+  // Transaction Details with Persistence
+  const [invoiceNumber, setInvoiceNumber] = useState(() => {
+    return localStorage.getItem('credit_sale_invoice_number') || '';
+  });
+
+  useEffect(() => {
+    if (invoiceNumber) {
+      localStorage.setItem('credit_sale_invoice_number', invoiceNumber);
+    } else {
+      localStorage.removeItem('credit_sale_invoice_number');
+    }
+  }, [invoiceNumber]);
+
+  const [dueDate, setDueDate] = useState(() => {
+    return localStorage.getItem('credit_sale_due_date') || '';
+  });
+
+  useEffect(() => {
+    if (dueDate) {
+      localStorage.setItem('credit_sale_due_date', dueDate);
+    } else {
+      localStorage.removeItem('credit_sale_due_date');
+    }
+  }, [dueDate]);
+
+  const [notes, setNotes] = useState(() => {
+    return localStorage.getItem('credit_sale_notes') || '';
+  });
+
+  useEffect(() => {
+    if (notes) {
+      localStorage.setItem('credit_sale_notes', notes);
+    } else {
+      localStorage.removeItem('credit_sale_notes');
+    }
+  }, [notes]);
 
   const getLocalDateString = () => {
     const now = new Date();
@@ -34,16 +78,50 @@ export default function CreditSalesEntry({
 
   const [saleDate, setSaleDate] = useState(getLocalDateString());
 
-  // Item Picker & Cart
+  // Item Picker & Persistent Cart State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCatalogItem, setSelectedCatalogItem] = useState(null);
   const [inputQty, setInputQty] = useState('');
   const [inputDiscount, setInputDiscount] = useState('');
-  const [cart, setCart] = useState([]);
+
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('credit_sale_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse credit_sale_cart:', e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('credit_sale_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.error('Failed to save credit_sale_cart:', e);
+    }
+  }, [cart]);
 
   // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
+
+  /* ================= CLEAR PERSISTENCE ================= */
+  const clearCartAndState = () => {
+    setCart([]);
+    setInvoiceNumber('');
+    setDueDate('');
+    setNotes('');
+    setSelectedCustomerId('');
+    setNewCustomerName('');
+    setNewCustomerPhone('');
+    setIsAddingNewCustomer(false);
+    localStorage.removeItem('credit_sale_cart');
+    localStorage.removeItem('credit_sale_invoice_number');
+    localStorage.removeItem('credit_sale_due_date');
+    localStorage.removeItem('credit_sale_notes');
+    localStorage.removeItem('credit_sale_customer_id');
+  };
 
   /* ================= FETCH CUSTOMERS ================= */
   const fetchCustomers = useCallback(async () => {
@@ -229,7 +307,6 @@ export default function CreditSalesEntry({
     try {
       let customerVal = selectedCustomerId;
 
-      // Handle Quick-Add Customer
       if (isAddingNewCustomer) {
         const custRes = await API.post('customers/', {
           branch: activeBranch,
@@ -276,15 +353,8 @@ export default function CreditSalesEntry({
         text: `Credit Sale (Invoice #${invoiceNumber}) recorded successfully!`,
       });
 
-      // Reset Form
-      setCart([]);
-      setInvoiceNumber('');
-      setDueDate('');
-      setNotes('');
-      setSelectedCustomerId('');
-      setNewCustomerName('');
-      setNewCustomerPhone('');
-      setIsAddingNewCustomer(false);
+      // Clear persistent memory on completed transaction
+      clearCartAndState();
 
       if (onCreditSaleSubmitted) onCreditSaleSubmitted(res.data);
     } catch (err) {
@@ -579,7 +649,7 @@ export default function CreditSalesEntry({
               </h2>
               {cart.length > 0 && (
                 <button
-                  onClick={() => setCart([])}
+                  onClick={clearCartAndState}
                   className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
                 >
                   Clear All
