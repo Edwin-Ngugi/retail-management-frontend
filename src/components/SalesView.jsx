@@ -70,7 +70,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const rawPaymentBreakdown = detailedReport?.payment_breakdown || [];
   const insights = detailedReport?.insights || [];
 
-  // Strictly exclude 'SPLIT' row and distribute only concrete liquid payment methods
+  // Strictly exclude 'SPLIT' row and distribute concrete payment methods
   const paymentBreakdown = useMemo(() => {
     return rawPaymentBreakdown.filter(
       (pm) => String(pm.method).toUpperCase() !== 'SPLIT' && pm.amount > 0
@@ -434,6 +434,41 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                   )}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          {/* CREDIT REPAYMENTS COLLECTED RECONCILIATION */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                💳 Daily Credit Repayments Collected
+              </h3>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+                Debt Recovery Collections
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Credit Repayments</span>
+                <span className="text-lg font-black font-mono text-emerald-700 block">
+                  {fmtCurr(summary.total_credit_repayments || summary.credit_repayments)}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Gross Credit Sales Exposure</span>
+                <span className="text-lg font-black font-mono text-amber-700 block">
+                  {fmtCurr(summary.credit_sales_exposure)}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Net Credit Position Change</span>
+                <span className="text-lg font-black font-mono text-slate-800 block">
+                  {fmtCurr(
+                    Number(summary.credit_sales_exposure || 0) -
+                    Number(summary.total_credit_repayments || summary.credit_repayments || 0)
+                  )}
+                </span>
+              </div>
             </div>
           </section>
 
