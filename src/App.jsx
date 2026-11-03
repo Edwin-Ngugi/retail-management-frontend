@@ -557,8 +557,19 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
               {loading ? <InlineSpinner /> : (debt.total_customer_debts_formatted || 'KSh 0.00')}
             </span>
           </div>
-          <div className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
-            Total unpaid customer credit balances
+          <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-[10px]">
+            <div>
+              <span className="text-teal-600 font-bold block uppercase tracking-wider text-[9px]">Recovered</span>
+              <span className="font-mono font-extrabold text-teal-700">
+                {loading ? '...' : (debt.total_recovered_formatted || 'KSh 0.00')}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-400 block text-[9px]">Unpaid Credit</span>
+              <span className="font-mono font-bold text-slate-600">
+                {loading ? '...' : (debt.unpaid_count !== undefined ? `${debt.unpaid_count} Invoices` : 'Pending')}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -716,6 +727,8 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
 
 function UserDashboard({ items, fetchItems, socketEvent }) {
   const navigate = useNavigate();
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -782,17 +795,22 @@ function UserDashboard({ items, fetchItems, socketEvent }) {
     }
   }, [activeTab, hasAccess]);
 
-  const fetchPendingApprovalsCount = useCallback(async () => {
+  const fetchPendingApprovals = useCallback(async () => {
     try {
-      await API.get('pending-approvals/');
+      const response = await API.get('pending-approvals/');
+      const data = Array.isArray(response?.data) 
+        ? response.data 
+        : response?.data?.results || [];
+      const pendingOnly = data.filter((item) => item.status === 'PENDING');
+      setPendingApprovals(pendingOnly);
     } catch (e) {
-      console.error('Failed to fetch pending approvals count:', e);
+      console.error('Failed to fetch pending approvals:', e);
     }
   }, []);
 
   useEffect(() => {
-    fetchPendingApprovalsCount();
-  }, [fetchPendingApprovalsCount]);
+    fetchPendingApprovals();
+  }, [fetchPendingApprovals]);
 
   const handleLogout = useCallback(() => {
     localStorage.clear();
@@ -989,15 +1007,7 @@ function UserDashboard({ items, fetchItems, socketEvent }) {
                           }`}
                         >
                           <span className="truncate">{item.label}</span>
-                          {!allowed ? (
-                            <span className="text-[10px]" title="Restricted">🔒</span>
-                          ) : (
-                            Boolean(item.badge) && (
-                              <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full ml-1">
-                                {item.badge}
-                              </span>
-                            )
-                          )}
+                          {!allowed && <span className="text-[10px]" title="Restricted">🔒</span>}
                         </button>
                       );
                     })}
@@ -1046,8 +1056,84 @@ function UserDashboard({ items, fetchItems, socketEvent }) {
             }} 
           />
 
-          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold">
-            <span>{currentUser.username}</span>
+          <div className="flex items-center gap-4">
+            {/* NOTIFICATION BELL ALERT BADGE FOR APPROVALS */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsNotificationOpen((prev) => !prev)}
+                className="relative p-2 rounded-xl bg-teal-900 hover:bg-teal-800 text-teal-100 transition cursor-pointer"
+              >
+                <svg className="w-5 h-5 text-teal-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {pendingApprovals.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-teal-950 animate-bounce shadow-md">
+                    {pendingApprovals.length}
+                  </span>
+                )}
+              </button>
+
+              {/* NOTIFICATION DROPDOWN MODAL */}
+              {isNotificationOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                  <div className="p-3 bg-teal-950 text-white flex justify-between items-center">
+                    <span className="text-xs font-extrabold uppercase tracking-wider">Pending Approvals</span>
+                    <span className="bg-teal-800 text-teal-200 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                      {pendingApprovals.length} Pending
+                    </span>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                    {pendingApprovals.length === 0 ? (
+                      <div className="p-6 text-center text-xs font-semibold text-slate-400">
+                        No pending approval requests.
+                      </div>
+                    ) : (
+                      pendingApprovals.map((req) => (
+                        <div
+                          key={req.id}
+                          onClick={() => {
+                            setIsNotificationOpen(false);
+                            setActiveTab('approvals');
+                            localStorage.setItem('user_active_tab', 'approvals');
+                          }}
+                          className="p-3 hover:bg-slate-50 transition cursor-pointer space-y-1"
+                        >
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-800">
+                            <span>{req.request_type_display || req.request_type}</span>
+                            <span className="text-[10px] font-mono text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              PENDING
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            Submitted by: {req.submitted_by_username || "User"}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNotificationOpen(false);
+                        setActiveTab('approvals');
+                        localStorage.setItem('user_active_tab', 'approvals');
+                      }}
+                      className="text-xs font-bold text-teal-700 hover:text-teal-900 transition"
+                    >
+                      Open Approvals Dashboard →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-900 text-teal-100 text-xs font-semibold">
+              <span>{currentUser.username}</span>
+            </div>
           </div>
         </header>
 
@@ -1070,7 +1156,10 @@ function UserDashboard({ items, fetchItems, socketEvent }) {
           )}
 
           {activeTab === 'approvals' && (
-            <ApprovalsDashboard items={safeItems} selectedBranch={selectedBranch} onApprovalComplete={fetchItems} />
+            <ApprovalsDashboard items={safeItems} selectedBranch={selectedBranch} onApprovalComplete={() => {
+              fetchItems();
+              fetchPendingApprovals();
+            }} />
           )}
 
           {activeTab === 'cash_sale' && (
