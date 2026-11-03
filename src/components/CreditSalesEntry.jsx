@@ -350,12 +350,15 @@ export default function CreditSalesEntry({
         };
       });
 
+      const customInvoiceNumber = invoiceNumber.trim();
+
       const payload = {
         branch: activeBranch,
         payment_method: 'CREDIT',
         customer: customerVal,
         customer_name: isAddingNewCustomer ? newCustomerName.trim() : undefined,
-        invoice_number: invoiceNumber.trim(),
+        invoice_number: customInvoiceNumber,
+        receipt_number: customInvoiceNumber,
         due_date: dueDate || null,
         notes: notes.trim(),
         sale_date: saleDate,
@@ -373,7 +376,7 @@ export default function CreditSalesEntry({
 
       setStatus({
         type: 'success',
-        text: `Credit Sale (Invoice #${invoiceNumber}) recorded successfully!`,
+        text: `Credit Sale (Invoice #${customInvoiceNumber}) recorded successfully!`,
       });
 
       clearCartAndState();
