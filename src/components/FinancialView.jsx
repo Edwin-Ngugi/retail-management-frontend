@@ -49,31 +49,22 @@ export default function FinancialView({ branchId }) {
   const [selectedDate, setSelectedDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
-    return (
-      params.get('selectedDate') ||
-      localStorage.getItem('fin_selectedDate') ||
-      currentDate.toISOString().split('T')[0]
-    );
+    const raw = params.get('selectedDate') || params.get('date') || localStorage.getItem('fin_selectedDate');
+    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [startDate, setStartDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
-    return (
-      params.get('start_date') ||
-      localStorage.getItem('fin_start_date') ||
-      currentDate.toISOString().split('T')[0]
-    );
+    const raw = params.get('start_date') || localStorage.getItem('fin_start_date');
+    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [endDate, setEndDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
-    return (
-      params.get('end_date') ||
-      localStorage.getItem('fin_end_date') ||
-      currentDate.toISOString().split('T')[0]
-    );
+    const raw = params.get('end_date') || localStorage.getItem('fin_end_date');
+    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [year, setYear] = useState(() => {
@@ -134,13 +125,16 @@ export default function FinancialView({ branchId }) {
         month,
         year,
         selectedDate: null,
+        date: null,
         start_date: null,
         end_date: null,
       });
     } else if (newPeriod === 'day' || newPeriod === 'weekly') {
+      const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
       updateUrlAndStorage({ 
         period_type: newPeriod,
-        selectedDate,
+        selectedDate: cleanDate,
+        date: cleanDate,
         month: null,
         year: null,
         start_date: null,
@@ -152,6 +146,7 @@ export default function FinancialView({ branchId }) {
         start_date: startDate,
         end_date: endDate,
         selectedDate: null,
+        date: null,
         month: null,
         year: null,
       });
@@ -161,6 +156,7 @@ export default function FinancialView({ branchId }) {
         year,
         month: null,
         selectedDate: null,
+        date: null,
         start_date: null,
         end_date: null,
       });
@@ -168,7 +164,8 @@ export default function FinancialView({ branchId }) {
   };
 
   const handleDateChange = (e) => {
-    const val = e.target.value;
+    const rawVal = e.target.value;
+    const val = rawVal ? rawVal.trim().slice(0, 10) : '';
     setSelectedDate(val);
     let newYear = year;
     let newMonth = month;
@@ -185,6 +182,7 @@ export default function FinancialView({ branchId }) {
 
     updateUrlAndStorage({
       selectedDate: val,
+      date: val,
       year: newYear,
       month: newMonth,
       period_type: periodType,
@@ -192,7 +190,7 @@ export default function FinancialView({ branchId }) {
   };
 
   const handleStartDateChange = (e) => {
-    const val = e.target.value;
+    const val = e.target.value ? e.target.value.trim().slice(0, 10) : '';
     setStartDate(val);
     updateUrlAndStorage({
       start_date: val,
@@ -201,7 +199,7 @@ export default function FinancialView({ branchId }) {
   };
 
   const handleEndDateChange = (e) => {
-    const val = e.target.value;
+    const val = e.target.value ? e.target.value.trim().slice(0, 10) : '';
     setEndDate(val);
     updateUrlAndStorage({
       end_date: val,
@@ -218,6 +216,7 @@ export default function FinancialView({ branchId }) {
     updateUrlAndStorage({
       month: newMonth,
       selectedDate: newDate,
+      date: newDate,
       period_type: periodType,
     });
   };
@@ -231,6 +230,7 @@ export default function FinancialView({ branchId }) {
     updateUrlAndStorage({
       year: newYear,
       selectedDate: newDate,
+      date: newDate,
       period_type: periodType,
     });
   };
@@ -243,6 +243,9 @@ export default function FinancialView({ branchId }) {
     setLoading(true);
     setError(null);
 
+    const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+
+    // Build comprehensive query parameters to satisfy all Django view variants
     const params = {
       branch_id: activeBranch,
       branch: activeBranch,
@@ -253,7 +256,10 @@ export default function FinancialView({ branchId }) {
       params.start_date = startDate;
       params.end_date = endDate;
     } else if (periodType === 'day' || periodType === 'weekly') {
-      params.date = selectedDate;
+      params.date = cleanDate;
+      params.selectedDate = cleanDate;
+      params.start_date = cleanDate;
+      params.end_date = cleanDate;
     } else if (periodType === 'month') {
       params.year = year;
       params.month = month;
@@ -279,7 +285,7 @@ export default function FinancialView({ branchId }) {
     } finally {
       setLoading(false);
     }
-  }, [activeBranch, periodType, startDate, endDate, selectedDate, year, month]);
+  }, [activeBranch, periodType, startDate, endDate, selectedDate, year, month, currentDate]);
 
   useEffect(() => {
     fetchFinancialStatements();
@@ -306,13 +312,15 @@ export default function FinancialView({ branchId }) {
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-teal-800 text-white p-4 rounded-xl text-center shadow-md">
             <h2 className="text-xl font-black tracking-tight uppercase">PROFIT & LOSS STATEMENT</h2>
-            <p className="text-xs text-teal-100 mt-1 uppercase font-mono font-bold">Period: {data.period || getPeriodLabel()}</p>
+            <p className="text-xs text-teal-100 mt-1 uppercase font-mono font-bold">
+              Period: {data.period || getPeriodLabel()}
+            </p>
           </div>
 
           <div className="space-y-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm divide-y divide-slate-100">
             <div className="flex justify-between items-center py-2 text-sm font-bold text-slate-800">
               <span>Gross Sales Revenue</span>
-              <span className="text-emerald-700 font-mono text-base">{fmtCurr(data.revenue)}</span>
+              <span className="text-emerald-700 font-mono text-base">{fmtCurr(data.revenue ?? data.gross_sales_revenue)}</span>
             </div>
             <div className="flex justify-between items-center py-2 text-sm text-slate-600">
               <span>Less: Cost of Goods Sold (COGS)</span>
