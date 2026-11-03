@@ -155,7 +155,6 @@ export default function SalesEntry({
   useEffect(() => {
     if (!items || items.length === 0) return;
 
-    // 1. Re-sync active item configuration box stock badge
     if (selectedCatalogItem) {
       const pickedId = getItemId(selectedCatalogItem);
       const updatedPicked = items.find((i) => getItemId(i) === pickedId);
@@ -164,7 +163,6 @@ export default function SalesEntry({
       }
     }
 
-    // 2. Re-sync cart items stock reference
     setCart((prevCart) =>
       prevCart.map((cartEntry) => {
         const cartItemId = getItemId(cartEntry.item);
@@ -412,7 +410,6 @@ export default function SalesEntry({
         text: `Sale recorded successfully for ${cart.length} item(s)!`,
       });
 
-      // Clear local storage and state upon success
       clearCartAndState();
 
       if (onSalesSubmitted) onSalesSubmitted(res?.data);
@@ -662,7 +659,7 @@ export default function SalesEntry({
             </div>
           )}
 
-          {/* Reference fields for M-Pesa */}
+          {/* Reference fields for Direct M-Pesa Options */}
           {paymentMethod === 'PAYBILL' && (
             <div className="space-y-1 pt-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase block">
@@ -693,10 +690,11 @@ export default function SalesEntry({
             </div>
           )}
 
-          {/* Split payment inputs */}
+          {/* Split Payment Breakdown & M-Pesa Reference Codes */}
           {paymentMethod === 'SPLIT' && (
-            <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-200 space-y-3">
+            <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-200 space-y-4">
               <span className="text-xs font-bold text-teal-900 uppercase block">Split Breakdown</span>
+              
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase block">Cash (KSh)</label>
@@ -710,6 +708,7 @@ export default function SalesEntry({
                     className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold"
                   />
                 </div>
+
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase block">Paybill (KSh)</label>
                   <input
@@ -722,8 +721,9 @@ export default function SalesEntry({
                     className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold"
                   />
                 </div>
+
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Send Money</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Send Money (KSh)</label>
                   <input
                     type="number"
                     min="0"
@@ -735,6 +735,41 @@ export default function SalesEntry({
                   />
                 </div>
               </div>
+
+              {/* Dynamic Reference Inputs for Split M-Pesa Payments */}
+              {(toPositiveNumber(splitPayments.paybill) > 0 || toPositiveNumber(splitPayments.send_money) > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-teal-200/60">
+                  {toPositiveNumber(splitPayments.paybill) > 0 && (
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block">
+                        Paybill Ref Code *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. QX12345678"
+                        value={splitPayments.paybill_ref}
+                        onChange={(e) => handleSplitChange('paybill_ref', e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono uppercase font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                  )}
+
+                  {toPositiveNumber(splitPayments.send_money) > 0 && (
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block">
+                        Send Money Ref Code *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. QX12345678"
+                        value={splitPayments.send_money_ref}
+                        onChange={(e) => handleSplitChange('send_money_ref', e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-mono uppercase font-bold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
