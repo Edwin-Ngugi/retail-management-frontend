@@ -10,6 +10,15 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   const [selectedSale, setSelectedSale] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
+  // Receivables summary fetched directly from backend
+  const [receivablesSummary, setReceivablesSummary] = useState({
+    total_credit_issued: 0,
+    total_receivables: 0,
+    total_recovered: 0,
+    active_debtors_count: 0,
+    total_unpaid_invoices: 0,
+  });
+
   const [paymentAmount, setPaymentAmount] = useState("");
   const [repaymentDate, setRepaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
@@ -58,11 +67,38 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     return null;
   };
 
-  // Fetch Credit Sales
+  // Fetch Cumulative Receivables Report Metrics directly from backend endpoint
+  const fetchReceivablesSummary = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedBranch) {
+        params.append("branch_id", selectedBranch);
+        params.append("branch", selectedBranch);
+      }
+
+      // Fetch live customer receivables analytics
+      const response = await API.get(`management-analytics/customer-receivables/?${params.toString()}`);
+      if (response?.data) {
+        setReceivablesSummary({
+          total_credit_issued: Number(response.data.total_credit_issued || 0),
+          total_receivables: Number(response.data.total_receivables || 0),
+          total_recovered: Number(response.data.total_recovered || 0),
+          active_debtors_count: Number(response.data.active_debtors_count || 0),
+          total_unpaid_invoices: Number(response.data.total_unpaid_invoices || 0),
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching receivables summary:", error);
+    }
+  }, [selectedBranch]);
+
+  // Fetch Credit Sales Records
   const fetchCreditSales = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.append("payment_method", "CREDIT");
+
       if (selectedBranch) {
         params.append("branch", selectedBranch);
       }
@@ -126,17 +162,16 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   useEffect(() => {
     fetchCreditSales();
     fetchCreditRepayments();
-  }, [fetchCreditSales, fetchCreditRepayments]);
+    fetchReceivablesSummary();
+  }, [fetchCreditSales, fetchCreditRepayments, fetchReceivablesSummary]);
 
-  // Strict Filter Logic: Enforces exact / suffix matching on receipt number or exact customer prefix
+  // Strict Search Filter Logic for search table
   const filteredSales = useMemo(() => {
     if (!Array.isArray(sales)) return [];
     const rawTerm = searchTerm.trim().toLowerCase();
 
-    // Hide records by default until user enters at least 2 characters
     if (!rawTerm || rawTerm.length < 2) return [];
 
-    // Strip common prefixes like "inv", "receipt", "#" to isolate the core invoice identifier
     const cleanTerm = rawTerm.replace(/^(inv|invoice|receipt|rcpt|txn|#)\s*[-_:]?\s*/i, "").trim();
 
     return sales.filter((sale) => {
@@ -149,49 +184,14 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       const customer = String(sale.customer_name || "").toLowerCase().trim();
       const saleId = String(sale.id || "").toLowerCase().trim();
 
-      // 1. Exact match on full or stripped receipt number
       const isExactReceipt = receiptNum === rawTerm || cleanReceipt === cleanTerm;
-
-      // 2. Strict suffix match (e.g., typing "1_2" matches "INV 1_2" or "TW 1_2")
       const isSuffixReceipt = receiptNum.endsWith(cleanTerm) || cleanReceipt.endsWith(cleanTerm);
-
-      // 3. Customer match requires at least 3 characters and must start with the query
       const isCustomerMatch = rawTerm.length >= 3 && customer.startsWith(rawTerm);
-
-      // 4. Exact Transaction ID match
       const isSaleIdMatch = saleId === rawTerm || `#txn-${saleId}` === rawTerm || `txn-${saleId}` === rawTerm;
 
       return isExactReceipt || isSuffixReceipt || isCustomerMatch || isSaleIdMatch;
     });
   }, [sales, searchTerm]);
-
-  // Overall calculations across all pending credit sales
-  const creditTotals = useMemo(() => {
-    const pendingSales = (Array.isArray(sales) ? sales : []).filter((sale) => {
-      const balance = Number(sale.balance_due ?? sale.due_balance ?? 0);
-      return sale.payment_status !== "PAID" && balance > 0;
-    });
-
-    const totalAmount = pendingSales.reduce((acc, sale) => {
-      return acc + Number(sale.total_amount || 0);
-    }, 0);
-
-    const totalBalanceDue = pendingSales.reduce((acc, sale) => {
-      return acc + Number(sale.balance_due ?? sale.due_balance ?? 0);
-    }, 0);
-
-    const totalRecovered = (Array.isArray(repayments) ? repayments : []).reduce(
-      (acc, rep) => acc + Number(rep.amount || rep.amount_paid || 0),
-      0
-    );
-
-    return {
-      totalAmount,
-      totalBalanceDue,
-      totalRecovered,
-      count: pendingSales.length,
-    };
-  }, [sales, repayments]);
 
   const handleOpenPaymentModal = (sale) => {
     const dueAmount = sale.balance_due ?? sale.due_balance ?? sale.total_amount ?? "";
@@ -274,6 +274,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       setSelectedSale(null);
       fetchCreditSales();
       fetchCreditRepayments();
+      fetchReceivablesSummary();
       
       if (typeof onTransactionComplete === 'function') {
         onTransactionComplete();
@@ -318,6 +319,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           onClick={() => {
             fetchCreditSales();
             fetchCreditRepayments();
+            fetchReceivablesSummary();
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 transition-all cursor-pointer shadow-2xs w-fit"
         >
@@ -328,7 +330,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </button>
       </div>
 
-      {/* Overview KPI Summary Cards */}
+      {/* Overview KPI Summary Cards (Uses Backend Summary API directly) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs relative">
           <div className="flex justify-between items-center">
@@ -336,9 +338,11 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
             <span className="w-2 h-2 rounded-full bg-slate-400"></span>
           </div>
           <div className="text-2xl font-black font-mono text-slate-900 mt-2">
-            KSh {creditTotals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            KSh {receivablesSummary.total_credit_issued.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] font-semibold text-slate-500 mt-1 block">{creditTotals.count} Pending Credit Accounts</span>
+          <span className="text-[11px] font-semibold text-slate-500 mt-1 block">
+            {receivablesSummary.active_debtors_count} Active Debtor Accounts ({receivablesSummary.total_unpaid_invoices} Invoices)
+          </span>
         </div>
 
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs relative">
@@ -347,7 +351,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
           </div>
           <div className="text-2xl font-black font-mono text-rose-600 mt-2">
-            KSh {creditTotals.totalBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            KSh {receivablesSummary.total_receivables.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] font-semibold text-rose-500/80 mt-1 block">Pending Collection</span>
         </div>
@@ -358,7 +362,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
             <span className="w-2 h-2 rounded-full bg-teal-500"></span>
           </div>
           <div className="text-2xl font-black font-mono text-teal-700 mt-2">
-            KSh {creditTotals.totalRecovered.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            KSh {receivablesSummary.total_recovered.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] font-semibold text-teal-600/80 mt-1 block">Repaid Amount</span>
         </div>
@@ -398,7 +402,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
       </div>
 
-      {/* Clean Repayments Table (Only Invoice, Customer, Balance & Repay Button) */}
+      {/* Clean Repayments Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden no-print">
         <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex justify-between items-center">
           <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
