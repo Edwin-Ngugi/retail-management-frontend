@@ -10,6 +10,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 
 const fmtCurr = (val) =>
@@ -18,6 +21,8 @@ const fmtCurr = (val) =>
     maximumFractionDigits: 2,
   })}`;
 
+const PIE_COLORS = ['#0D9488', '#2563EB', '#D97706', '#059669', '#7C3AED', '#DB2777', '#475569'];
+
 export default function SalesView({ branchId, startDate: propStartDate, endDate: propEndDate }) {
   const [loading, setLoading] = useState(true);
   const [exportingSummary, setExportingSummary] = useState(false);
@@ -25,7 +30,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const [error, setError] = useState(null);
   const [expandedTxnIds, setExpandedTxnIds] = useState([]);
 
-  // Read URL query parameters for period context
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
   
   const [periodType, setPeriodType] = useState(() => searchParams.get('period_type') || 'day');
@@ -135,6 +139,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const rawPaymentBreakdown = detailedReport?.payment_breakdown || [];
   const insights = detailedReport?.insights || [];
   const transactions = detailedReport?.transactions || [];
+  const creditRepayments = detailedReport?.credit_repayments_list || detailedReport?.repayments || [];
 
   const paymentBreakdown = useMemo(() => {
     return rawPaymentBreakdown.filter(
@@ -259,7 +264,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             ↻ Refresh
           </button>
 
-          {/* DUAL DOWNLOAD BUTTONS */}
           <button
             onClick={() => handleExportPdf('summary')}
             disabled={exportingSummary || exportingDetailed}
@@ -345,7 +349,97 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
-          {/* DETAILED SALE TRANSACTIONS LEDGER WITH EXPANDABLE ITEM BREAKDOWN */}
+          {/* GRAPHICAL VISUALIZATIONS SECTION */}
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* 1. FINANCIAL TREND GRAPH */}
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Financial Velocity (Revenue vs COGS vs Gross Profit)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Comparative timeline analysis of period sales income against direct product costs
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                  Trend Analysis
+                </span>
+              </div>
+
+              <div className="h-64 w-full">
+                {dailyTrends.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dailyTrends} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${v}`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#FFFFFF',
+                          borderColor: '#CBD5E1',
+                          borderRadius: '12px',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        }}
+                        formatter={(val, name) => [fmtCurr(val), name]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                      <Bar dataKey="revenue" name="Gross Revenue" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                      <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                      <Bar dataKey="profit" name="Gross Profit" fill="#059669" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400 font-mono">
+                    No sales or financial trends recorded for this selected period.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 2. PAYMENT CHANNEL PIE CHART */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Payment Channels Share
+                </h3>
+                <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                  Distribution
+                </span>
+              </div>
+
+              <div className="h-64 w-full flex items-center justify-center">
+                {paymentBreakdown.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentBreakdown}
+                        dataKey="amount"
+                        nameKey="method"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={75}
+                        innerRadius={40}
+                        paddingAngle={4}
+                      >
+                        {paymentBreakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val, name) => [fmtCurr(val), name]} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-xs text-slate-400 font-mono">No payment distribution available</div>
+                )}
+              </div>
+            </div>
+
+          </section>
+
+          {/* DETAILED SALE TRANSACTIONS LEDGER */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -366,7 +460,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[9px] tracking-wider font-extrabold">
                     <th className="py-3 px-4">Receipt No</th>
-                    <th className="py-3 px-4">Date / Time</th>
                     <th className="py-3 px-4">Customer</th>
                     <th className="py-3 px-4">Payment Channel</th>
                     <th className="py-3 px-4 text-right">Total Amount</th>
@@ -376,7 +469,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-400 font-mono">
+                      <td colSpan="5" className="py-8 text-center text-slate-400 font-mono">
                         No sale transactions found for this period filter.
                       </td>
                     </tr>
@@ -388,9 +481,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                           <tr className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3 px-4 font-mono font-bold text-slate-800">
                               {txn.receipt_number}
-                            </td>
-                            <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
-                              {txn.sale_date}
                             </td>
                             <td className="py-3 px-4 text-slate-800">
                               {txn.customer_name}
@@ -413,10 +503,9 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                             </td>
                           </tr>
 
-                          {/* EXPANDABLE ITEMIZED BASKET BREAKDOWN */}
                           {isExpanded && (
                             <tr className="bg-slate-50/90">
-                              <td colSpan="6" className="p-4">
+                              <td colSpan="5" className="p-4">
                                 <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
                                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                                     Itemized Basket Breakdown for Receipt: {txn.receipt_number}
@@ -478,7 +567,63 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
-          {/* FAST & SLOW MOVING GOODS ANALYSIS */}
+          {/* CREDIT REPAYMENTS COLLECTED LEDGER TABLE */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  💳 Credit Repayments Collected Ledger
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Detailed ledger of debt repayments collected from credit customers during this period
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                Total Collected: {fmtCurr(summary.total_credit_repayments || summary.credit_repayments)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[9px] tracking-wider font-extrabold">
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Ref / Receipt</th>
+                    <th className="py-3 px-4">Payment Method</th>
+                    <th className="py-3 px-4 text-right">Repayment Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {creditRepayments && creditRepayments.length > 0 ? (
+                    creditRepayments.map((rep, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-mono text-slate-600">{rep.date || rep.created_at || '-'}</td>
+                        <td className="py-3 px-4 font-bold text-slate-800">{rep.customer_name || 'Credit Customer'}</td>
+                        <td className="py-3 px-4 font-mono text-slate-600">{rep.reference_number || rep.receipt_number || `-`}</td>
+                        <td className="py-3 px-4">
+                          <span className="bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full text-[10px] uppercase">
+                            {rep.payment_method || 'CASH'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-emerald-700">
+                          {fmtCurr(rep.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="py-6 text-center text-slate-400 font-mono">
+                        No debt repayments collected in this selected period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* FAST & SLOW MOVING GOODS ANALYSIS TABLES */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -559,7 +704,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
-          {/* RESOLVED PAYMENT BREAKDOWN */}
+          {/* RESOLVED PAYMENT BREAKDOWN TABLE */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
