@@ -20,6 +20,7 @@ const fmtCurr = (val) =>
 
 export default function SalesView({ branchId, startDate: propStartDate, endDate: propEndDate }) {
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   // Read URL query parameters for period context
@@ -76,7 +77,45 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     fetchAllAnalytics();
   }, [fetchAllAnalytics]);
 
-  const handlePrint = () => window.print();
+  /* ================= EXPORT PDF DOWNLOAD LOGIC ================= */
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      const params = {
+        period_type: periodType,
+        selectedDate: selectedDate,
+        year: year,
+        month: month,
+      };
+
+      if (activeBranch) {
+        params.branch_id = activeBranch;
+        params.branch = activeBranch;
+      }
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+
+      const response = await API.get('sales-analysis-detailed/export-sales-analysis-pdf/', {
+        params,
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `Sales_Analysis_${periodType}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to download PDF report:', err);
+      window.print();
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const summary = detailedReport?.summary || {};
   const dailyTrends = detailedReport?.daily_trends || [];
@@ -210,10 +249,18 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
           </button>
 
           <button
-            onClick={handlePrint}
-            className="bg-teal-800 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer"
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="bg-teal-800 hover:bg-teal-700 disabled:bg-teal-400 text-white px-5 py-2 rounded-xl text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer flex items-center gap-2"
           >
-            🖨️ Export PDF
+            {exporting ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              '🖨️ Export PDF'
+            )}
           </button>
         </div>
       </header>
@@ -382,7 +429,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  🚀 Fast-Moving Products (Top Performers)
+                   Fast-Moving Products (Top Performers)
                 </h3>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
                   Top Revenue Drivers
@@ -422,7 +469,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  🐢 Slow-Moving Products (Stagnant Inventory)
+                   Slow-Moving Products (Stagnant Inventory)
                 </h3>
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
                   Lowest Velocity
@@ -500,7 +547,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                💳 Credit Repayments Collected
+                 Credit Repayments Collected
               </h3>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
                 Debt Recovery Collections
