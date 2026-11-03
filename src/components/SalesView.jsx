@@ -20,8 +20,10 @@ const fmtCurr = (val) =>
 
 export default function SalesView({ branchId, startDate: propStartDate, endDate: propEndDate }) {
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
+  const [exportingSummary, setExportingSummary] = useState(false);
+  const [exportingDetailed, setExportingDetailed] = useState(false);
   const [error, setError] = useState(null);
+  const [expandedTxnIds, setExpandedTxnIds] = useState([]);
 
   // Read URL query parameters for period context
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -77,15 +79,25 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     fetchAllAnalytics();
   }, [fetchAllAnalytics]);
 
+  const toggleTxnExpand = (id) => {
+    setExpandedTxnIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   /* ================= EXPORT PDF DOWNLOAD LOGIC ================= */
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (type = 'summary') => {
+    const isDetailed = type === 'detailed';
+    if (isDetailed) setExportingDetailed(true);
+    else setExportingSummary(true);
+
     try {
-      setExporting(true);
       const params = {
         period_type: periodType,
         selectedDate: selectedDate,
         year: year,
         month: month,
+        export_type: type,
       };
 
       if (activeBranch) {
@@ -104,7 +116,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.setAttribute('download', `Sales_Analysis_${periodType}.pdf`);
+      link.setAttribute('download', `${type === 'detailed' ? 'Detailed' : 'Summary'}_Sales_Report_${periodType}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -112,8 +124,9 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     } catch (err) {
       console.error('Failed to download PDF report:', err);
       window.print();
-    } finally {
-      setExporting(false);
+    } fontally {
+      if (isDetailed) setExportingDetailed(false);
+      else setExportingSummary(false);
     }
   };
 
@@ -121,8 +134,8 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const dailyTrends = detailedReport?.daily_trends || [];
   const rawPaymentBreakdown = detailedReport?.payment_breakdown || [];
   const insights = detailedReport?.insights || [];
+  const transactions = detailedReport?.transactions || [];
 
-  // Strictly exclude 'SPLIT' row and distribute concrete payment methods
   const paymentBreakdown = useMemo(() => {
     return rawPaymentBreakdown.filter(
       (pm) => String(pm.method).toUpperCase() !== 'SPLIT' && pm.amount > 0
@@ -176,10 +189,9 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
           </h1>
         </div>
 
-        {/* Filters and Actions */}
+        {/* Filters and Download Actions */}
         <div className="flex flex-wrap items-center gap-3">
           
-          {/* Period Type Selector Buttons */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             {['day', 'week', 'month', 'year'].map((type) => (
               <button
@@ -196,7 +208,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             ))}
           </div>
 
-          {/* Conditional Inputs Based on Period Type */}
           {periodType === 'day' || periodType === 'week' ? (
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
               <span className="text-slate-500 text-[10px] uppercase font-bold">Date:</span>
@@ -243,23 +254,39 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
           <button
             onClick={fetchAllAnalytics}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition-all border border-slate-200 cursor-pointer"
           >
             ↻ Refresh
           </button>
 
+          {/* DUAL DOWNLOAD BUTTONS */}
           <button
-            onClick={handleExportPdf}
-            disabled={exporting}
-            className="bg-teal-800 hover:bg-teal-700 disabled:bg-teal-400 text-white px-5 py-2 rounded-xl text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer flex items-center gap-2"
+            onClick={() => handleExportPdf('summary')}
+            disabled={exportingSummary || exportingDetailed}
+            className="bg-teal-800 hover:bg-teal-700 disabled:bg-teal-400 text-white px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
           >
-            {exporting ? (
+            {exportingSummary ? (
               <>
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Exporting...
               </>
             ) : (
-              '🖨️ Export PDF'
+              '📊 Summary Report PDF'
+            )}
+          </button>
+
+          <button
+            onClick={() => handleExportPdf('detailed')}
+            disabled={exportingSummary || exportingDetailed}
+            className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+          >
+            {exportingDetailed ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              '📑 Detailed Report PDF'
             )}
           </button>
         </div>
@@ -318,118 +345,145 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
-          {/* SECONDARY BASKET & CREDIT STATS */}
-          <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200 p-4 rounded-xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Orders</span>
-              <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5 block">
-                {summary.transaction_count || 0} Txns
-              </span>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-4 rounded-xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Average Basket</span>
-              <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5 block">
-                {fmtCurr(summary.avg_basket_value)}
-              </span>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-4 rounded-xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Items per Basket</span>
-              <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5 block">
-                {summary.avg_items_per_basket || 0} Units
-              </span>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-4 rounded-xl">
-              <span className="text-[10px] font-bold text-amber-700 uppercase block">Credit Sales Exposure</span>
-              <span className="text-base font-extrabold text-amber-800 font-mono mt-0.5 block">
-                {fmtCurr(summary.credit_sales_exposure)}
-              </span>
-            </div>
-          </section>
-
-          {/* STRATEGIC INSIGHTS & EXECUTIVE NOTES */}
-          {insights.length > 0 && (
-            <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                <span className="text-base">💡</span>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Executive Insights & Decision Notes
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                {insights.map((note, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3.5 rounded-xl border text-xs font-medium space-y-1 ${getInsightStyle(
-                      note.type
-                    )}`}
-                  >
-                    <span className="font-bold block text-[11px] uppercase tracking-wider">
-                      {note.title}
-                    </span>
-                    <p className="leading-relaxed opacity-90">{note.message}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* COMPREHENSIVE FINANCIAL COMPARISON GRAPH: REVENUE vs COGS vs PROFIT */}
+          {/* DETAILED SALE TRANSACTIONS LEDGER WITH EXPANDABLE ITEM BREAKDOWN */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Financial Breakdown (Revenue vs COGS vs Gross Profit)
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  🛒 Sale Transactions Ledger
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Comparative analysis of sales income against direct product cost and generated profit
+                  Click 'View Details' on any transaction row to expand line item breakdowns.
                 </p>
               </div>
               <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
-                Financial Velocity
+                {transactions.length} Sales Recorded
               </span>
             </div>
 
-            <div className="h-72 w-full">
-              {dailyTrends.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyTrends} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${v}`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#FFFFFF',
-                        borderColor: '#CBD5E1',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                      }}
-                      formatter={(val, name) => [fmtCurr(val), name]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey="revenue" name="Gross Revenue" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
-                    <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
-                    <Bar dataKey="profit" name="Gross Profit" fill="#059669" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-xs text-slate-400 font-mono">
-                  No sales or financial trends recorded for this selected period.
-                </div>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[9px] tracking-wider font-extrabold">
+                    <th className="py-3 px-4">Receipt No</th>
+                    <th className="py-3 px-4">Date / Time</th>
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Payment Channel</th>
+                    <th className="py-3 px-4 text-right">Total Amount</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="py-8 text-center text-slate-400 font-mono">
+                        No sale transactions found for this period filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    transactions.map((txn) => {
+                      const isExpanded = expandedTxnIds.includes(txn.id);
+                      return (
+                        <React.Fragment key={txn.id}>
+                          <tr className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3 px-4 font-mono font-bold text-slate-800">
+                              {txn.receipt_number}
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-600 text-[11px]">
+                              {txn.sale_date}
+                            </td>
+                            <td className="py-3 px-4 text-slate-800">
+                              {txn.customer_name}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="bg-teal-50 border border-teal-200 text-teal-900 font-bold px-2 py-0.5 rounded-full text-[10px] uppercase">
+                                {txn.payment_method}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-black text-slate-900">
+                              {fmtCurr(txn.total_amount)}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <button
+                                onClick={() => toggleTxnExpand(txn.id)}
+                                className="bg-slate-100 hover:bg-teal-800 hover:text-white text-slate-700 font-bold px-3 py-1 rounded-lg text-[10px] transition cursor-pointer"
+                              >
+                                {isExpanded ? '▲ Hide Details' : '▼ View Details'}
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* EXPANDABLE ITEMIZED BASKET BREAKDOWN */}
+                          {isExpanded && (
+                            <tr className="bg-slate-50/90">
+                              <td colSpan="6" className="p-4">
+                                <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                    Itemized Basket Breakdown for Receipt: {txn.receipt_number}
+                                  </span>
+                                  <table className="w-full text-left text-[11px] border-collapse">
+                                    <thead>
+                                      <tr className="border-b border-slate-200 text-slate-400 uppercase text-[9px]">
+                                        <th className="py-1.5">Product Name</th>
+                                        <th className="py-1.5 text-center">Qty</th>
+                                        <th className="py-1.5 text-right">Unit Price</th>
+                                        <th className="py-1.5 text-right">Discount / Unit</th>
+                                        <th className="py-1.5 text-right">Subtotal Revenue</th>
+                                        <th className="py-1.5 text-right">Est. Profit</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 font-mono">
+                                      {txn.items && txn.items.length > 0 ? (
+                                        txn.items.map((item, idx) => (
+                                          <tr key={idx} className="hover:bg-slate-50">
+                                            <td className="py-2 font-sans font-semibold text-slate-800">
+                                              {item.item_name}
+                                            </td>
+                                            <td className="py-2 text-center text-slate-600">
+                                              {item.quantity}
+                                            </td>
+                                            <td className="py-2 text-right text-slate-700">
+                                              {fmtCurr(item.unit_price)}
+                                            </td>
+                                            <td className="py-2 text-right text-rose-600">
+                                              {item.discount > 0 ? fmtCurr(item.discount) : '-'}
+                                            </td>
+                                            <td className="py-2 text-right font-bold text-teal-800">
+                                              {fmtCurr(item.line_revenue)}
+                                            </td>
+                                            <td className="py-2 text-right font-bold text-emerald-700">
+                                              {fmtCurr(item.line_profit)}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan="6" className="py-3 text-center text-slate-400 font-sans italic">
+                                            No line items recorded for this sale.
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
 
           {/* FAST & SLOW MOVING GOODS ANALYSIS */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Fast-Moving Goods */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                   Fast-Moving Products (Top Performers)
+                  🚀 Fast-Moving Products (Top Performers)
                 </h3>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
                   Top Revenue Drivers
@@ -465,11 +519,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
               </div>
             </div>
 
-            {/* Slow-Moving Goods */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                   Slow-Moving Products (Stagnant Inventory)
+                  🐢 Slow-Moving Products (Stagnant Inventory)
                 </h3>
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
                   Lowest Velocity
@@ -504,7 +557,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                 </table>
               </div>
             </div>
-
           </section>
 
           {/* RESOLVED PAYMENT BREAKDOWN */}
@@ -540,41 +592,6 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                   )}
                 </tbody>
               </table>
-            </div>
-          </section>
-
-          {/* CREDIT REPAYMENTS COLLECTED RECONCILIATION */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                 Credit Repayments Collected
-              </h3>
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
-                Debt Recovery Collections
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Credit Repayments</span>
-                <span className="text-lg font-black font-mono text-emerald-700 block">
-                  {fmtCurr(summary.total_credit_repayments || summary.credit_repayments)}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Gross Credit Sales Exposure</span>
-                <span className="text-lg font-black font-mono text-amber-700 block">
-                  {fmtCurr(summary.credit_sales_exposure)}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Net Credit Position Change</span>
-                <span className="text-lg font-black font-mono text-slate-800 block">
-                  {fmtCurr(
-                    Number(summary.credit_sales_exposure || 0) -
-                    Number(summary.total_credit_repayments || summary.credit_repayments || 0)
-                  )}
-                </span>
-              </div>
             </div>
           </section>
 
