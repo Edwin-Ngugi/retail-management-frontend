@@ -24,6 +24,7 @@ export default function FinancialView({ branchId }) {
   const currentDate = useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = useState('profit'); // 'profit' | 'cashflow' | 'balancesheet' | 'cashbook'
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   // Statement state variables
@@ -238,14 +239,8 @@ export default function FinancialView({ branchId }) {
   const queryParams = useMemo(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''), []);
   const activeBranch = branchId || queryParams.get('branch') || queryParams.get('branch_id');
 
-  /* ================= FETCH ALL STATEMENTS IN PARALLEL ================= */
-  const fetchFinancialStatements = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  const buildQueryParams = useCallback(() => {
     const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
-
-    // Build comprehensive query parameters to satisfy all Django view variants
     const params = {
       branch_id: activeBranch,
       branch: activeBranch,
@@ -267,6 +262,16 @@ export default function FinancialView({ branchId }) {
       params.year = year;
     }
 
+    return params;
+  }, [activeBranch, periodType, selectedDate, startDate, endDate, year, month, currentDate]);
+
+  /* ================= FETCH ALL STATEMENTS IN PARALLEL ================= */
+  const fetchFinancialStatements = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const params = buildQueryParams();
+
     try {
       const [resPL, resCF, resBS, resCB] = await Promise.allSettled([
         API.get('/management-reports/profit-loss/', { params }),
@@ -285,14 +290,57 @@ export default function FinancialView({ branchId }) {
     } finally {
       setLoading(false);
     }
-  }, [activeBranch, periodType, startDate, endDate, selectedDate, year, month, currentDate]);
+  }, [buildQueryParams]);
 
   useEffect(() => {
     fetchFinancialStatements();
   }, [fetchFinancialStatements]);
 
-  const handlePrint = () => {
-    window.print();
+  /* ================= PDF DOWNLOAD LOGIC ================= */
+  const handleDownloadPdf = async () => {
+    let endpoint = '';
+    let fileName = '';
+
+    if (activeTab === 'profit') {
+      endpoint = '/management-reports/export-profit-loss-pdf/';
+      fileName = 'Profit_Loss_Statement.pdf';
+    } else if (activeTab === 'cashflow') {
+      endpoint = '/management-reports/export-cash-flow-pdf/';
+      fileName = 'Cash_Flow_Statement.pdf';
+    } else if (activeTab === 'balancesheet') {
+      endpoint = '/management-reports/export-balance-sheet-pdf/';
+      fileName = 'Balance_Sheet.pdf';
+    } else if (activeTab === 'cashbook') {
+      endpoint = '/management-reports/export-cash-book-pdf/';
+      fileName = 'Cashbook_Ledger.pdf';
+    }
+
+    if (!endpoint) return;
+
+    try {
+      setExporting(true);
+      const params = buildQueryParams();
+      
+      const response = await API.get(endpoint, {
+        params,
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to download PDF export:', err);
+      window.print();
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getPeriodLabel = () => {
@@ -694,10 +742,18 @@ export default function FinancialView({ branchId }) {
             </button>
 
             <button
-              onClick={handlePrint}
-              className="bg-teal-800 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer shadow-sm"
+              onClick={handleDownloadPdf}
+              disabled={exporting}
+              className="bg-teal-800 hover:bg-teal-700 disabled:bg-teal-400 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer shadow-sm flex items-center gap-2"
             >
-              🖨️ Download / Print PDF
+              {exporting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                '🖨️ Download / Print PDF'
+              )}
             </button>
           </div>
         </div>
