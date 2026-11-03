@@ -124,7 +124,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     } catch (err) {
       console.error('Failed to download PDF report:', err);
       window.print();
-    } fontally {
+    } finally {
       if (isDetailed) setExportingDetailed(false);
       else setExportingSummary(false);
     }
