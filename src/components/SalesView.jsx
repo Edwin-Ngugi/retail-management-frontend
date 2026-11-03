@@ -22,6 +22,14 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Read URL query parameters for period context
+  const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  
+  const [periodType, setPeriodType] = useState(() => searchParams.get('period_type') || 'day');
+  const [selectedDate, setSelectedDate] = useState(() => searchParams.get('selectedDate') || propStartDate || '');
+  const [year, setYear] = useState(() => searchParams.get('year') || new Date().getFullYear().toString());
+  const [month, setMonth] = useState(() => searchParams.get('month') || (new Date().getMonth() + 1).toString());
+
   const [startDate, setStartDate] = useState(propStartDate || '');
   const [endDate, setEndDate] = useState(propEndDate || '');
 
@@ -31,16 +39,21 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     if (branchId && String(branchId).toLowerCase() !== 'all') {
       return String(branchId);
     }
-    const params = new URLSearchParams(window.location.search);
-    const urlBranch = params.get('branch') || params.get('branch_id');
+    const urlBranch = searchParams.get('branch') || searchParams.get('branch_id');
     return urlBranch && String(urlBranch).toLowerCase() !== 'all' ? String(urlBranch) : '';
-  }, [branchId]);
+  }, [branchId, searchParams]);
 
   const fetchAllAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const params = {};
+    const params = {
+      period_type: periodType,
+      selectedDate: selectedDate,
+      year: year,
+      month: month,
+    };
+
     if (activeBranch) {
       params.branch_id = activeBranch;
       params.branch = activeBranch;
@@ -57,7 +70,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     } finally {
       setLoading(false);
     }
-  }, [activeBranch, startDate, endDate]);
+  }, [activeBranch, periodType, selectedDate, year, month, startDate, endDate]);
 
   useEffect(() => {
     fetchAllAnalytics();
@@ -126,22 +139,68 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
         {/* Filters and Actions */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
-            <span className="text-slate-500 text-[10px] uppercase font-bold">Range:</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-transparent text-slate-700 outline-none cursor-pointer focus:text-slate-900 font-semibold"
-            />
-            <span className="text-slate-400">—</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-transparent text-slate-700 outline-none cursor-pointer focus:text-slate-900 font-semibold"
-            />
+          
+          {/* Period Type Selector Buttons */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            {['day', 'week', 'month', 'year'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setPeriodType(type)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                  periodType === type
+                    ? 'bg-teal-800 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
+
+          {/* Conditional Inputs Based on Period Type */}
+          {periodType === 'day' || periodType === 'week' ? (
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
+              <span className="text-slate-500 text-[10px] uppercase font-bold">Date:</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-slate-700 outline-none cursor-pointer focus:text-slate-900 font-semibold"
+              />
+            </div>
+          ) : periodType === 'month' ? (
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
+              <span className="text-slate-500 text-[10px] uppercase font-bold">Month:</span>
+              <select
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="bg-transparent text-slate-700 outline-none cursor-pointer focus:text-slate-900 font-semibold"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+              <span className="text-slate-400">—</span>
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-16 bg-transparent text-slate-700 outline-none font-semibold"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
+              <span className="text-slate-500 text-[10px] uppercase font-bold">Year:</span>
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-16 bg-transparent text-slate-700 outline-none font-semibold"
+              />
+            </div>
+          )}
 
           <button
             onClick={fetchAllAnalytics}
@@ -275,10 +334,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Daily Financial Breakdown (Revenue vs COGS vs Gross Profit)
+                  Financial Breakdown (Revenue vs COGS vs Gross Profit)
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Comparative analysis of daily sales income against direct product cost and generated profit
+                  Comparative analysis of sales income against direct product cost and generated profit
                 </p>
               </div>
               <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
@@ -310,7 +369,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center text-xs text-slate-400 font-mono">
-                  No daily sales or financial trends recorded for this range.
+                  No sales or financial trends recorded for this selected period.
                 </div>
               )}
             </div>
@@ -441,7 +500,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                💳 Daily Credit Repayments Collected
+                💳 Credit Repayments Collected
               </h3>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
                 Debt Recovery Collections
