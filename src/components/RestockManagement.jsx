@@ -99,25 +99,30 @@ export default function RestockManagement({
     setSubmitting(true);
 
     try {
-      // 1. Direct post to purchases endpoint
-      const formattedPurchases = validRows.map((row) => ({
-        branch: selectedBranch,
-        item: row.item_id,
-        quantity: toNumber(row.quantity),
-        unit_cost_price: toNumber(row.unit_cost_price),
-        payment_method: paymentMethod,
-        supplier_name: supplierName || 'Direct Supplier',
-        purchase_date: `${purchaseDate}T00:00:00Z`,
-      }));
+      const dateClean = purchaseDate.replace(/-/g, '');
+      const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const poNumber = `PO-${dateClean}-BATCH-${uniqueSuffix}`;
 
-      // Submit purchases directly to backend
-      await Promise.all(
-        formattedPurchases.map((purchase) => API.post('purchases/', purchase))
-      );
+      // Submit as a SINGLE consolidated PurchaseOrder header with nested line items
+      const batchPayload = {
+        po_number: poNumber,
+        branch: selectedBranch,
+        supplier_name: supplierName || 'Direct Supplier',
+        payment_method: paymentMethod,
+        purchase_date: `${purchaseDate}T00:00:00Z`,
+        items: validRows.map((row) => ({
+          item: row.item_id,
+          quantity: toNumber(row.quantity),
+          unit_cost_price: toNumber(row.unit_cost_price),
+        })),
+      };
+
+      // Post directly to purchase-orders endpoint to construct header + line items in 1 request
+      await API.post('purchase-orders/', batchPayload);
 
       setFeedback({
         type: 'success',
-        message: 'Purchase order recorded and committed directly to inventory!',
+        message: `Batch Purchase Order (${poNumber}) recorded directly!`,
       });
 
       setOrderItems([
@@ -127,7 +132,7 @@ export default function RestockManagement({
 
       if (onRestockSuccess) onRestockSuccess();
     } catch (err) {
-      console.error('Failed to commit direct purchase order:', err);
+      console.error('Failed to commit batch purchase order:', err);
       const errMsg =
         err?.response?.data?.detail ||
         err?.response?.data?.error ||
