@@ -25,6 +25,7 @@ export default function RestockManagement({
     new Date().toISOString().split('T')[0]
   );
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [supplierName, setSupplierName] = useState('');
   const [orderItems, setOrderItems] = useState([
     { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
   ]);
@@ -98,42 +99,39 @@ export default function RestockManagement({
     setSubmitting(true);
 
     try {
-      const payload = {
-        request_type: 'RESTOCK_PURCHASE',
-        payload: {
-          target_branch: selectedBranch,
-          branch_id: selectedBranch,
-          purchase_date: purchaseDate,
-          payment_method: paymentMethod,
-          purchases: validRows.map((row) => ({
-            item: row.item_id,
-            item_id: row.item_id,
-            quantity: toNumber(row.quantity),
-            unit_cost_price: toNumber(row.unit_cost_price),
-            payment_method: paymentMethod,
-            purchase_date: purchaseDate,
-          })),
-        },
-      };
+      // 1. Direct post to purchases endpoint
+      const formattedPurchases = validRows.map((row) => ({
+        branch: selectedBranch,
+        item: row.item_id,
+        quantity: toNumber(row.quantity),
+        unit_cost_price: toNumber(row.unit_cost_price),
+        payment_method: paymentMethod,
+        supplier_name: supplierName || 'Direct Supplier',
+        purchase_date: `${purchaseDate}T00:00:00Z`,
+      }));
 
-      await API.post('pending-approvals/', payload);
+      // Submit purchases directly to backend
+      await Promise.all(
+        formattedPurchases.map((purchase) => API.post('purchases/', purchase))
+      );
 
       setFeedback({
         type: 'success',
-        message: 'Cash purchase order submitted for Management approval!',
+        message: 'Purchase order recorded and committed directly to inventory!',
       });
 
       setOrderItems([
         { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
       ]);
+      setSupplierName('');
 
       if (onRestockSuccess) onRestockSuccess();
     } catch (err) {
-      console.error('Failed to submit purchase order:', err);
+      console.error('Failed to commit direct purchase order:', err);
       const errMsg =
         err?.response?.data?.detail ||
         err?.response?.data?.error ||
-        'Failed to submit purchase order. Please try again.';
+        'Failed to record purchase order. Please try again.';
       setFeedback({ type: 'error', message: errMsg });
     } finally {
       setSubmitting(false);
@@ -145,10 +143,10 @@ export default function RestockManagement({
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Cash Purchase & Restock Entry
+            Direct Purchase & Restock Entry
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Submit immediate/liquid cash purchases to Management for sign-off.
+            Record direct stock purchases directly into inventory without approval delays.
           </p>
         </div>
 
@@ -165,7 +163,7 @@ export default function RestockManagement({
         )}
 
         <form onSubmit={handleSubmitOrder} className="space-y-6">
-          <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                 Purchase Date
@@ -176,6 +174,19 @@ export default function RestockManagement({
                 onChange={(e) => setPurchaseDate(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                Supplier Name (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Direct Supplier"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -192,6 +203,7 @@ export default function RestockManagement({
                 <option value="MPESA">M-Pesa / Mobile Money</option>
                 <option value="PAYBILL">Paybill / Till Transfer</option>
                 <option value="BANK_TRANSFER">Bank Transfer</option>
+                <option value="CREDIT">Credit / On Account</option>
               </select>
             </div>
           </div>
@@ -307,7 +319,7 @@ export default function RestockManagement({
                 disabled={submitting}
                 className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md transition cursor-pointer disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : 'Submit Purchase Order'}
+                {submitting ? 'Recording Purchase...' : 'Save Purchase Direct'}
               </button>
             </div>
           </div>
