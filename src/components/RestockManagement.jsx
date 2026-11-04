@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import API from '../api';
 
+const STORAGE_KEY = 'restock_form_draft_v1';
+
 const toNumber = (value, fallback = 0) => {
   if (value === null || value === undefined || value === '') return fallback;
   const num = Number(value);
@@ -16,7 +18,7 @@ const formatCurrency = (val) => {
   })}`;
 };
 
-// Searchable Item Combobox Component (Shows filtered results on query)
+// Searchable Item Combobox Component
 function SearchableItemSelect({ items = [], selectedItemId, onChange }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -32,18 +34,17 @@ function SearchableItemSelect({ items = [], selectedItemId, onChange }) {
   useEffect(() => {
     if (selectedItem) {
       setSearchTerm(`${selectedItem.name} ${selectedItem.code ? `(${selectedItem.code})` : ''}`);
-    } else {
+    } else if (!selectedItemId) {
       setSearchTerm('');
     }
-  }, [selectedItem]);
+  }, [selectedItem, selectedItemId]);
 
-  // Filter items strictly based on typed search query (using JS .trim() instead of .strip())
   const filteredItems = useMemo(() => {
     const query = (searchTerm || '').toLowerCase().trim();
-    if (!query) return []; // Hide list until user starts typing
+    if (!query) return [];
 
     if (selectedItem && searchTerm === `${selectedItem.name} ${selectedItem.code ? `(${selectedItem.code})` : ''}`) {
-      return []; // Don't show dropdown if item is already selected and unchanged
+      return [];
     }
 
     return safeItems.filter((item) => {
@@ -76,7 +77,7 @@ function SearchableItemSelect({ items = [], selectedItemId, onChange }) {
         onChange={(e) => {
           setSearchTerm(e.target.value);
           setIsOpen(true);
-          if (selectedItemId) onChange(''); // Reset selection when user modifies text
+          if (selectedItemId) onChange('');
         }}
         className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
       />
@@ -116,18 +117,49 @@ export default function RestockManagement({
   selectedBranch,
   onRestockSuccess,
 }) {
+  // Load initial state from localStorage if available
+  const savedDraft = useMemo(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const [purchaseDate, setPurchaseDate] = useState(
-    new Date().toISOString().split('T')[0]
+    savedDraft?.purchaseDate || new Date().toISOString().split('T')[0]
   );
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [supplierName, setSupplierName] = useState('');
-  const [orderItems, setOrderItems] = useState([
-    { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
-  ]);
+  const [paymentMethod, setPaymentMethod] = useState(
+    savedDraft?.paymentMethod || 'CASH'
+  );
+  const [supplierName, setSupplierName] = useState(
+    savedDraft?.supplierName || ''
+  );
+  const [orderItems, setOrderItems] = useState(
+    savedDraft?.orderItems && Array.isArray(savedDraft.orderItems) && savedDraft.orderItems.length > 0
+      ? savedDraft.orderItems
+      : [{ id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' }]
+  );
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
   const safeItems = Array.isArray(items) ? items : [];
+
+  // Persist form draft to localStorage on state changes
+  useEffect(() => {
+    try {
+      const draft = {
+        purchaseDate,
+        paymentMethod,
+        supplierName,
+        orderItems,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    } catch (e) {
+      console.warn('Could not save restock draft to localStorage:', e);
+    }
+  }, [purchaseDate, paymentMethod, supplierName, orderItems]);
 
   const handleAddItemRow = () => {
     setOrderItems((prev) => [
@@ -198,26 +230,31 @@ export default function RestockManagement({
       const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const poNumber = `PO-${dateClean}-BATCH-${uniqueSuffix}`;
 
-      const batchPayload = {
-        po_number: poNumber,
+      const purchasesPayload = validRows.map((row) => ({
+        item: row.item_id,
         branch: selectedBranch,
         supplier_name: supplierName || 'Direct Supplier',
         payment_method: paymentMethod,
-        purchase_date: `${purchaseDate}T00:00:00Z`,
-        items: validRows.map((row) => ({
-          item: row.item_id,
-          quantity: toNumber(row.quantity),
-          unit_cost_price: toNumber(row.unit_cost_price),
-        })),
-      };
+        purchase_date: purchaseDate,
+        quantity: toNumber(row.quantity),
+        unit_cost_price: toNumber(row.unit_cost_price),
+      }));
 
-      await API.post('purchase-orders/', batchPayload);
+      await API.post('purchases/', purchasesPayload);
+
+      // Clear cached draft upon successful request
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.warn('Failed to clear draft storage:', e);
+      }
 
       setFeedback({
         type: 'success',
-        message: `Batch Purchase Order (${poNumber}) recorded directly!`,
+        message: `Batch Restock (${poNumber}) recorded directly!`,
       });
 
+      // Reset Form State
       setOrderItems([
         { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
       ]);
@@ -236,16 +273,37 @@ export default function RestockManagement({
     }
   };
 
+  const handleClearDraft = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
+    setOrderItems([
+      { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
+    ]);
+    setSupplierName('');
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 font-sans">
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Direct Purchase & Restock Entry
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Search items from catalog and record direct stock purchases into inventory.
-          </p>
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Direct Purchase & Restock Entry
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Search items from catalog and record direct stock purchases into inventory.
+            </p>
+          </div>
+          {orderItems.some((r) => r.item_id || r.quantity) && (
+            <button
+              type="button"
+              onClick={handleClearDraft}
+              className="text-xs text-rose-600 hover:text-rose-800 font-semibold self-start sm:self-auto cursor-pointer"
+            >
+              Clear Form Draft
+            </button>
+          )}
         </div>
 
         {feedback.message && (
