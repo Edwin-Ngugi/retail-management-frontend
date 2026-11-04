@@ -1,5 +1,5 @@
 // src/components/RestockManagement.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import API from '../api';
 
 const toNumber = (value, fallback = 0) => {
@@ -15,6 +15,91 @@ const formatCurrency = (val) => {
     maximumFractionDigits: 2,
   })}`;
 };
+
+// Searchable Item Combobox Component
+function SearchableItemSelect({ items, selectedItemId, onChange }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const selectedItem = useMemo(
+    () => items.find((i) => String(i.id) === String(selectedItemId)),
+    [items, selectedItemId]
+  );
+
+  useEffect(() => {
+    if (selectedItem) {
+      setSearchTerm(`${selectedItem.name} ${selectedItem.code ? `(${selectedItem.code})` : ''}`);
+    } else {
+      setSearchTerm('');
+    }
+  }, [selectedItem]);
+
+  const filteredItems = useMemo(() => {
+    if (!searchTerm || selectedItem) return items;
+    const query = searchTerm.toLowerCase().strip();
+    return items.filter(
+      (item) =>
+        item.name?.toLowerCase().includes(query) ||
+        item.code?.toLowerCase().includes(query) ||
+        item.sku?.toLowerCase().includes(query)
+    );
+  }, [items, searchTerm, selectedItem]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <input
+        type="text"
+        placeholder="Search item by name or code..."
+        value={searchTerm}
+        onFocus={() => setIsOpen(true)}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setIsOpen(true);
+          if (selectedItemId) onChange(''); // Reset selection if typing starts
+        }}
+        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1 text-xs">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => {
+                  onChange(item.id);
+                  setSearchTerm(`${item.name} ${item.code ? `(${item.code})` : ''}`);
+                  setIsOpen(false);
+                }}
+                className="px-3.5 py-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center text-slate-700 font-medium"
+              >
+                <span>{item.name}</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {item.code || item.sku || 'No Code'}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="px-3.5 py-2 text-slate-400 text-center font-medium">
+              No matching items found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RestockManagement({
   items = [],
@@ -91,7 +176,7 @@ export default function RestockManagement({
     if (validRows.length === 0) {
       setFeedback({
         type: 'error',
-        message: 'Please select at least one item with a valid quantity.',
+        message: 'Please search and select at least one item with a valid quantity.',
       });
       return;
     }
@@ -103,7 +188,6 @@ export default function RestockManagement({
       const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const poNumber = `PO-${dateClean}-BATCH-${uniqueSuffix}`;
 
-      // Submit as a SINGLE consolidated PurchaseOrder header with nested line items
       const batchPayload = {
         po_number: poNumber,
         branch: selectedBranch,
@@ -117,7 +201,6 @@ export default function RestockManagement({
         })),
       };
 
-      // Post directly to purchase-orders endpoint to construct header + line items in 1 request
       await API.post('purchase-orders/', batchPayload);
 
       setFeedback({
@@ -151,7 +234,7 @@ export default function RestockManagement({
             Direct Purchase & Restock Entry
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Record direct stock purchases directly into inventory without approval delays.
+            Search items from catalog and record direct stock purchases into inventory.
           </p>
         </div>
 
@@ -228,22 +311,14 @@ export default function RestockManagement({
                     key={row.id}
                     className="bg-slate-50/60 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
                   >
-                    <div className="flex-1 min-w-[200px]">
-                      <select
-                        value={row.item_id}
-                        onChange={(e) =>
-                          handleItemRowChange(row.id, 'item_id', e.target.value)
+                    <div className="flex-1 min-w-[220px]">
+                      <SearchableItemSelect
+                        items={safeItems}
+                        selectedItemId={row.item_id}
+                        onChange={(itemId) =>
+                          handleItemRowChange(row.id, 'item_id', itemId)
                         }
-                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                        required
-                      >
-                        <option value="">-- Select catalog item --</option>
-                        {safeItems.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name} ({item.code || 'No Code'})
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
 
                     <div className="w-full sm:w-28">
