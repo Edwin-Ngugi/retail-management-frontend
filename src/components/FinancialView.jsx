@@ -51,21 +51,21 @@ export default function FinancialView({ branchId }) {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('selectedDate') || params.get('date') || localStorage.getItem('fin_selectedDate');
-    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+    return raw ? String(raw).trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [startDate, setStartDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('start_date') || localStorage.getItem('fin_start_date');
-    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+    return raw ? String(raw).trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [endDate, setEndDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('end_date') || localStorage.getItem('fin_end_date');
-    return raw ? raw.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+    return raw ? String(raw).trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
   const [year, setYear] = useState(() => {
@@ -120,47 +120,37 @@ export default function FinancialView({ branchId }) {
   const handlePeriodChange = (newPeriod) => {
     setPeriodType(newPeriod);
 
-    if (newPeriod === 'month') {
-      updateUrlAndStorage({ 
-        period_type: newPeriod,
-        month,
-        year,
-        selectedDate: null,
-        date: null,
-        start_date: null,
-        end_date: null,
+    // Clean up stale parameters to avoid date/range conflict
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      ['selectedDate', 'date', 'start_date', 'end_date', 'month', 'year'].forEach((k) => {
+        url.searchParams.delete(k);
+        localStorage.removeItem(`fin_${k}`);
       });
-    } else if (newPeriod === 'day' || newPeriod === 'weekly') {
-      const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
-      updateUrlAndStorage({ 
-        period_type: newPeriod,
-        selectedDate: cleanDate,
-        date: cleanDate,
-        month: null,
-        year: null,
-        start_date: null,
-        end_date: null,
-      });
-    } else if (newPeriod === 'custom') {
-      updateUrlAndStorage({ 
-        period_type: newPeriod,
-        start_date: startDate,
-        end_date: endDate,
-        selectedDate: null,
-        date: null,
-        month: null,
-        year: null,
-      });
-    } else if (newPeriod === 'year') {
-      updateUrlAndStorage({ 
-        period_type: newPeriod,
-        year,
-        month: null,
-        selectedDate: null,
-        date: null,
-        start_date: null,
-        end_date: null,
-      });
+      url.searchParams.set('period_type', newPeriod);
+      localStorage.setItem('fin_period_type', newPeriod);
+
+      if (newPeriod === 'month') {
+        url.searchParams.set('month', String(month));
+        url.searchParams.set('year', String(year));
+        localStorage.setItem('fin_month', String(month));
+        localStorage.setItem('fin_year', String(year));
+      } else if (newPeriod === 'day' || newPeriod === 'weekly') {
+        const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+        url.searchParams.set('selectedDate', cleanDate);
+        url.searchParams.set('date', cleanDate);
+        localStorage.setItem('fin_selectedDate', cleanDate);
+      } else if (newPeriod === 'custom') {
+        url.searchParams.set('start_date', startDate);
+        url.searchParams.set('end_date', endDate);
+        localStorage.setItem('fin_start_date', startDate);
+        localStorage.setItem('fin_end_date', endDate);
+      } else if (newPeriod === 'year') {
+        url.searchParams.set('year', String(year));
+        localStorage.setItem('fin_year', String(year));
+      }
+
+      window.history.replaceState({}, '', url.toString());
     }
   };
 
@@ -187,6 +177,8 @@ export default function FinancialView({ branchId }) {
       year: newYear,
       month: newMonth,
       period_type: periodType,
+      start_date: null,
+      end_date: null,
     });
   };
 
@@ -248,13 +240,12 @@ export default function FinancialView({ branchId }) {
     };
 
     if (periodType === 'custom') {
-      params.start_date = startDate;
-      params.end_date = endDate;
+      params.start_date = startDate ? startDate.trim().slice(0, 10) : cleanDate;
+      params.end_date = endDate ? endDate.trim().slice(0, 10) : cleanDate;
     } else if (periodType === 'day' || periodType === 'weekly') {
+      // ONLY pass date and selectedDate for single day mode
       params.date = cleanDate;
       params.selectedDate = cleanDate;
-      params.start_date = cleanDate;
-      params.end_date = cleanDate;
     } else if (periodType === 'month') {
       params.year = year;
       params.month = month;
