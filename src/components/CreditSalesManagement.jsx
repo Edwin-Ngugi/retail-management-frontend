@@ -219,9 +219,15 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     }
   };
 
+  // Auto-sync sum of split breakdown inputs back to the main repaymentAmount field
   const handleSplitChange = (field, val) => {
     const numVal = parseFloat(val) || 0;
-    setSplitBreakdown((prev) => ({ ...prev, [field]: numVal }));
+    setSplitBreakdown((prev) => {
+      const updated = { ...prev, [field]: numVal };
+      const newTotal = updated.cash + updated.paybill + updated.send_money;
+      setPaymentAmount(newTotal > 0 ? newTotal.toString() : "");
+      return updated;
+    });
   };
 
   const handleRecordPayment = async (e) => {
@@ -566,13 +572,13 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 <input
                   type="number"
                   step="0.01"
-                  max={selectedSale.balance_due ?? selectedSale.due_balance ?? selectedSale.total_amount}
                   value={paymentAmount}
                   onChange={(e) => {
                     const newAmount = e.target.value;
                     setPaymentAmount(newAmount);
                     if (paymentMethod === "SPLIT") {
-                      setSplitBreakdown({ cash: parseFloat(newAmount) || 0, paybill: 0, send_money: 0 });
+                      const numericVal = parseFloat(newAmount) || 0;
+                      setSplitBreakdown({ cash: numericVal, paybill: 0, send_money: 0 });
                     }
                   }}
                   placeholder="Enter amount..."
