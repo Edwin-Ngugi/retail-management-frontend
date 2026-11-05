@@ -117,7 +117,6 @@ export default function RestockManagement({
   selectedBranch,
   onRestockSuccess,
 }) {
-  // Load initial state from localStorage if available
   const savedDraft = useMemo(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -136,6 +135,9 @@ export default function RestockManagement({
   const [supplierName, setSupplierName] = useState(
     savedDraft?.supplierName || ''
   );
+  const [amountPaid, setAmountPaid] = useState(
+    savedDraft?.amountPaid || ''
+  );
   const [orderItems, setOrderItems] = useState(
     savedDraft?.orderItems && Array.isArray(savedDraft.orderItems) && savedDraft.orderItems.length > 0
       ? savedDraft.orderItems
@@ -146,20 +148,28 @@ export default function RestockManagement({
 
   const safeItems = Array.isArray(items) ? items : [];
 
-  // Persist form draft to localStorage on state changes
+  const totalOrderValuation = useMemo(() => {
+    return orderItems.reduce((acc, row) => {
+      const qty = toNumber(row.quantity);
+      const cost = toNumber(row.unit_cost_price);
+      return acc + qty * cost;
+    }, 0);
+  }, [orderItems]);
+
   useEffect(() => {
     try {
       const draft = {
         purchaseDate,
         paymentMethod,
         supplierName,
+        amountPaid,
         orderItems,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     } catch (e) {
       console.warn('Could not save restock draft to localStorage:', e);
     }
-  }, [purchaseDate, paymentMethod, supplierName, orderItems]);
+  }, [purchaseDate, paymentMethod, supplierName, amountPaid, orderItems]);
 
   const handleAddItemRow = () => {
     setOrderItems((prev) => [
@@ -190,14 +200,6 @@ export default function RestockManagement({
       })
     );
   };
-
-  const totalOrderValuation = useMemo(() => {
-    return orderItems.reduce((acc, row) => {
-      const qty = toNumber(row.quantity);
-      const cost = toNumber(row.unit_cost_price);
-      return acc + qty * cost;
-    }, 0);
-  }, [orderItems]);
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
@@ -230,19 +232,29 @@ export default function RestockManagement({
       const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const poNumber = `PO-${dateClean}-BATCH-${uniqueSuffix}`;
 
-      const purchasesPayload = validRows.map((row) => ({
-        item: row.item_id,
+      // Default amount paid to total valuation if left empty
+      const finalAmountPaid = amountPaid !== '' ? toNumber(amountPaid) : totalOrderValuation;
+
+      const payload = {
+        po_number: poNumber,
         branch: selectedBranch,
         supplier_name: supplierName || 'Direct Supplier',
         payment_method: paymentMethod,
         purchase_date: purchaseDate,
-        quantity: toNumber(row.quantity),
-        unit_cost_price: toNumber(row.unit_cost_price),
-      }));
+        amount_paid: finalAmountPaid,
+        items: validRows.map((row) => ({
+          item: row.item_id,
+          branch: selectedBranch,
+          supplier_name: supplierName || 'Direct Supplier',
+          payment_method: paymentMethod,
+          purchase_date: purchaseDate,
+          quantity: toNumber(row.quantity),
+          unit_cost_price: toNumber(row.unit_cost_price),
+        })),
+      };
 
-      await API.post('purchases/', purchasesPayload);
+      await API.post('purchases/', payload);
 
-      // Clear cached draft upon successful request
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch (e) {
@@ -251,14 +263,14 @@ export default function RestockManagement({
 
       setFeedback({
         type: 'success',
-        message: `Batch Restock (${poNumber}) recorded directly!`,
+        message: `Batch Restock (${poNumber}) recorded successfully!`,
       });
 
-      // Reset Form State
       setOrderItems([
         { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
       ]);
       setSupplierName('');
+      setAmountPaid('');
 
       if (onRestockSuccess) onRestockSuccess();
     } catch (err) {
@@ -281,6 +293,7 @@ export default function RestockManagement({
       { id: Date.now(), item_id: '', quantity: '', unit_cost_price: '' },
     ]);
     setSupplierName('');
+    setAmountPaid('');
   };
 
   return (
@@ -319,7 +332,7 @@ export default function RestockManagement({
         )}
 
         <form onSubmit={handleSubmitOrder} className="space-y-6">
-          <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                 Purchase Date
@@ -359,8 +372,22 @@ export default function RestockManagement({
                 <option value="MPESA">M-Pesa / Mobile Money</option>
                 <option value="PAYBILL">Paybill / Till Transfer</option>
                 <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="CREDIT">Credit / On Account</option>
               </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                Amount Paid (KSh)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder={`Default: KSh ${totalOrderValuation}`}
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
           </div>
 
