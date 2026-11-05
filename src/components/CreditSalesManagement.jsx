@@ -248,7 +248,11 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       const customerPk = getCustomerId(selectedSale);
 
       const payload = {
+        customer: customerPk,
+        customer_id: customerPk,
+        transaction: selectedSale.id,
         sale_transaction: selectedSale.id,
+        sale: selectedSale.id,
         branch: selectedBranch || selectedSale.branch,
         amount: parsedAmount,
         date: repaymentDate,
@@ -258,7 +262,6 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         receipt_number: activeReceiptNo,
         invoice_number: activeReceiptNo,
         notes: notes,
-        ...(customerPk !== null && { customer: customerPk }),
         ...(paymentMethod === "SPLIT" && {
           split_details: {
             cash: splitBreakdown.cash,
@@ -286,7 +289,9 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       let errorMsg = "Failed to record repayment. Please try again.";
 
       if (typeof errData === "string") {
-        errorMsg = errData;
+        errorMsg = errData.includes("<!doctype html>") ? "Server processing error (500). Please check backend logs." : errData;
+      } else if (errData?.error) {
+        errorMsg = errData.error;
       } else if (errData?.detail) {
         errorMsg = errData.detail;
       } else if (typeof errData === "object" && errData !== null) {
