@@ -559,10 +559,12 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
           </div>
           <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-[10px]">
             <div>
-              <span className="text-teal-600 font-bold block uppercase tracking-wider text-[9px]">Recovered</span>
-              <span className="font-mono font-extrabold text-teal-700">
+              <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                RECOVERED ({periodType === 'month' ? 'MONTHLY' : periodType === 'day' ? 'DAILY' : 'PERIOD'})
+              </div>
+              <div className="text-xs font-bold font-mono text-emerald-600">
                 {loading ? '...' : (debt.total_recovered_formatted || 'KSh 0.00')}
-              </span>
+              </div>
             </div>
             <div className="text-right">
               <span className="text-slate-400 block text-[9px]">Unpaid Credit</span>
