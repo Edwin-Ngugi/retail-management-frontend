@@ -40,7 +40,7 @@ import CreditSalesEntry from './components/CreditSalesEntry';
 import SalesInvoicesManagement from './components/SalesInvoicesManagement';
 import SalesReturnsManagement from './components/SalesReturnsManagement';
 import QuotationsManagement from './components/QuotationManagement';
-import CreditSaleManagement from './components/CreditSalesManagement';
+import CreditSaleManagement from './components/CreditSaleManagement';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import AuthPage from './components/AuthPage';
@@ -575,37 +575,37 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
       </div>
 
-      {/* Top Metric Cards Row (Cleaned Typography & Accommodating Containers) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Top Metric Cards Row (6-Column Grid Layout with Expanded Financial Performance Card) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         
-        {/* FINANCIAL PERFORMANCE */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
+        {/* FINANCIAL PERFORMANCE (ENLARGED - Spans 2 Columns) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">FINANCIAL PERFORMANCE</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">FINANCIAL PERFORMANCE</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
           </div>
           <div className="my-2">
-            <span className="text-[11px] text-slate-500 block">Total Sales</span>
-            <span className="text-lg font-black font-mono text-slate-900 block truncate" title={prof.total_sales_formatted || 'KSh 0.00'}>
+            <span className="text-xs text-slate-500 block font-medium">Total Sales</span>
+            <span className="text-2xl font-black font-mono text-slate-900 block tracking-tight" title={prof.total_sales_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (prof.total_sales_formatted || 'KSh 0.00')}
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-1 border-t border-slate-100 pt-2 text-[10px]">
+          <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-2 text-xs">
             <div className="overflow-hidden">
-              <span className="text-amber-600 font-extrabold block truncate">COGS</span>
-              <span className="font-mono text-slate-700 block truncate" title={prof.cogs_formatted || '0.00'}>
+              <span className="text-amber-600 font-extrabold block text-[10px] uppercase">COGS</span>
+              <span className="font-mono font-bold text-slate-800 text-xs block truncate" title={prof.cogs_formatted || '0.00'}>
                 {loading ? '...' : (prof.cogs_formatted || '0.00')}
               </span>
             </div>
             <div className="overflow-hidden">
-              <span className="text-teal-600 font-extrabold block truncate">GROSS</span>
-              <span className="font-mono text-slate-700 block truncate" title={prof.gross_profit_formatted || '0.00'}>
+              <span className="text-teal-600 font-extrabold block text-[10px] uppercase">GROSS PROFIT</span>
+              <span className="font-mono font-bold text-slate-800 text-xs block truncate" title={prof.gross_profit_formatted || '0.00'}>
                 {loading ? '...' : (prof.gross_profit_formatted || '0.00')}
               </span>
             </div>
             <div className="overflow-hidden">
-              <span className="text-blue-600 font-extrabold block truncate">NET</span>
-              <span className="font-mono text-slate-700 block truncate" title={prof.net_profit_formatted || '0.00'}>
+              <span className="text-blue-600 font-extrabold block text-[10px] uppercase">NET PROFIT</span>
+              <span className="font-mono font-bold text-emerald-700 text-xs block truncate" title={prof.net_profit_formatted || '0.00'}>
                 {loading ? '...' : (prof.net_profit_formatted || '0.00')}
               </span>
             </div>
@@ -613,7 +613,7 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CUSTOMER DEBTS */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
+        <div className="lg:col-span-1 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CUSTOMER DEBTS</span>
             <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
@@ -643,7 +643,7 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* INVENTORY & SKUS */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
+        <div className="lg:col-span-1 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">INVENTORY & SKUS</span>
             <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
@@ -677,7 +677,7 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CASH MOVEMENT */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
+        <div className="lg:col-span-1 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CASH MOVEMENT</span>
             <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
@@ -705,7 +705,7 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CASH POSITION */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
+        <div className="lg:col-span-1 bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CASH POSITION</span>
             <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
