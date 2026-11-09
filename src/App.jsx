@@ -40,7 +40,7 @@ import CreditSalesEntry from './components/CreditSalesEntry';
 import SalesInvoicesManagement from './components/SalesInvoicesManagement';
 import SalesReturnsManagement from './components/SalesReturnsManagement';
 import QuotationsManagement from './components/QuotationManagement';
-import CreditSaleManagement from './components/CreditSaleManagement';
+import CreditSaleManagement from './components/CreditSalesManagement';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import AuthPage from './components/AuthPage';
