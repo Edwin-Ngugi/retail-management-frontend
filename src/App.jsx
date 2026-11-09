@@ -419,81 +419,71 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
   const cash = data?.cash_flow || {};
   const rawTrajectory = data?.trajectory || [];
 
-  // Transform X-Axis Data: Group by Weeks (for Month) or Months (for Year)
+  // Transform X-Axis Data: Always Render Week 1 - Week 5 for Monthly View
   const chartTrajectory = useMemo(() => {
-    if (!Array.isArray(rawTrajectory) || rawTrajectory.length === 0) return [];
-
-    // Ensure chronological order (left-to-right)
-    const sorted = [...rawTrajectory].sort((a, b) => {
-      const d1 = new Date(a.date || a.sale_date || a.label);
-      const d2 = new Date(b.date || b.sale_date || b.label);
-      return d1 - d2;
-    });
-
     if (periodType === 'month') {
-      const weeksMap = {};
-      sorted.forEach((item) => {
-        const rawDate = item.date || item.sale_date;
-        let dayNum = 1;
-        if (rawDate) {
-          const parts = String(rawDate).split('-');
-          if (parts.length === 3) dayNum = parseInt(parts[2], 10);
-        }
+      // 1. Initialize all 5 weeks with zero totals
+      const weeksMap = {
+        'Week 1': { date: 'Week 1', total_sales: 0, cogs: 0, net_profit: 0 },
+        'Week 2': { date: 'Week 2', total_sales: 0, cogs: 0, net_profit: 0 },
+        'Week 3': { date: 'Week 3', total_sales: 0, cogs: 0, net_profit: 0 },
+        'Week 4': { date: 'Week 4', total_sales: 0, cogs: 0, net_profit: 0 },
+        'Week 5': { date: 'Week 5', total_sales: 0, cogs: 0, net_profit: 0 },
+      };
 
-        let weekLabel = 'Week 1';
-        if (dayNum > 28) weekLabel = 'Week 5';
-        else if (dayNum > 21) weekLabel = 'Week 4';
-        else if (dayNum > 14) weekLabel = 'Week 3';
-        else if (dayNum > 7) weekLabel = 'Week 2';
+      // 2. Aggregate raw trajectory data into the corresponding week bucket
+      if (Array.isArray(rawTrajectory)) {
+        rawTrajectory.forEach((item) => {
+          const rawDate = item.date || item.sale_date;
+          let dayNum = 1;
+          if (rawDate) {
+            const parts = String(rawDate).split('-');
+            if (parts.length === 3) dayNum = parseInt(parts[2], 10);
+          }
 
-        if (!weeksMap[weekLabel]) {
-          weeksMap[weekLabel] = {
-            date: weekLabel,
-            total_sales: 0,
-            cogs: 0,
-            net_profit: 0,
-          };
-        }
+          let weekLabel = 'Week 1';
+          if (dayNum > 28) weekLabel = 'Week 5';
+          else if (dayNum > 21) weekLabel = 'Week 4';
+          else if (dayNum > 14) weekLabel = 'Week 3';
+          else if (dayNum > 7) weekLabel = 'Week 2';
 
-        weeksMap[weekLabel].total_sales += Number(item.total_sales || 0);
-        weeksMap[weekLabel].cogs += Number(item.cogs || 0);
-        weeksMap[weekLabel].net_profit += Number(item.net_profit || 0);
-      });
+          weeksMap[weekLabel].total_sales += Number(item.total_sales || 0);
+          weeksMap[weekLabel].cogs += Number(item.cogs || 0);
+          weeksMap[weekLabel].net_profit += Number(item.net_profit || 0);
+        });
+      }
 
       return Object.values(weeksMap);
     }
 
     if (periodType === 'year') {
-      const monthsMap = {};
       const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
-      sorted.forEach((item) => {
-        const rawDate = item.date || item.sale_date;
-        let mIdx = 0;
-        if (rawDate) {
-          const d = new Date(rawDate);
-          if (!isNaN(d.getTime())) mIdx = d.getMonth();
-        }
-
-        const monthLabel = shortMonths[mIdx];
-        if (!monthsMap[monthLabel]) {
-          monthsMap[monthLabel] = {
-            date: monthLabel,
-            total_sales: 0,
-            cogs: 0,
-            net_profit: 0,
-          };
-        }
-
-        monthsMap[monthLabel].total_sales += Number(item.total_sales || 0);
-        monthsMap[monthLabel].cogs += Number(item.cogs || 0);
-        monthsMap[monthLabel].net_profit += Number(item.net_profit || 0);
+      const monthsMap = {};
+      shortMonths.forEach((m) => {
+        monthsMap[m] = { date: m, total_sales: 0, cogs: 0, net_profit: 0 };
       });
+
+      if (Array.isArray(rawTrajectory)) {
+        rawTrajectory.forEach((item) => {
+          const rawDate = item.date || item.sale_date;
+          let mIdx = 0;
+          if (rawDate) {
+            const d = new Date(rawDate);
+            if (!isNaN(d.getTime())) mIdx = d.getMonth();
+          }
+          const monthLabel = shortMonths[mIdx];
+          monthsMap[monthLabel].total_sales += Number(item.total_sales || 0);
+          monthsMap[monthLabel].cogs += Number(item.cogs || 0);
+          monthsMap[monthLabel].net_profit += Number(item.net_profit || 0);
+        });
+      }
 
       return Object.values(monthsMap);
     }
 
-    return sorted;
+    return Array.isArray(rawTrajectory)
+      ? [...rawTrajectory].sort((a, b) => new Date(a.date) - new Date(b.date))
+      : [];
   }, [rawTrajectory, periodType]);
 
   return (
