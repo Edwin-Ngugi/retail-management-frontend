@@ -417,7 +417,84 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
   const debt = data?.debtors || {};
   const inv = data?.inventory || {};
   const cash = data?.cash_flow || {};
-  const trajectory = data?.trajectory || [];
+  const rawTrajectory = data?.trajectory || [];
+
+  // Transform X-Axis Data: Group by Weeks (for Month) or Months (for Year)
+  const chartTrajectory = useMemo(() => {
+    if (!Array.isArray(rawTrajectory) || rawTrajectory.length === 0) return [];
+
+    // Ensure chronological order (left-to-right)
+    const sorted = [...rawTrajectory].sort((a, b) => {
+      const d1 = new Date(a.date || a.sale_date || a.label);
+      const d2 = new Date(b.date || b.sale_date || b.label);
+      return d1 - d2;
+    });
+
+    if (periodType === 'month') {
+      const weeksMap = {};
+      sorted.forEach((item) => {
+        const rawDate = item.date || item.sale_date;
+        let dayNum = 1;
+        if (rawDate) {
+          const parts = String(rawDate).split('-');
+          if (parts.length === 3) dayNum = parseInt(parts[2], 10);
+        }
+
+        let weekLabel = 'Week 1';
+        if (dayNum > 28) weekLabel = 'Week 5';
+        else if (dayNum > 21) weekLabel = 'Week 4';
+        else if (dayNum > 14) weekLabel = 'Week 3';
+        else if (dayNum > 7) weekLabel = 'Week 2';
+
+        if (!weeksMap[weekLabel]) {
+          weeksMap[weekLabel] = {
+            date: weekLabel,
+            total_sales: 0,
+            cogs: 0,
+            net_profit: 0,
+          };
+        }
+
+        weeksMap[weekLabel].total_sales += Number(item.total_sales || 0);
+        weeksMap[weekLabel].cogs += Number(item.cogs || 0);
+        weeksMap[weekLabel].net_profit += Number(item.net_profit || 0);
+      });
+
+      return Object.values(weeksMap);
+    }
+
+    if (periodType === 'year') {
+      const monthsMap = {};
+      const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      sorted.forEach((item) => {
+        const rawDate = item.date || item.sale_date;
+        let mIdx = 0;
+        if (rawDate) {
+          const d = new Date(rawDate);
+          if (!isNaN(d.getTime())) mIdx = d.getMonth();
+        }
+
+        const monthLabel = shortMonths[mIdx];
+        if (!monthsMap[monthLabel]) {
+          monthsMap[monthLabel] = {
+            date: monthLabel,
+            total_sales: 0,
+            cogs: 0,
+            net_profit: 0,
+          };
+        }
+
+        monthsMap[monthLabel].total_sales += Number(item.total_sales || 0);
+        monthsMap[monthLabel].cogs += Number(item.cogs || 0);
+        monthsMap[monthLabel].net_profit += Number(item.net_profit || 0);
+      });
+
+      return Object.values(monthsMap);
+    }
+
+    return sorted;
+  }, [rawTrajectory, periodType]);
 
   return (
     <div className="space-y-6 w-full font-sans max-w-7xl mx-auto">
@@ -508,37 +585,37 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
       </div>
 
-      {/* Top Metric Cards Row */}
+      {/* Top Metric Cards Row (Cleaned Typography & Accommodating Containers) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* FINANCIAL PERFORMANCE */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">FINANCIAL PERFORMANCE</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">FINANCIAL PERFORMANCE</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
           </div>
-          <div className="my-3">
+          <div className="my-2">
             <span className="text-[11px] text-slate-500 block">Total Sales</span>
-            <span className="text-xl font-black font-mono text-slate-900 block">
+            <span className="text-lg font-black font-mono text-slate-900 block truncate" title={prof.total_sales_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (prof.total_sales_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1 border-t border-slate-100 pt-2 text-[10px]">
-            <div>
-              <span className="text-amber-600 font-extrabold block">COGS</span>
-              <span className="font-mono text-slate-700">
+            <div className="overflow-hidden">
+              <span className="text-amber-600 font-extrabold block truncate">COGS</span>
+              <span className="font-mono text-slate-700 block truncate" title={prof.cogs_formatted || '0.00'}>
                 {loading ? '...' : (prof.cogs_formatted || '0.00')}
               </span>
             </div>
-            <div>
-              <span className="text-teal-600 font-extrabold block">GROSS</span>
-              <span className="font-mono text-slate-700">
+            <div className="overflow-hidden">
+              <span className="text-teal-600 font-extrabold block truncate">GROSS</span>
+              <span className="font-mono text-slate-700 block truncate" title={prof.gross_profit_formatted || '0.00'}>
                 {loading ? '...' : (prof.gross_profit_formatted || '0.00')}
               </span>
             </div>
-            <div>
-              <span className="text-blue-600 font-extrabold block">NET</span>
-              <span className="font-mono text-slate-700">
+            <div className="overflow-hidden">
+              <span className="text-blue-600 font-extrabold block truncate">NET</span>
+              <span className="font-mono text-slate-700 block truncate" title={prof.net_profit_formatted || '0.00'}>
                 {loading ? '...' : (prof.net_profit_formatted || '0.00')}
               </span>
             </div>
@@ -546,27 +623,27 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CUSTOMER DEBTS */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CUSTOMER DEBTS</span>
-            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CUSTOMER DEBTS</span>
+            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
           </div>
-          <div className="my-3">
+          <div className="my-2">
             <span className="text-[11px] text-slate-500 block">Receivables Ledger</span>
-            <span className="text-xl font-black font-mono text-rose-600 block">
+            <span className="text-lg font-black font-mono text-rose-600 block truncate" title={debt.total_customer_debts_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (debt.total_customer_debts_formatted || 'KSh 0.00')}
             </span>
           </div>
-          <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-[10px]">
-            <div>
-              <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+          <div className="border-t border-slate-100 pt-2 flex items-center justify-between text-[10px] gap-1">
+            <div className="overflow-hidden">
+              <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider truncate">
                 RECOVERED ({periodType === 'month' ? 'MONTHLY' : periodType === 'day' ? 'DAILY' : 'PERIOD'})
               </div>
-              <div className="text-xs font-bold font-mono text-emerald-600">
+              <div className="text-xs font-bold font-mono text-emerald-600 truncate" title={debt.total_recovered_formatted || 'KSh 0.00'}>
                 {loading ? '...' : (debt.total_recovered_formatted || 'KSh 0.00')}
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <span className="text-slate-400 block text-[9px]">Unpaid Credit</span>
               <span className="font-mono font-bold text-slate-600">
                 {loading ? '...' : (debt.unpaid_count !== undefined ? `${debt.unpaid_count} Invoices` : 'Pending')}
@@ -576,14 +653,14 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* INVENTORY & SKUS */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">INVENTORY & SKUS</span>
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">INVENTORY & SKUS</span>
+            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
           </div>
-          <div className="my-3">
+          <div className="my-2">
             <span className="text-[11px] text-slate-500 block">Stock Value (Cost)</span>
-            <span className="text-xl font-black font-mono text-slate-900 block">
+            <span className="text-lg font-black font-mono text-slate-900 block truncate" title={inv.total_stock_value_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (inv.total_stock_value_formatted || 'KSh 0.00')}
             </span>
           </div>
@@ -610,27 +687,27 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CASH MOVEMENT */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CASH MOVEMENT</span>
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CASH MOVEMENT</span>
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
           </div>
-          <div className="my-3">
+          <div className="my-2">
             <span className="text-[11px] text-slate-500 block">Monthly Receipts</span>
-            <span className="text-xl font-black font-mono text-slate-900 block">
+            <span className="text-lg font-black font-mono text-slate-900 block truncate" title={cash.receipts_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (cash.receipts_formatted || 'KSh 0.00')}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1 border-t border-slate-100 pt-2 text-[10px]">
-            <div>
-              <span className="text-slate-400 font-bold block font-sans">Monthly Payments</span>
-              <span className="font-mono text-slate-700">
+            <div className="overflow-hidden">
+              <span className="text-slate-400 font-bold block font-sans truncate">Payments</span>
+              <span className="font-mono text-slate-700 block truncate" title={cash.payments_formatted || 'KSh 0.00'}>
                 {loading ? '...' : (cash.payments_formatted || 'KSh 0.00')}
               </span>
             </div>
-            <div>
-              <span className="text-blue-600 font-bold block font-sans">Purchases</span>
-              <span className="font-mono text-blue-700">
+            <div className="overflow-hidden">
+              <span className="text-blue-600 font-bold block font-sans truncate">Purchases</span>
+              <span className="font-mono text-blue-700 block truncate" title={cash.purchases_formatted || 'KSh 0.00'}>
                 {loading ? '...' : (cash.purchases_formatted || 'KSh 0.00')}
               </span>
             </div>
@@ -638,18 +715,18 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
         </div>
 
         {/* CASH POSITION */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs relative flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CASH POSITION</span>
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">CASH POSITION</span>
+            <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
           </div>
-          <div className="my-3">
+          <div className="my-2">
             <span className="text-[11px] text-slate-500 block">Available Funds</span>
-            <span className="text-xl font-black font-mono text-teal-700 block">
+            <span className="text-lg font-black font-mono text-teal-700 block truncate" title={cash.total_available_funds_formatted || 'KSh 0.00'}>
               {loading ? <InlineSpinner /> : (cash.total_available_funds_formatted || 'KSh 0.00')}
             </span>
           </div>
-          <div className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">
+          <div className="border-t border-slate-100 pt-2 text-[10px] text-slate-400 truncate">
             Combined cash, bank accounts & till balances
           </div>
         </div>
@@ -676,14 +753,14 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
               <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs font-mono font-bold text-slate-400">Compiling performance trajectory...</span>
             </div>
-          ) : trajectory.length === 0 || !trajectory.some(t => (t.total_sales > 0 || t.cogs > 0)) ? (
+          ) : chartTrajectory.length === 0 || !chartTrajectory.some(t => (t.total_sales > 0 || t.cogs > 0)) ? (
             <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-mono bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
               No sales or financial activity recorded for this selected date range.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={trajectory.filter(t => t.total_sales > 0 || t.cogs > 0 || t.net_profit > 0 || periodType !== 'month')}
+                data={chartTrajectory}
                 margin={{ top: 10, right: 20, left: 20, bottom: 20 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -711,9 +788,9 @@ function ManagementDashboardCards({ selectedBranch, socketEvent }) {
                   wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
                   formatter={(value) => <span className="text-slate-700 font-bold">{value === 'total_sales' ? 'Total Sales' : value === 'cogs' ? 'COGS' : 'Net Profit'}</span>}
                 />
-                <Bar dataKey="cogs" fill="#F59E0B" name="cogs" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="net_profit" fill="#10B981" name="net_profit" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="total_sales" fill="#0D9488" name="total_sales" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="cogs" fill="#F59E0B" name="cogs" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                <Bar dataKey="net_profit" fill="#10B981" name="net_profit" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                <Bar dataKey="total_sales" fill="#0D9488" name="total_sales" radius={[4, 4, 0, 0]} maxBarSize={45} />
               </BarChart>
             </ResponsiveContainer>
           )}
