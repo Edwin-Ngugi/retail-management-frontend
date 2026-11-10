@@ -28,6 +28,10 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     paybill: 0,
     send_money: 0,
   });
+  const [splitReferences, setSplitReferences] = useState({
+    paybill: "",
+    send_money: "",
+  });
   const [referenceNumber, setReferenceNumber] = useState("");
   const [receiptNumberInput, setReceiptNumberInput] = useState("");
   const [notes, setNotes] = useState("");
@@ -65,7 +69,6 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   useEffect(() => {
     const rawTerm = searchTerm.trim();
 
-    // Require at least 3 characters UNLESS query contains a separator like '_' or '-' or 'INV'
     const isSpecificQuery = rawTerm.length >= 3 || rawTerm.includes("_") || rawTerm.includes("-") || rawTerm.includes(" ");
 
     if (!rawTerm || !isSpecificQuery) {
@@ -103,7 +106,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [searchTerm, selectedBranch]);
@@ -120,6 +123,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       paybill: 0,
       send_money: 0,
     });
+    setSplitReferences({ paybill: "", send_money: "" });
     setReferenceNumber("");
     setReceiptNumberInput(activeReceiptNo);
     setNotes("");
@@ -144,6 +148,10 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     });
   };
 
+  const handleSplitRefChange = (field, val) => {
+    setSplitReferences((prev) => ({ ...prev, [field]: val }));
+  };
+
   const handleRecordPayment = async (e) => {
     e.preventDefault();
     if (!selectedSale) return;
@@ -154,11 +162,31 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       return;
     }
 
+    let splitPaymentsList = [];
+
     if (paymentMethod === "SPLIT") {
       const splitSum = splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money;
       if (Math.abs(splitSum - parsedAmount) > 0.01) {
         alert(`Split allocations (KSh ${splitSum.toLocaleString()}) must equal total repayment amount (KSh ${parsedAmount.toLocaleString()}).`);
         return;
+      }
+
+      if (splitBreakdown.cash > 0) {
+        splitPaymentsList.push({ method: "CASH", amount: splitBreakdown.cash });
+      }
+      if (splitBreakdown.paybill > 0) {
+        splitPaymentsList.push({
+          method: "PAYBILL",
+          amount: splitBreakdown.paybill,
+          reference_code: splitReferences.paybill,
+        });
+      }
+      if (splitBreakdown.send_money > 0) {
+        splitPaymentsList.push({
+          method: "SEND_MONEY",
+          amount: splitBreakdown.send_money,
+          reference_code: splitReferences.send_money,
+        });
       }
     }
 
@@ -182,6 +210,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         invoice_number: activeReceiptNo,
         notes: notes,
         ...(paymentMethod === "SPLIT" && {
+          split_payments: splitPaymentsList,
           split_details: {
             cash: splitBreakdown.cash,
             paybill: splitBreakdown.paybill,
@@ -302,7 +331,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </label>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-slate-400">Quick test:</span>
-            {["2_42", "2_34", "KYALU"].map((sample) => (
+            {["2_42", "2_36", "KYALU"].map((sample) => (
               <button
                 key={sample}
                 type="button"
@@ -323,7 +352,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </div>
           <input
             type="text"
-            placeholder="Type exact receipt code (e.g. 2_34 or KYALU)..."
+            placeholder="Type exact receipt code (e.g. 2_36 or KYALU)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-24 py-3 w-full text-xs font-mono font-bold bg-slate-50/80 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:border-teal-600 focus:bg-white focus:ring-3 focus:ring-teal-500/15 placeholder-slate-400 transition-all"
@@ -392,7 +421,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                       </div>
                       <span className="font-extrabold text-slate-800 text-sm">Enter an Invoice Number</span>
                       <p className="text-xs text-slate-400">
-                        Type an exact code like <code className="font-mono bg-slate-100 text-slate-800 px-1 py-0.5 rounded">2_34</code> in the search field above to search for outstanding balances.
+                        Type an exact code like <code className="font-mono bg-slate-100 text-slate-800 px-1 py-0.5 rounded">2_36</code> in the search field above to search for outstanding balances.
                       </p>
                     </div>
                   </td>
@@ -400,7 +429,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
               ) : (searchTerm.trim().length < 3 && !searchTerm.includes("_") && !searchTerm.includes("-")) ? (
                 <tr>
                   <td colSpan="5" className="p-8 text-center text-slate-400 font-medium">
-                    Please enter at least 3 characters or an exact invoice number (e.g., <code className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded">2_34</code>).
+                    Please enter at least 3 characters or an exact invoice number (e.g., <code className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded">2_36</code>).
                   </td>
                 </tr>
               ) : searchResults.length === 0 ? (
@@ -526,7 +555,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </select>
               </div>
 
-              {/* Reference Number / Transaction Code (Required for Paybill / Send Money) */}
+              {/* Reference Code for Single PAYBILL / SEND_MONEY */}
               {(paymentMethod === "PAYBILL" || paymentMethod === "SEND_MONEY") && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -543,19 +572,20 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </div>
               )}
 
-              {/* Split Payment Allocation Fields */}
+              {/* Split Payment Allocation Fields with Reference Codes */}
               {paymentMethod === "SPLIT" && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-200 pb-1.5">
-                    <span className="font-bold uppercase tracking-wider text-[9px]">Split Breakdown</span>
+                    <span className="font-bold uppercase tracking-wider text-[9px]">Split Breakdown & Reference Codes</span>
                     <span className="font-mono text-teal-800 font-bold">
                       Allocated: KSh {(splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money).toLocaleString()}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Cash</label>
+                  <div className="space-y-2.5 text-xs">
+                    {/* Cash Allocation */}
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="text-[11px] font-bold text-slate-600 w-24">Cash Amount:</label>
                       <input
                         type="number"
                         step="0.01"
@@ -564,25 +594,57 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                         className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Paybill</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={splitBreakdown.paybill}
-                        onChange={(e) => handleSplitChange("paybill", e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
-                      />
+
+                    {/* Paybill Allocation & Ref Code */}
+                    <div className="space-y-1 bg-white p-2.5 rounded-lg border border-slate-200/80">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-[11px] font-bold text-slate-700 w-24">Paybill Amount:</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={splitBreakdown.paybill}
+                          onChange={(e) => handleSplitChange("paybill", e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
+                        />
+                      </div>
+                      {splitBreakdown.paybill > 0 && (
+                        <div className="pt-1">
+                          <input
+                            type="text"
+                            value={splitReferences.paybill}
+                            onChange={(e) => handleSplitRefChange("paybill", e.target.value)}
+                            placeholder="Paybill Ref / Code (e.g. QX782910AK)"
+                            required
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono text-[11px] rounded-lg p-1.5 outline-none focus:border-teal-600 uppercase"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Send Money</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={splitBreakdown.send_money}
-                        onChange={(e) => handleSplitChange("send_money", e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
-                      />
+
+                    {/* Send Money Allocation & Ref Code */}
+                    <div className="space-y-1 bg-white p-2.5 rounded-lg border border-slate-200/80">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-[11px] font-bold text-slate-700 w-24">Send Money Amount:</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={splitBreakdown.send_money}
+                          onChange={(e) => handleSplitChange("send_money", e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
+                        />
+                      </div>
+                      {splitBreakdown.send_money > 0 && (
+                        <div className="pt-1">
+                          <input
+                            type="text"
+                            value={splitReferences.send_money}
+                            onChange={(e) => handleSplitRefChange("send_money", e.target.value)}
+                            placeholder="M-Pesa Txn Code (e.g. RK982310XZ)"
+                            required
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono text-[11px] rounded-lg p-1.5 outline-none focus:border-teal-600 uppercase"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
