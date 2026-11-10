@@ -45,7 +45,7 @@ export default function AdminDashboard({
   const [adminTab, setAdminTab] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_active_tab');
-      const allowedTabs = ['inventory', 'approvals', 'stock-ops', 'branches', 'user-permissions',];
+      const allowedTabs = ['inventory', 'approvals', 'stock-ops', 'branches', 'user-permissions'];
       return allowedTabs.includes(saved) ? saved : 'inventory';
     } catch {
       return 'inventory';
@@ -407,7 +407,7 @@ export default function AdminDashboard({
     <div className="h-screen bg-slate-200/80 w-full font-sans text-slate-900 overflow-hidden">
       <div className="flex flex-col lg:flex-row h-full w-full max-w-none">
         
-        {/* SIDEBAR NAVIGATION (Fixed height & scrollable list) */}
+        {/* SIDEBAR NAVIGATION */}
         <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-300 flex flex-col shrink-0 shadow-sm h-full overflow-y-auto">
           <div className="p-4 border-b border-slate-200 space-y-2 shrink-0">
             <div className="flex items-center">
@@ -504,7 +504,7 @@ export default function AdminDashboard({
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 flex flex-col w-full min-w-0 h-full overflow-hidden">
           
-          {/* FIXED HEADER BAR */}
+          {/* HEADER BAR */}
           <header className="min-h-16 bg-white border-b border-slate-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between shrink-0 w-full gap-3 shadow-sm">
             <div>
               <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -575,7 +575,7 @@ export default function AdminDashboard({
             </div>
           </header>
 
-          {/* INDEPENDENT SCROLLABLE BODY PANEL */}
+          {/* SCROLLABLE BODY PANEL */}
           <main className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 w-full max-w-[1600px] mx-auto">
             {status && (
               <div className={`p-3 sm:p-4 rounded-xl border text-xs font-medium flex items-center justify-between ${
@@ -1047,17 +1047,26 @@ function SelectBranchItemsModal({
   onImportSuccess,
   extractErrorMessage,
 }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    try {
+      const savedStep = localStorage.getItem('import_modal_step');
+      return savedStep ? Number(savedStep) : 1;
+    } catch {
+      return 1;
+    }
+  });
+
   const [selectedSourceBranch, setSelectedSourceBranch] = useState(() => {
     return localStorage.getItem('import_source_branch') || '';
   });
+
   const [sourceItems, setSourceItems] = useState([]);
 
   const [selectedItemIds, setSelectedItemIds] = useState(() => {
     try {
       const saved = localStorage.getItem('import_selected_item_ids');
       return saved ? JSON.parse(saved) : [];
-    } catch (err) {
+    } catch {
       return [];
     }
   });
@@ -1066,7 +1075,7 @@ function SelectBranchItemsModal({
     try {
       const saved = localStorage.getItem('import_editable_items');
       return saved ? JSON.parse(saved) : [];
-    } catch (err) {
+    } catch {
       return [];
     }
   });
@@ -1085,24 +1094,29 @@ function SelectBranchItemsModal({
     localStorage.removeItem('import_selected_item_ids');
     localStorage.removeItem('import_editable_items');
     localStorage.removeItem('import_source_branch');
+    localStorage.removeItem('import_modal_step');
   };
 
   const handleModalClose = () => {
     clearLocalStorage();
+    setStep(1);
+    setSelectedSourceBranch('');
+    setSourceItems([]);
+    setSelectedItemIds([]);
+    setEditableItems([]);
     onClose();
   };
 
   useEffect(() => {
     if (!isOpen) {
-      setStep(1);
-      setSelectedSourceBranch('');
-      setSourceItems([]);
-      setSelectedItemIds([]);
-      setEditableItems([]);
       setModalSearchQuery('');
       setModalError(null);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('import_modal_step', String(step));
+  }, [step]);
 
   useEffect(() => {
     if (selectedSourceBranch) {
@@ -1126,13 +1140,13 @@ function SelectBranchItemsModal({
     if (selectedSourceBranch) {
       setLoading(true);
       setModalError(null);
-      setModalSearchQuery('');
       API.get(`items/?branch=${selectedSourceBranch}`)
         .then((res) => {
           const itemsData = Array.isArray(res.data) ? res.data : res.data?.results || [];
           setSourceItems(itemsData);
           
-          if (!localStorage.getItem('import_selected_item_ids')) {
+          const savedSelected = localStorage.getItem('import_selected_item_ids');
+          if (!savedSelected) {
             setSelectedItemIds(itemsData.map((item) => item.id));
           }
         })
@@ -1140,9 +1154,6 @@ function SelectBranchItemsModal({
           setModalError(extractErrorMessage(err, 'Failed to fetch items for source branch.'));
         })
         .finally(() => setLoading(false));
-    } else {
-      setSourceItems([]);
-      setSelectedItemIds([]);
     }
   }, [selectedSourceBranch, extractErrorMessage]);
 
@@ -1153,35 +1164,51 @@ function SelectBranchItemsModal({
   }, [sourceItems, modalSearchQuery]);
 
   const toggleSelectItem = (id) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
-    );
+    setSelectedItemIds((prev) => {
+      const updated = prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id];
+      localStorage.setItem('import_selected_item_ids', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const toggleSelectAll = () => {
     if (selectedItemIds.length === sourceItems.length) {
       setSelectedItemIds([]);
+      localStorage.setItem('import_selected_item_ids', JSON.stringify([]));
     } else {
-      setSelectedItemIds(sourceItems.map((item) => item.id));
+      const allIds = sourceItems.map((item) => item.id);
+      setSelectedItemIds(allIds);
+      localStorage.setItem('import_selected_item_ids', JSON.stringify(allIds));
     }
   };
 
   const handleNextToEditPrices = () => {
     if (selectedItemIds.length === 0) return;
 
-    const selected = sourceItems
-      .filter((item) => selectedItemIds.includes(item.id))
-      .map((item) => ({
-        id: item.id,
-        name: item.name || '',
-        unit_cost_price: Number(item.unit_cost_price || item.cost_price || 0).toFixed(2),
-        unit_retail_price: Number(
-          item.unit_selling_price || item.unit_retail_price || item.retail_price || 0
-        ).toFixed(2),
-        opening_stock: Number(item.remaining_stock ?? item.opening_stock ?? 0),
-      }));
+    setEditableItems((existingEditable) => {
+      const existingMap = new Map(existingEditable.map((item) => [item.id, item]));
 
-    setEditableItems(selected);
+      const merged = sourceItems
+        .filter((item) => selectedItemIds.includes(item.id))
+        .map((item) => {
+          if (existingMap.has(item.id)) {
+            return existingMap.get(item.id);
+          }
+          return {
+            id: item.id,
+            name: item.name || '',
+            unit_cost_price: Number(item.unit_cost_price || item.cost_price || 0).toFixed(2),
+            unit_retail_price: Number(
+              item.unit_selling_price || item.unit_retail_price || item.retail_price || 0
+            ).toFixed(2),
+            opening_stock: Number(item.remaining_stock ?? item.opening_stock ?? 0),
+          };
+        });
+
+      localStorage.setItem('import_editable_items', JSON.stringify(merged));
+      return merged;
+    });
+
     setStep(2);
   };
 
@@ -1189,12 +1216,27 @@ function SelectBranchItemsModal({
     setEditableItems((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
+      localStorage.setItem('import_editable_items', JSON.stringify(updated));
       return updated;
     });
   };
 
   const handleRemoveItemFromImport = (index) => {
-    setEditableItems((prev) => prev.filter((_, i) => i !== index));
+    setEditableItems((prev) => {
+      const removedItem = prev[index];
+      const updated = prev.filter((_, i) => i !== index);
+
+      if (removedItem?.id) {
+        setSelectedItemIds((prevIds) => {
+          const updatedIds = prevIds.filter((id) => id !== removedItem.id);
+          localStorage.setItem('import_selected_item_ids', JSON.stringify(updatedIds));
+          return updatedIds;
+        });
+      }
+
+      localStorage.setItem('import_editable_items', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleFinalSubmit = async () => {
@@ -1222,6 +1264,7 @@ function SelectBranchItemsModal({
       );
 
       clearLocalStorage();
+      setStep(1);
       onImportSuccess();
       onClose();
     } catch (err) {
