@@ -1,14 +1,15 @@
 // src/components/CreditSalesManagement.jsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import API from "../api";
 
 export default function CreditSalesManagement({ selectedBranch, effectiveRange, onTransactionComplete }) {
-  const [sales, setSales] = useState([]);
-  const [repayments, setRepayments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSale, setSelectedSale] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const abortControllerRef = useRef(null);
 
   // Receivables summary fetched directly from backend
   const [receivablesSummary, setReceivablesSummary] = useState({
@@ -32,42 +33,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   const [notes, setNotes] = useState("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
-  // Helper to resolve receipt / invoice number across backend payload variations
-  const getReceiptNumber = (sale) => {
-    if (!sale) return "";
-    return (
-      sale.receipt_number ||
-      sale.invoice_number ||
-      sale.invoice_no ||
-      sale.invoice ||
-      sale.customer_invoice_number ||
-      ""
-    );
-  };
-
-  // Helper to safely resolve customer ID across all possible model structures
-  const getCustomerId = (sale) => {
-    if (!sale) return null;
-
-    if (typeof sale.customer === "object" && sale.customer !== null) {
-      return sale.customer.id || sale.customer.pk || null;
-    }
-
-    const candidateId =
-      sale.customer ||
-      sale.customer_id ||
-      sale.client ||
-      sale.client_id;
-
-    if (candidateId !== undefined && candidateId !== null && candidateId !== "") {
-      const parsed = Number(candidateId);
-      return !isNaN(parsed) ? parsed : null;
-    }
-
-    return null;
-  };
-
-  // Fetch Cumulative Receivables Report Metrics directly from backend endpoint
+  // Fetch Receivables Report Metrics
   const fetchReceivablesSummary = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -76,7 +42,6 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         params.append("branch", selectedBranch);
       }
 
-      // Fetch live customer receivables analytics
       const response = await API.get(`management-analytics/customer-receivables/?${params.toString()}`);
       if (response?.data) {
         setReceivablesSummary({
@@ -92,110 +57,57 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     }
   }, [selectedBranch]);
 
-  // Fetch Credit Sales Records
-  const fetchCreditSales = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.append("payment_method", "CREDIT");
-
-      if (selectedBranch) {
-        params.append("branch", selectedBranch);
-      }
-
-      if (effectiveRange?.effectiveStartDate) {
-        params.append("startDate", effectiveRange.effectiveStartDate);
-      }
-      if (effectiveRange?.effectiveEndDate) {
-        params.append("endDate", effectiveRange.effectiveEndDate);
-      }
-
-      const response = await API.get(`sales/?${params.toString()}`);
-      
-      const data = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.data?.results)
-        ? response.data.results
-        : [];
-
-      setSales(data);
-    } catch (error) {
-      console.error("Error fetching credit sales:", error);
-      setSales([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedBranch, effectiveRange]);
-
-  // Fetch Credit Repayments Log
-  const fetchCreditRepayments = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (selectedBranch) {
-        params.append("branch", selectedBranch);
-      }
-
-      if (effectiveRange?.effectiveStartDate) {
-        params.append("startDate", effectiveRange.effectiveStartDate);
-        params.append("date", effectiveRange.effectiveStartDate);
-      }
-      if (effectiveRange?.effectiveEndDate) {
-        params.append("endDate", effectiveRange.effectiveEndDate);
-      }
-
-      const endpoint = `credit-repayments/?${params.toString()}`;
-      const response = await API.get(endpoint);
-      
-      const data = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.data?.results)
-        ? response.data.results
-        : [];
-
-      setRepayments(data);
-    } catch (error) {
-      console.error("Error fetching credit repayments:", error);
-      setRepayments([]);
-    }
-  }, [selectedBranch, effectiveRange]);
-
   useEffect(() => {
-    fetchCreditSales();
-    fetchCreditRepayments();
     fetchReceivablesSummary();
-  }, [fetchCreditSales, fetchCreditRepayments, fetchReceivablesSummary]);
+  }, [fetchReceivablesSummary]);
 
-  // Strict Search Filter Logic for search table
-  const filteredSales = useMemo(() => {
-    if (!Array.isArray(sales)) return [];
-    const rawTerm = searchTerm.trim().toLowerCase();
+  // Debounced backend search lookup
+  useEffect(() => {
+    const rawTerm = searchTerm.trim();
 
-    if (!rawTerm || rawTerm.length < 2) return [];
+    if (!rawTerm || rawTerm.length < 1) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
 
-    const cleanTerm = rawTerm.replace(/^(inv|invoice|receipt|rcpt|txn|#)\s*[-_:]?\s*/i, "").trim();
+    setIsSearching(true);
 
-    return sales.filter((sale) => {
-      const balance = Number(sale.balance_due ?? sale.due_balance ?? 0);
-      const isPaid = sale.payment_status === "PAID" || balance <= 0;
-      if (isPaid) return false;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
-      const receiptNum = String(getReceiptNumber(sale)).toLowerCase().trim();
-      const cleanReceipt = receiptNum.replace(/^(inv|invoice|receipt|rcpt)\s*[-_:]?\s*/i, "").trim();
-      const customer = String(sale.customer_name || "").toLowerCase().trim();
-      const saleId = String(sale.id || "").toLowerCase().trim();
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append("q", rawTerm);
+        if (selectedBranch) {
+          params.append("branch", selectedBranch);
+        }
 
-      const isExactReceipt = receiptNum === rawTerm || cleanReceipt === cleanTerm;
-      const isSuffixReceipt = receiptNum.endsWith(cleanTerm) || cleanReceipt.endsWith(cleanTerm);
-      const isCustomerMatch = rawTerm.length >= 3 && customer.startsWith(rawTerm);
-      const isSaleIdMatch = saleId === rawTerm || `#txn-${saleId}` === rawTerm || `txn-${saleId}` === rawTerm;
+        const response = await API.get(`credit-repayments/lookup/?${params.toString()}`, {
+          signal: abortControllerRef.current.signal,
+        });
 
-      return isExactReceipt || isSuffixReceipt || isCustomerMatch || isSaleIdMatch;
-    });
-  }, [sales, searchTerm]);
+        const data = Array.isArray(response?.data) ? response.data : [];
+        setSearchResults(data);
+      } catch (error) {
+        if (error.name !== "CanceledError" && error.name !== "AbortError") {
+          console.error("Error looking up invoice:", error);
+          setSearchResults([]);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, selectedBranch]);
 
   const handleOpenPaymentModal = (sale) => {
-    const dueAmount = sale.balance_due ?? sale.due_balance ?? sale.total_amount ?? "";
-    const activeReceiptNo = getReceiptNumber(sale);
+    const dueAmount = sale.balance_due ?? sale.total_amount ?? "";
+    const activeReceiptNo = sale.invoice_number || sale.receipt_number || "";
     setSelectedSale(sale);
     setPaymentAmount(dueAmount);
     setRepaymentDate(new Date().toISOString().split("T")[0]);
@@ -219,7 +131,6 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     }
   };
 
-  // Auto-sync sum of split breakdown inputs back to the main repaymentAmount field
   const handleSplitChange = (field, val) => {
     const numVal = parseFloat(val) || 0;
     setSplitBreakdown((prev) => {
@@ -243,19 +154,18 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     if (paymentMethod === "SPLIT") {
       const splitSum = splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money;
       if (Math.abs(splitSum - parsedAmount) > 0.01) {
-        alert(`Split allocations (KSh ${splitSum.toLocaleString()}) must equal the total repayment amount (KSh ${parsedAmount.toLocaleString()}).`);
+        alert(`Split allocations (KSh ${splitSum.toLocaleString()}) must equal total repayment amount (KSh ${parsedAmount.toLocaleString()}).`);
         return;
       }
     }
 
     setSubmittingPayment(true);
     try {
-      const activeReceiptNo = receiptNumberInput || getReceiptNumber(selectedSale);
-      const customerPk = getCustomerId(selectedSale);
+      const activeReceiptNo = receiptNumberInput || selectedSale.invoice_number || selectedSale.receipt_number;
 
       const payload = {
-        customer: customerPk,
-        customer_id: customerPk,
+        customer: selectedSale.customer_id,
+        customer_id: selectedSale.customer_id,
         transaction: selectedSale.id,
         sale_transaction: selectedSale.id,
         sale: selectedSale.id,
@@ -281,8 +191,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
 
       setIsPaymentModalOpen(false);
       setSelectedSale(null);
-      fetchCreditSales();
-      fetchCreditRepayments();
+      setSearchTerm("");
       fetchReceivablesSummary();
       
       if (typeof onTransactionComplete === 'function') {
@@ -290,122 +199,137 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       }
     } catch (error) {
       console.error("Error recording credit repayment:", error);
-      
-      const errData = error.response?.data;
-      let errorMsg = "Failed to record repayment. Please try again.";
-
-      if (typeof errData === "string") {
-        errorMsg = errData.includes("<!doctype html>") ? "Server processing error (500). Please check backend logs." : errData;
-      } else if (errData?.error) {
-        errorMsg = errData.error;
-      } else if (errData?.detail) {
-        errorMsg = errData.detail;
-      } else if (typeof errData === "object" && errData !== null) {
-        const firstKey = Object.keys(errData)[0];
-        const val = errData[firstKey];
-        if (Array.isArray(val)) {
-          errorMsg = `${firstKey}: ${val[0]}`;
-        } else if (typeof val === "string") {
-          errorMsg = `${firstKey}: ${val}`;
-        }
-      }
-
-      alert(errorMsg);
+      alert(error.response?.data?.error || "Failed to record repayment. Please try again.");
     } finally {
       setSubmittingPayment(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Title Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Customer Receipts & Repayments</h1>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">Search an invoice number or receipt to process credit account repayments.</p>
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-teal-50 border border-teal-200/60 text-teal-700">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </span>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Customer Receipts & Repayments</h1>
+          </div>
+          <p className="text-xs font-medium text-slate-500 mt-1 ml-10">Search credit sales invoices, track debtor balances, and process collections.</p>
         </div>
 
         <button
           type="button"
-          onClick={() => {
-            fetchCreditSales();
-            fetchCreditRepayments();
-            fetchReceivablesSummary();
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 transition-all cursor-pointer shadow-2xs w-fit"
+          onClick={() => fetchReceivablesSummary()}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200/90 shadow-2xs transition-all cursor-pointer active:scale-98"
         >
-          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.64 9A7 7 0 0117.9 6.1L20 9M4 15l2.1 2.9A7 7 0 0018.36 15" />
+          <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h5M20 20v-5h-5M5.64 9A7 7 0 0117.9 6.1L20 9M4 15l2.1 2.9A7 7 0 0018.36 15" />
           </svg>
           Refresh Data
         </button>
       </div>
 
-      {/* Overview KPI Summary Cards (Uses Backend Summary API directly) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs relative">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Credit Value</span>
-            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+      {/* KPI Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Total Credit Issued */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-slate-300 transition-all">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-slate-300 group-hover:bg-slate-400 transition-colors"></div>
+          <div className="flex justify-between items-start">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Total Credit Issued</span>
+            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-extrabold font-mono">
+              {receivablesSummary.active_debtors_count} Debtors
+            </span>
           </div>
-          <div className="text-2xl font-black font-mono text-slate-900 mt-2">
+          <div className="text-2xl font-black font-mono text-slate-900 mt-3 tracking-tight">
             KSh {receivablesSummary.total_credit_issued.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] font-semibold text-slate-500 mt-1 block">
-            {receivablesSummary.active_debtors_count} Active Debtor Accounts ({receivablesSummary.total_unpaid_invoices} Invoices)
-          </span>
+          <p className="text-[11px] font-semibold text-slate-500 mt-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            {receivablesSummary.total_unpaid_invoices} Active credit invoices
+          </p>
         </div>
 
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs relative">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-500">Outstanding Balance</span>
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+        {/* Outstanding Balance */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-rose-200 transition-all">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>
+          <div className="flex justify-between items-start">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500">Outstanding Balance</span>
+            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[10px] font-extrabold font-mono border border-rose-100 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+              Pending
+            </span>
           </div>
-          <div className="text-2xl font-black font-mono text-rose-600 mt-2">
+          <div className="text-2xl font-black font-mono text-rose-600 mt-3 tracking-tight">
             KSh {receivablesSummary.total_receivables.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] font-semibold text-rose-500/80 mt-1 block">Pending Collection</span>
+          <p className="text-[11px] font-semibold text-rose-500/90 mt-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            Awaiting collection
+          </p>
         </div>
 
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs relative">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-600">Total Recovered</span>
-            <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+        {/* Total Recovered */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-teal-200 transition-all">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-teal-500"></div>
+          <div className="flex justify-between items-start">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-600">Total Recovered</span>
+            <span className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[10px] font-extrabold font-mono border border-teal-100">
+              Recovered
+            </span>
           </div>
-          <div className="text-2xl font-black font-mono text-teal-700 mt-2">
+          <div className="text-2xl font-black font-mono text-teal-700 mt-3 tracking-tight">
             KSh {receivablesSummary.total_recovered.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] font-semibold text-teal-600/80 mt-1 block">Repaid Amount</span>
+          <p className="text-[11px] font-semibold text-teal-600/90 mt-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+            Cleared debt payments
+          </p>
         </div>
       </div>
 
-      {/* Invoice Search Bar */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 no-print">
-        <div className="flex items-center justify-between">
-          <label className="block text-xs font-black text-teal-950 uppercase tracking-wider">
-            SEARCH INVOICE / RECEIPT NUMBER
+      {/* Invoice Search Bar Section */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <span>Search Invoice / Receipt Number</span>
           </label>
-          <span className="text-[10px] font-mono text-slate-400 font-bold">
-            e.g. "INV 1_2", "1_2", or Customer Name
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-slate-400">Quick test:</span>
+            {["2_42", "2_234", "Sukawa"].map((sample) => (
+              <button
+                key={sample}
+                type="button"
+                onClick={() => setSearchTerm(sample)}
+                className="text-[10px] font-mono font-bold bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md transition-all cursor-pointer"
+              >
+                {sample}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="relative w-full">
-          <svg className="absolute left-3.5 top-3 h-4 w-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
           <input
             type="text"
-            placeholder="Type exact or ending invoice # (e.g. 1_2)..."
+            placeholder="Type receipt code or customer name (e.g. 2_42 or Walk-in)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-20 py-2.5 w-full text-xs font-mono font-bold bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 placeholder-slate-400 transition-all"
+            className="pl-10 pr-24 py-3 w-full text-xs font-mono font-bold bg-slate-50/80 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:border-teal-600 focus:bg-white focus:ring-3 focus:ring-teal-500/15 placeholder-slate-400 transition-all"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-2 px-2 py-0.5 text-[10px] font-black bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-md transition-colors"
+              className="absolute right-3 top-2.5 px-2.5 py-1 text-[10px] font-extrabold bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               CLEAR
             </button>
@@ -413,97 +337,100 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         </div>
       </div>
 
-      {/* Clean Repayments Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden no-print">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex justify-between items-center">
-          <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-            Invoice Repayment Lookup
-          </h2>
-          {searchTerm.trim().length >= 2 && (
+      {/* Lookup Results Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+        <div className="p-4 border-b border-slate-200/80 bg-slate-50/60 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+              Invoice Repayment Lookup
+            </h2>
+            {isSearching && (
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-full animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                Searching...
+              </span>
+            )}
+          </div>
+
+          {searchResults.length > 0 && !isSearching && (
             <span className="text-xs font-mono font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-lg">
-              Found {filteredSales.length} match(es)
+              Found {searchResults.length} match(es)
             </span>
           )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[500px]">
+          <table className="w-full text-left border-collapse min-w-[550px]">
             <thead>
-              <tr className="bg-slate-100/70 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <tr className="bg-slate-100/60 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
                 <th className="p-4">Invoice / Receipt No.</th>
                 <th className="p-4">Customer</th>
+                <th className="p-4">Original Value</th>
                 <th className="p-4">Balance Due</th>
                 <th className="p-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-800 font-medium">
-              {loading ? (
+              {isSearching ? (
                 <tr>
-                  <td colSpan="4" className="p-10 text-center text-slate-500">
+                  <td colSpan="5" className="p-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <svg className="w-6 h-6 animate-spin text-teal-600" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
-                      <span className="text-xs font-bold text-slate-600">Searching invoice records...</span>
+                      <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs font-bold text-slate-600 mt-1">Searching invoice records...</span>
                     </div>
                   </td>
                 </tr>
               ) : !searchTerm.trim() ? (
                 <tr>
-                  <td colSpan="4" className="p-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-600 text-xl font-bold">
-                        🔍
+                  <td colSpan="5" className="p-14 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-lg">
+                        🔎
                       </div>
-                      <span className="font-extrabold text-slate-800 text-sm">Type an Invoice or Receipt Number to search</span>
-                      <span className="text-xs text-slate-400 max-w-sm">
-                        Enter the specific receipt code (e.g. <code className="font-mono bg-slate-100 text-teal-800 px-1 py-0.5 rounded">1_2</code>) in the search bar above to process repayments.
-                      </span>
+                      <span className="font-extrabold text-slate-800 text-sm">Enter an Invoice Number</span>
+                      <p className="text-xs text-slate-400">
+                        Type an exact code like <code className="font-mono bg-slate-100 text-slate-800 px-1 py-0.5 rounded">2_42</code> in the search field above to search for outstanding balances.
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ) : searchTerm.trim().length < 2 ? (
+              ) : searchResults.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-slate-500 font-semibold">
-                    Please enter at least 2 characters to search.
-                  </td>
-                </tr>
-              ) : filteredSales.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="p-10 text-center text-slate-500">
+                  <td colSpan="5" className="p-12 text-center">
                     <div className="space-y-1">
-                      <p className="font-extrabold text-slate-700">No matching unpaid invoice found for "{searchTerm}"</p>
-                      <p className="text-xs text-slate-400">Please verify the invoice number and try again.</p>
+                      <p className="font-extrabold text-slate-800">No matching open invoice found for "{searchTerm}"</p>
+                      <p className="text-xs text-slate-400">Verify the receipt number or ensure the credit sale has an unpaid balance.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((sale) => {
-                  const receiptNo = getReceiptNumber(sale);
-                  return (
-                    <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-mono font-black text-teal-800 text-sm">
-                        {receiptNo || `TXN-#${sale.id}`}
-                      </td>
-                      <td className="p-4 font-bold text-slate-800 text-xs">
-                        {sale.customer_name || "Walk-in Customer"}
-                      </td>
-                      <td className="p-4 font-black font-mono text-rose-600 text-sm">
-                        KSh {Number(sale.balance_due ?? sale.due_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="p-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenPaymentModal(sale)}
-                          className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-2xs transition-all cursor-pointer"
-                        >
-                          Record Repayment
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                searchResults.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="p-4 font-mono font-black text-teal-800 text-sm">
+                      <span className="bg-teal-50 group-hover:bg-teal-100/80 px-2 py-1 rounded-lg border border-teal-200/60 transition-colors">
+                        {sale.invoice_number || `INV-${sale.id}`}
+                      </span>
+                    </td>
+                    <td className="p-4 font-bold text-slate-800 text-xs">
+                      {sale.customer_name || "Walk-in Customer"}
+                    </td>
+                    <td className="p-4 font-mono font-semibold text-slate-500 text-xs">
+                      KSh {Number(sale.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4 font-black font-mono text-rose-600 text-sm">
+                      KSh {Number(sale.balance_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPaymentModal(sale)}
+                        className="px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 active:bg-teal-800 rounded-xl shadow-2xs transition-all cursor-pointer"
+                      >
+                        Record Repayment
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -512,59 +439,40 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
 
       {/* Record Repayment Modal */}
       {isPaymentModalOpen && selectedSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 no-print">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h2 className="text-base font-extrabold text-slate-900">Record Credit Repayment</h2>
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900">Record Credit Repayment</h2>
+                <p className="text-[11px] font-medium text-slate-400">Process debt collection for invoice</p>
+              </div>
               <button 
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)} 
-                className="text-slate-400 hover:text-slate-600 transition-colors font-bold text-sm"
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-4 text-xs">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-sans">Receipt / Invoice:</span>
-                  <span className="font-bold text-teal-800">
-                    {getReceiptNumber(selectedSale) || "N/A"}
+              <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2 font-mono">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-sans text-[11px]">Invoice / Receipt:</span>
+                  <span className="font-bold text-teal-800 text-xs bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60">
+                    {selectedSale.invoice_number || "N/A"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-sans">Customer:</span>
-                  <span className="font-bold text-slate-800">{selectedSale.customer_name || "Walk-in Customer"}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-sans text-[11px]">Customer:</span>
+                  <span className="font-bold text-slate-800 text-xs">{selectedSale.customer_name || "Walk-in Customer"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-sans">Outstanding Balance:</span>
-                  <span className="font-extrabold text-rose-600">
-                    KSh {Number(selectedSale.balance_due ?? selectedSale.due_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-sans text-[11px]">Outstanding Balance:</span>
+                  <span className="font-extrabold text-rose-600 text-sm">
+                    KSh {Number(selectedSale.balance_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Receipt / Invoice Number</label>
-                <input
-                  type="text"
-                  value={receiptNumberInput}
-                  onChange={(e) => setReceiptNumberInput(e.target.value)}
-                  placeholder="Enter receipt number..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Repayment Date</label>
-                <input
-                  type="date"
-                  value={repaymentDate}
-                  onChange={(e) => setRepaymentDate(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
-                />
               </div>
 
               <div>
@@ -573,17 +481,10 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                   type="number"
                   step="0.01"
                   value={paymentAmount}
-                  onChange={(e) => {
-                    const newAmount = e.target.value;
-                    setPaymentAmount(newAmount);
-                    if (paymentMethod === "SPLIT") {
-                      const numericVal = parseFloat(newAmount) || 0;
-                      setSplitBreakdown({ cash: numericVal, paybill: 0, send_money: 0 });
-                    }
-                  }}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="Enter amount..."
                   required
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold rounded-xl p-2.5 text-xs outline-none focus:border-teal-600 focus:bg-white transition-all"
                 />
               </div>
 
@@ -592,7 +493,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 <select
                   value={paymentMethod}
                   onChange={(e) => handleMethodChange(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 text-xs outline-none cursor-pointer focus:border-teal-600 focus:bg-white transition-all"
                 >
                   <option value="CASH">Cash</option>
                   <option value="PAYBILL">Paybill</option>
@@ -601,85 +502,18 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </select>
               </div>
 
-              {/* Conditional Split Payment Breakdown */}
-              {paymentMethod === "SPLIT" && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
-                  <div className="flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-200 pb-1.5">
-                    <span className="font-bold uppercase tracking-wider text-[9px]">Split Allocation</span>
-                    <span className="font-mono text-teal-800 font-bold">
-                      Allocated: KSh {(splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money).toLocaleString()} / {Number(paymentAmount || 0).toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Cash</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={splitBreakdown.cash}
-                        onChange={(e) => handleSplitChange("cash", e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Paybill</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={splitBreakdown.paybill}
-                        onChange={(e) => handleSplitChange("paybill", e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Send Money</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={splitBreakdown.send_money}
-                        onChange={(e) => handleSplitChange("send_money", e.target.value)}
-                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Reference Number / Txn Code (Optional)</label>
-                <input
-                  type="text"
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  placeholder="e.g. M-Pesa Code"
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes (Optional)</label>
-                <textarea
-                  rows="2"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Additional payment notes..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none resize-none"
-                />
-              </div>
-
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsPaymentModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPayment}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold hover:bg-teal-700 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold hover:bg-teal-700 disabled:opacity-50 transition-colors cursor-pointer shadow-2xs"
                 >
                   {submittingPayment ? "Recording..." : "Record Repayment"}
                 </button>
