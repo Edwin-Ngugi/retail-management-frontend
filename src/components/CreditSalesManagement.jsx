@@ -65,7 +65,10 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   useEffect(() => {
     const rawTerm = searchTerm.trim();
 
-    if (!rawTerm || rawTerm.length < 1) {
+    // Require at least 3 characters UNLESS query contains a separator like '_' or '-' or 'INV'
+    const isSpecificQuery = rawTerm.length >= 3 || rawTerm.includes("_") || rawTerm.includes("-") || rawTerm.includes(" ");
+
+    if (!rawTerm || !isSpecificQuery) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -100,7 +103,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       } finally {
         setIsSearching(false);
       }
-    }, 250);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchTerm, selectedBranch]);
@@ -299,7 +302,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </label>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-slate-400">Quick test:</span>
-            {["2_42", "2_234", "Sukawa"].map((sample) => (
+            {["2_42", "2_34", "KYALU"].map((sample) => (
               <button
                 key={sample}
                 type="button"
@@ -320,7 +323,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </div>
           <input
             type="text"
-            placeholder="Type receipt code or customer name (e.g. 2_42 or Walk-in)..."
+            placeholder="Type exact receipt code (e.g. 2_34 or KYALU)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-24 py-3 w-full text-xs font-mono font-bold bg-slate-50/80 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:border-teal-600 focus:bg-white focus:ring-3 focus:ring-teal-500/15 placeholder-slate-400 transition-all"
@@ -389,9 +392,15 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                       </div>
                       <span className="font-extrabold text-slate-800 text-sm">Enter an Invoice Number</span>
                       <p className="text-xs text-slate-400">
-                        Type an exact code like <code className="font-mono bg-slate-100 text-slate-800 px-1 py-0.5 rounded">2_42</code> in the search field above to search for outstanding balances.
+                        Type an exact code like <code className="font-mono bg-slate-100 text-slate-800 px-1 py-0.5 rounded">2_34</code> in the search field above to search for outstanding balances.
                       </p>
                     </div>
+                  </td>
+                </tr>
+              ) : (searchTerm.trim().length < 3 && !searchTerm.includes("_") && !searchTerm.includes("-")) ? (
+                <tr>
+                  <td colSpan="5" className="p-8 text-center text-slate-400 font-medium">
+                    Please enter at least 3 characters or an exact invoice number (e.g., <code className="font-mono text-teal-700 bg-teal-50 px-1 py-0.5 rounded">2_34</code>).
                   </td>
                 </tr>
               ) : searchResults.length === 0 ? (
@@ -440,7 +449,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       {/* Record Repayment Modal */}
       {isPaymentModalOpen && selectedSale && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">Record Credit Repayment</h2>
@@ -456,6 +465,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-4 text-xs">
+              {/* Invoice Summary Box */}
               <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2 font-mono">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-sans text-[11px]">Invoice / Receipt:</span>
@@ -475,6 +485,19 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </div>
               </div>
 
+              {/* Repayment Date Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Repayment Date</label>
+                <input
+                  type="date"
+                  value={repaymentDate}
+                  onChange={(e) => setRepaymentDate(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 text-xs outline-none focus:border-teal-600 focus:bg-white transition-all cursor-pointer"
+                />
+              </div>
+
+              {/* Repayment Amount */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Repayment Amount (KSh)</label>
                 <input
@@ -488,6 +511,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 />
               </div>
 
+              {/* Payment Method Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
                 <select
@@ -502,6 +526,81 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 </select>
               </div>
 
+              {/* Reference Number / Transaction Code (Required for Paybill / Send Money) */}
+              {(paymentMethod === "PAYBILL" || paymentMethod === "SEND_MONEY") && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {paymentMethod === "PAYBILL" ? "Paybill Reference Code" : "M-Pesa Transaction Code"}
+                  </label>
+                  <input
+                    type="text"
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    placeholder="e.g. QX782910AK"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold rounded-xl p-2.5 text-xs outline-none focus:border-teal-600 focus:bg-white transition-all uppercase"
+                  />
+                </div>
+              )}
+
+              {/* Split Payment Allocation Fields */}
+              {paymentMethod === "SPLIT" && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-200 pb-1.5">
+                    <span className="font-bold uppercase tracking-wider text-[9px]">Split Breakdown</span>
+                    <span className="font-mono text-teal-800 font-bold">
+                      Allocated: KSh {(splitBreakdown.cash + splitBreakdown.paybill + splitBreakdown.send_money).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Cash</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={splitBreakdown.cash}
+                        onChange={(e) => handleSplitChange("cash", e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Paybill</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={splitBreakdown.paybill}
+                        onChange={(e) => handleSplitChange("paybill", e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Send Money</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={splitBreakdown.send_money}
+                        onChange={(e) => handleSplitChange("send_money", e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-slate-900 font-mono font-semibold rounded-lg p-2 text-xs outline-none focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Notes / Remarks (Optional)</label>
+                <textarea
+                  rows="2"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Optional payment notes..."
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 text-xs outline-none focus:border-teal-600 focus:bg-white transition-all resize-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
