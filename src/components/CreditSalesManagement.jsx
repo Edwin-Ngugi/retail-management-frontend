@@ -45,6 +45,12 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         params.append("branch_id", selectedBranch);
         params.append("branch", selectedBranch);
       }
+      if (effectiveRange?.start_date) {
+        params.append("start_date", effectiveRange.start_date);
+      }
+      if (effectiveRange?.end_date) {
+        params.append("end_date", effectiveRange.end_date);
+      }
 
       const response = await API.get(`management-analytics/customer-receivables/?${params.toString()}`);
       if (response?.data) {
@@ -59,7 +65,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     } catch (error) {
       console.error("Error fetching receivables summary:", error);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, effectiveRange]);
 
   useEffect(() => {
     fetchReceivablesSummary();
