@@ -1,6 +1,78 @@
 // src/components/CreditSalesManagement.jsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import API from "../api";
+
+const formatLocalDate = (dateObj) => {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const computePeriodBounds = (periodKey, customStart, customEnd) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  switch (periodKey) {
+    case "this_month": {
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0);
+      return {
+        start_date: formatLocalDate(start),
+        end_date: formatLocalDate(end),
+        label: start.toLocaleDateString(undefined, { month: "short", year: "numeric" }),
+      };
+    }
+    case "last_month": {
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0);
+      return {
+        start_date: formatLocalDate(start),
+        end_date: formatLocalDate(end),
+        label: start.toLocaleDateString(undefined, { month: "short", year: "numeric" }),
+      };
+    }
+    case "this_quarter": {
+      const qStartMonth = Math.floor(month / 3) * 3;
+      const start = new Date(year, qStartMonth, 1);
+      const end = new Date(year, qStartMonth + 3, 0);
+      return {
+        start_date: formatLocalDate(start),
+        end_date: formatLocalDate(end),
+        label: `Q${Math.floor(month / 3) + 1} ${year}`,
+      };
+    }
+    case "this_year": {
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31);
+      return {
+        start_date: formatLocalDate(start),
+        end_date: formatLocalDate(end),
+        label: `${year}`,
+      };
+    }
+    case "all_time": {
+      return {
+        start_date: "2000-01-01",
+        end_date: formatLocalDate(now),
+        label: "All Time",
+      };
+    }
+    case "custom": {
+      if (customStart && customEnd) {
+        return {
+          start_date: customStart,
+          end_date: customEnd,
+          label: `${customStart} → ${customEnd}`,
+        };
+      }
+      return { start_date: "", end_date: "", label: "Custom" };
+    }
+    default:
+      return { start_date: "", end_date: "", label: "Active Period" };
+  }
+};
 
 export default function CreditSalesManagement({ selectedBranch, effectiveRange, onTransactionComplete }) {
   const [searchResults, setSearchResults] = useState([]);
@@ -8,6 +80,14 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSale, setSelectedSale] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  // Period selector state
+  const [periodOption, setPeriodOption] = useState("this_month");
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    return formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => formatLocalDate(new Date()));
 
   const abortControllerRef = useRef(null);
 
@@ -18,6 +98,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
     total_recovered: 0,
     active_debtors_count: 0,
     total_unpaid_invoices: 0,
+    period_label: "",
   });
 
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -37,19 +118,34 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
   const [notes, setNotes] = useState("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
 
+  const activeRange = useMemo(() => {
+    if (periodOption === "global" && effectiveRange?.start_date && effectiveRange?.end_date) {
+      return {
+        start_date: effectiveRange.start_date,
+        end_date: effectiveRange.end_date,
+        label: `${effectiveRange.start_date} → ${effectiveRange.end_date}`,
+      };
+    }
+    return computePeriodBounds(periodOption, customStartDate, customEndDate);
+  }, [periodOption, customStartDate, customEndDate, effectiveRange]);
+
   // Fetch Receivables Report Metrics
   const fetchReceivablesSummary = useCallback(async () => {
+    if (periodOption === "custom" && (!activeRange.start_date || !activeRange.end_date)) {
+      return;
+    }
+
     try {
       const params = new URLSearchParams();
       if (selectedBranch) {
         params.append("branch_id", selectedBranch);
         params.append("branch", selectedBranch);
       }
-      if (effectiveRange?.start_date) {
-        params.append("start_date", effectiveRange.start_date);
+      if (activeRange.start_date) {
+        params.append("start_date", activeRange.start_date);
       }
-      if (effectiveRange?.end_date) {
-        params.append("end_date", effectiveRange.end_date);
+      if (activeRange.end_date) {
+        params.append("end_date", activeRange.end_date);
       }
 
       const response = await API.get(`management-analytics/customer-receivables/?${params.toString()}`);
@@ -60,12 +156,13 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           total_recovered: Number(response.data.total_recovered || 0),
           active_debtors_count: Number(response.data.active_debtors_count || 0),
           total_unpaid_invoices: Number(response.data.total_unpaid_invoices || 0),
+          period_label: response.data.period_label || activeRange.label,
         });
       }
     } catch (error) {
       console.error("Error fetching receivables summary:", error);
     }
-  }, [selectedBranch, effectiveRange]);
+  }, [selectedBranch, activeRange, periodOption]);
 
   useEffect(() => {
     fetchReceivablesSummary();
@@ -231,8 +328,8 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
       setSelectedSale(null);
       setSearchTerm("");
       fetchReceivablesSummary();
-      
-      if (typeof onTransactionComplete === 'function') {
+
+      if (typeof onTransactionComplete === "function") {
         onTransactionComplete();
       }
     } catch (error) {
@@ -245,8 +342,8 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+      {/* Page Header & Period Controls */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
           <div className="flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-teal-50 border border-teal-200/60 text-teal-700">
@@ -256,19 +353,66 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
             </span>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Customer Receipts & Repayments</h1>
           </div>
-          <p className="text-xs font-medium text-slate-500 mt-1 ml-10">Search credit sales invoices, track debtor balances, and process collections.</p>
+          <p className="text-xs font-medium text-slate-500 mt-1 ml-10">
+            Search credit sales invoices, track debtor balances, and process collections.
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => fetchReceivablesSummary()}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200/90 shadow-2xs transition-all cursor-pointer active:scale-98"
-        >
-          <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h5M20 20v-5h-5M5.64 9A7 7 0 0117.9 6.1L20 9M4 15l2.1 2.9A7 7 0 0018.36 15" />
-          </svg>
-          Refresh Data
-        </button>
+        {/* Period Filter Bar + Refresh */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+            {[
+              { id: "this_month", label: "This Month" },
+              { id: "last_month", label: "Last Month" },
+              { id: "this_quarter", label: "Quarter" },
+              { id: "this_year", label: "Year" },
+              { id: "all_time", label: "All Time" },
+              { id: "custom", label: "Custom" },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setPeriodOption(opt.id)}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  periodOption === opt.id
+                    ? "bg-white text-teal-800 shadow-2xs border border-slate-200/80"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {periodOption === "custom" && (
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="text-[11px] font-mono font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+              />
+              <span className="text-slate-400 text-xs">→</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="text-[11px] font-mono font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+              />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => fetchReceivablesSummary()}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200/90 shadow-2xs transition-all cursor-pointer active:scale-98"
+          >
+            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h5M20 20v-5h-5M5.64 9A7 7 0 0117.9 6.1L20 9M4 15l2.1 2.9A7 7 0 0018.36 15" />
+            </svg>
+            Refresh Data
+          </button>
+        </div>
       </div>
 
       {/* KPI Stat Cards */}
@@ -276,8 +420,15 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         {/* Total Credit Issued */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-slate-300 transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-slate-300 group-hover:bg-slate-400 transition-colors"></div>
-          <div className="flex justify-between items-start">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Total Credit Issued</span>
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                Total Credit Issued
+              </span>
+              <span className="text-[10px] font-bold text-teal-700 font-mono">
+                {activeRange.label}
+              </span>
+            </div>
             <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-extrabold font-mono">
               {receivablesSummary.active_debtors_count} Debtors
             </span>
@@ -287,7 +438,7 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
           </div>
           <p className="text-[11px] font-semibold text-slate-500 mt-2 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-            {receivablesSummary.total_unpaid_invoices} Active credit invoices
+            {receivablesSummary.total_unpaid_invoices} Credit invoices in period
           </p>
         </div>
 
@@ -295,7 +446,14 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-rose-200 transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>
           <div className="flex justify-between items-start">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500">Outstanding Balance</span>
+            <div>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500 block">
+                Outstanding Balance
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 font-mono">
+                Cumulative Unpaid
+              </span>
+            </div>
             <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[10px] font-extrabold font-mono border border-rose-100 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
               Pending
@@ -314,7 +472,14 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden group hover:border-teal-200 transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-teal-500"></div>
           <div className="flex justify-between items-start">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-600">Total Recovered</span>
+            <div>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-teal-600 block">
+                Total Recovered
+              </span>
+              <span className="text-[10px] font-bold text-teal-700 font-mono">
+                {activeRange.label}
+              </span>
+            </div>
             <span className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[10px] font-extrabold font-mono border border-teal-100">
               Recovered
             </span>
@@ -490,9 +655,9 @@ export default function CreditSalesManagement({ selectedBranch, effectiveRange, 
                 <h2 className="text-base font-extrabold text-slate-900">Record Credit Repayment</h2>
                 <p className="text-[11px] font-medium text-slate-400">Process debt collection for invoice</p>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => setIsPaymentModalOpen(false)} 
+                onClick={() => setIsPaymentModalOpen(false)}
                 className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
