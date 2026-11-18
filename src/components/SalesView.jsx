@@ -147,6 +147,12 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
     );
   }, [rawPaymentBreakdown]);
 
+  const repaymentBreakdown = useMemo(() => {
+    return (detailedReport?.repayment_breakdown || []).filter((pm) => Number(pm.amount || 0) > 0);
+  }, [detailedReport]);
+
+  const periodComparison = detailedReport?.period_comparison || null;
+
   const fastMovers = useMemo(() => {
     return (
       detailedReport?.fast_movers ||
@@ -311,43 +317,75 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
         <div id="executive-sales-report-area" className="space-y-6">
           
           {/* PRIMARY FINANCIAL METRICS */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
-                Gross Revenue
-              </span>
-              <span className="text-2xl font-black font-mono text-slate-900 block">
-                {fmtCurr(summary.gross_revenue)}
-              </span>
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Gross Sales Before Discounts</span>
+              <span className="text-xl font-black font-mono text-slate-900 block">{fmtCurr(summary.gross_revenue)}</span>
+              <span className="text-[10px] text-slate-400">Value at listed selling prices</span>
             </div>
-
+            <div className="bg-white border border-rose-200 p-5 rounded-2xl shadow-xs space-y-1">
+              <span className="text-[10px] font-extrabold text-rose-600 uppercase tracking-wider block">Discounts Given</span>
+              <span className="text-xl font-black font-mono text-rose-700 block">{fmtCurr(summary.total_discounts)}</span>
+              <span className="text-[10px] text-slate-400">{Number(summary.discount_rate_percent || 0).toFixed(2)}% of gross sales</span>
+            </div>
             <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-1">
-              <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider block">
-                Cost of Goods Sold (COGS)
-              </span>
-              <span className="text-2xl font-black font-mono text-amber-700 block">
-                {fmtCurr(summary.total_cogs)}
-              </span>
+              <span className="text-[10px] font-extrabold text-teal-700 uppercase tracking-wider block">Net Sales</span>
+              <span className="text-xl font-black font-mono text-teal-800 block">{fmtCurr(summary.net_revenue)}</span>
+              <span className="text-[10px] text-slate-400">Gross sales less discounts</span>
             </div>
-
+            <div className="bg-white border border-amber-200 p-5 rounded-2xl shadow-xs space-y-1">
+              <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider block">Cost of Goods Sold</span>
+              <span className="text-xl font-black font-mono text-amber-800 block">{fmtCurr(summary.total_cogs)}</span>
+              <span className="text-[10px] text-slate-400">Recorded item cost at sale</span>
+            </div>
             <div className="bg-emerald-50/70 border border-emerald-200 p-5 rounded-2xl shadow-xs space-y-1">
-              <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">
-                Gross Profit
-              </span>
-              <span className="text-2xl font-black font-mono text-emerald-900 block">
-                {fmtCurr(summary.gross_profit)}
-              </span>
+              <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">Gross Profit</span>
+              <span className="text-xl font-black font-mono text-emerald-900 block">{fmtCurr(summary.gross_profit)}</span>
+              <span className="text-[10px] text-emerald-800">Net sales less COGS</span>
             </div>
-
             <div className="bg-teal-50/70 border border-teal-200 p-5 rounded-2xl shadow-xs space-y-1">
-              <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider block">
-                Profit Margin Rate
-              </span>
-              <span className="text-2xl font-black font-mono text-teal-900 block">
-                {summary.profit_margin_percent || 0}%
-              </span>
+              <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-wider block">Gross Margin</span>
+              <span className="text-xl font-black font-mono text-teal-900 block">{Number(summary.profit_margin_percent || 0).toFixed(2)}%</span>
+              <span className="text-[10px] text-teal-800">Gross profit / net sales</span>
+            </div>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-1">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Transactions</span>
+              <span className="text-xl font-black font-mono text-slate-900 block">{Number(summary.transaction_count || 0).toLocaleString()}</span>
+              <span className="text-[10px] text-slate-400">Average basket {fmtCurr(summary.avg_basket_value)}</span>
+            </div>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-1">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Units Sold</span>
+              <span className="text-xl font-black font-mono text-slate-900 block">{Number(summary.total_units_sold || 0).toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>
+              <span className="text-[10px] text-slate-400">{Number(summary.avg_items_per_basket || 0).toFixed(2)} units per transaction</span>
             </div>
           </section>
+
+          {/* PERIOD-OVER-PERIOD COMPARISON */}
+          {periodComparison && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Period Performance Comparison</h3>
+                  <p className="text-[11px] text-slate-500 mt-1">Compared with {periodComparison.previous_start_date} to {periodComparison.previous_end_date}</p>
+                </div>
+                <span className="text-[10px] text-slate-500">Equal-length previous period</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Previous Net Sales', value: fmtCurr(periodComparison.net_revenue) },
+                  { label: 'Net Sales Change', value: periodComparison.net_revenue_change_percent == null ? '—' : `${periodComparison.net_revenue_change_percent > 0 ? '+' : ''}${periodComparison.net_revenue_change_percent}%` },
+                  { label: 'Previous Gross Profit', value: fmtCurr(periodComparison.gross_profit) },
+                  { label: 'Gross Profit Change', value: periodComparison.gross_profit_change_percent == null ? '—' : `${periodComparison.gross_profit_change_percent > 0 ? '+' : ''}${periodComparison.gross_profit_change_percent}%` },
+                ].map((metric) => (
+                  <div key={metric.label} className="bg-slate-50 rounded-xl p-3">
+                    <div className="text-[9px] uppercase tracking-wider font-bold text-slate-500">{metric.label}</div>
+                    <div className="text-lg font-black font-mono text-slate-900 mt-1">{metric.value}</div>
+                  </div>
+                ))}
+              </div>
+              {!periodComparison.comparison_available && <p className="text-[10px] text-amber-700">No previous-period sales were recorded, so percentage movement is not available.</p>}
+            </section>
+          )}
 
           {/* GRAPHICAL VISUALIZATIONS SECTION */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -357,10 +395,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    Financial Velocity (Revenue vs COGS vs Gross Profit)
+                    Sales & Profit Trend (Net Sales vs COGS vs Gross Profit)
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Comparative timeline analysis of period sales income against direct product costs
+                    Net sales after discounts compared with product costs and gross profit
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
@@ -385,7 +423,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                         formatter={(val, name) => [fmtCurr(val), name]}
                       />
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                      <Bar dataKey="revenue" name="Gross Revenue" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                      <Bar dataKey="revenue" name="Net Sales" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
                       <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
                       <Bar dataKey="profit" name="Gross Profit" fill="#059669" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
                     </BarChart>
@@ -402,7 +440,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Payment Channels Share
+                  Sales Tender Mix
                 </h3>
                 <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                   Distribution
@@ -628,10 +666,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  🚀 Fast-Moving Products (Top Performers)
+                  Top Revenue-Contributing Products
                 </h3>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Top Revenue Drivers
+                  Highest Sales Value
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -640,7 +678,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                     <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
                       <th className="py-2.5">Product</th>
                       <th className="py-2.5 text-center">Units Sold</th>
-                      <th className="py-2.5 text-right">Revenue</th>
+                      <th className="py-2.5 text-right">Gross Sales</th>
                       <th className="py-2.5 text-right">Margin %</th>
                     </tr>
                   </thead>
@@ -667,10 +705,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  🐢 Slow-Moving Products (Stagnant Inventory)
+                  Lower Sales-Contributing Products
                 </h3>
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full">
-                  Lowest Velocity
+                  Lower contributors among products sold in this period
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -679,7 +717,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                     <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
                       <th className="py-2.5">Product</th>
                       <th className="py-2.5 text-center">Units Sold</th>
-                      <th className="py-2.5 text-right">Revenue</th>
+                      <th className="py-2.5 text-right">Gross Sales</th>
                       <th className="py-2.5 text-right">Margin %</th>
                     </tr>
                   </thead>
@@ -695,7 +733,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-slate-400 font-mono">No slow-moving items recorded.</td>
+                        <td colSpan="4" className="py-6 text-center text-slate-400 font-mono">No lower-contribution products available for this period.</td>
                       </tr>
                     )}
                   </tbody>
@@ -704,20 +742,39 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             </div>
           </section>
 
+          {/* CREDIT REPAYMENT CHANNEL ANALYSIS */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Credit Repayments by Collection Channel</h3>
+                <p className="text-[11px] text-slate-500 mt-1">Collections against previously issued credit invoices; these are not new sales revenue.</p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800">{fmtCurr(summary.total_credit_repayments)}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {repaymentBreakdown.length ? repaymentBreakdown.map((entry) => (
+                <div key={entry.method} className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] uppercase tracking-wider font-bold text-slate-500">{entry.method.replaceAll('_', ' ')}</div>
+                  <div className="text-sm font-black font-mono text-slate-900 mt-1">{fmtCurr(entry.amount)}</div>
+                </div>
+              )) : <p className="col-span-full text-xs text-slate-400">No credit repayment collections in this period.</p>}
+            </div>
+          </section>
+
           {/* RESOLVED PAYMENT BREAKDOWN TABLE */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Resolved Payment Channel Distribution
+                Direct Sales by Payment Method
               </h3>
-              <span className="text-[10px] font-semibold text-slate-400">Fully Split-Resolved</span>
+              <span className="text-[10px] font-semibold text-slate-400">Repayments shown separately above</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 uppercase text-[9px] tracking-wider">
                     <th className="py-2.5">Channel / Method</th>
-                    <th className="py-2.5 text-right">Settled Total</th>
+                    <th className="py-2.5 text-right">Sales Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
