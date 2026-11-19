@@ -31,7 +31,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const [expandedTxnIds, setExpandedTxnIds] = useState([]);
 
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  
+
   const [periodType, setPeriodType] = useState(() => searchParams.get('period_type') || 'day');
   const [selectedDate, setSelectedDate] = useState(() => searchParams.get('selectedDate') || propStartDate || '');
   const [year, setYear] = useState(() => searchParams.get('year') || new Date().getFullYear().toString());
@@ -60,6 +60,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
       year: year,
       month: month,
     };
+
+    if (periodType === 'total') {
+      params.period = 'all';
+    }
 
     if (activeBranch) {
       params.branch_id = activeBranch;
@@ -104,6 +108,10 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
         export_type: type,
       };
 
+      if (periodType === 'total') {
+        params.period = 'all';
+      }
+
       if (activeBranch) {
         params.branch_id = activeBranch;
         params.branch = activeBranch;
@@ -140,6 +148,30 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
   const insights = detailedReport?.insights || [];
   const transactions = detailedReport?.transactions || [];
   const creditRepayments = detailedReport?.credit_repayments_list || detailedReport?.repayments || [];
+
+  const isSingleTotalPeriod = periodType === 'day' || periodType === 'total';
+
+  const chartData = useMemo(() => {
+    if (isSingleTotalPeriod) {
+      const totalRev = Number(summary.net_revenue ?? summary.gross_revenue ?? 0);
+      const totalCogs = Number(summary.total_cogs ?? 0);
+      const totalProfit = Number(summary.gross_profit ?? 0);
+
+      if (totalRev === 0 && totalCogs === 0 && totalProfit === 0 && dailyTrends.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          date: periodType === 'day' ? (selectedDate || 'Day Total') : 'Total',
+          revenue: totalRev,
+          cogs: totalCogs,
+          profit: totalProfit,
+        },
+      ];
+    }
+    return dailyTrends;
+  }, [isSingleTotalPeriod, periodType, summary, dailyTrends, selectedDate]);
 
   const paymentBreakdown = useMemo(() => {
     return rawPaymentBreakdown.filter(
@@ -185,7 +217,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 p-6 space-y-6 font-sans">
-      
+
       {/* HEADER CONTROLS */}
       <header className="no-print bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -202,9 +234,9 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
         {/* Filters and Download Actions */}
         <div className="flex flex-wrap items-center gap-3">
-          
+
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            {['day', 'week', 'month', 'year'].map((type) => (
+            {['day', 'week', 'month', 'year', 'total'].map((type) => (
               <button
                 key={type}
                 onClick={() => setPeriodType(type)}
@@ -219,7 +251,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
             ))}
           </div>
 
-          {periodType === 'day' || periodType === 'week' ? (
+          {periodType === 'total' ? null : periodType === 'day' || periodType === 'week' ? (
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs font-medium">
               <span className="text-slate-500 text-[10px] uppercase font-bold">Date:</span>
               <input
@@ -315,7 +347,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
         </div>
       ) : (
         <div id="executive-sales-report-area" className="space-y-6">
-          
+
           {/* PRIMARY FINANCIAL METRICS */}
           <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-1">
@@ -389,7 +421,7 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
 
           {/* GRAPHICAL VISUALIZATIONS SECTION */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             {/* 1. FINANCIAL TREND GRAPH */}
             <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -402,14 +434,14 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
-                  Trend Analysis
+                  {isSingleTotalPeriod ? 'Period Total' : 'Trend Analysis'}
                 </span>
               </div>
 
               <div className="h-64 w-full">
-                {dailyTrends.length > 0 ? (
+                {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dailyTrends} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
                       <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `KSh ${v}`} />
@@ -423,9 +455,30 @@ export default function SalesView({ branchId, startDate: propStartDate, endDate:
                         formatter={(val, name) => [fmtCurr(val), name]}
                       />
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                      <Bar dataKey="revenue" name="Net Sales" fill="#0D9488" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
-                      <Bar dataKey="cogs" name="COGS" fill="#D97706" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
-                      <Bar dataKey="profit" name="Gross Profit" fill="#059669" radius={[4, 4, 0, 0]} barSize={16} minPointSize={3} />
+                      <Bar
+                        dataKey="revenue"
+                        name="Net Sales"
+                        fill="#0D9488"
+                        radius={[4, 4, 0, 0]}
+                        barSize={isSingleTotalPeriod ? 42 : 16}
+                        minPointSize={3}
+                      />
+                      <Bar
+                        dataKey="cogs"
+                        name="COGS"
+                        fill="#D97706"
+                        radius={[4, 4, 0, 0]}
+                        barSize={isSingleTotalPeriod ? 42 : 16}
+                        minPointSize={3}
+                      />
+                      <Bar
+                        dataKey="profit"
+                        name="Gross Profit"
+                        fill="#059669"
+                        radius={[4, 4, 0, 0]}
+                        barSize={isSingleTotalPeriod ? 42 : 16}
+                        minPointSize={3}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
