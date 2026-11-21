@@ -5,19 +5,36 @@ import API from '../api';
 const fmtCurr = (val) => {
   if (val === null || val === undefined || isNaN(val)) return 'KSh 0.00';
   const num = Number(val);
-  if (num < 0) return `(KSh ${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
-  return `KSh ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (num < 0) {
+    return `(KSh ${Math.abs(num).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })})`;
+  }
+  return `KSh ${num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 const fmtValOutflow = (val, isOutflow = false) => {
   const num = Number(val || 0);
   if (isOutflow && num > 0) {
-    return `(${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    return `(${num.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })})`;
   }
   if (num < 0) {
-    return `(${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    return `(${Math.abs(num).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })})`;
   }
-  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 export default function FinancialView({ branchId }) {
@@ -50,7 +67,10 @@ export default function FinancialView({ branchId }) {
   const [selectedDate, setSelectedDate] = useState(() => {
     if (typeof window === 'undefined') return currentDate.toISOString().split('T')[0];
     const params = new URLSearchParams(window.location.search);
-    const raw = params.get('selectedDate') || params.get('date') || localStorage.getItem('fin_selectedDate');
+    const raw =
+      params.get('selectedDate') ||
+      params.get('date') ||
+      localStorage.getItem('fin_selectedDate');
     return raw ? String(raw).trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
   });
 
@@ -90,10 +110,23 @@ export default function FinancialView({ branchId }) {
     return currentDate.getMonth() + 1;
   });
 
-  const monthNames = useMemo(() => [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ], []);
+  const monthNames = useMemo(
+    () => [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ],
+    []
+  );
 
   const availableYears = useMemo(() => {
     const currentYr = currentDate.getFullYear();
@@ -120,7 +153,6 @@ export default function FinancialView({ branchId }) {
   const handlePeriodChange = (newPeriod) => {
     setPeriodType(newPeriod);
 
-    // Clean up stale parameters to avoid date/range conflict
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       ['selectedDate', 'date', 'start_date', 'end_date', 'month', 'year'].forEach((k) => {
@@ -136,7 +168,9 @@ export default function FinancialView({ branchId }) {
         localStorage.setItem('fin_month', String(month));
         localStorage.setItem('fin_year', String(year));
       } else if (newPeriod === 'day' || newPeriod === 'weekly') {
-        const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+        const cleanDate = selectedDate
+          ? selectedDate.trim().slice(0, 10)
+          : currentDate.toISOString().split('T')[0];
         url.searchParams.set('selectedDate', cleanDate);
         url.searchParams.set('date', cleanDate);
         localStorage.setItem('fin_selectedDate', cleanDate);
@@ -228,22 +262,45 @@ export default function FinancialView({ branchId }) {
     });
   };
 
-  const queryParams = useMemo(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''), []);
-  const activeBranch = branchId || queryParams.get('branch') || queryParams.get('branch_id');
+  const activeBranch = useMemo(() => {
+    if (branchId && String(branchId).toLowerCase() !== 'all') {
+      return String(branchId);
+    }
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlBranch = params.get('branch') || params.get('branch_id');
+      if (urlBranch && String(urlBranch).toLowerCase() !== 'all') {
+        return String(urlBranch);
+      }
+    }
+    return '';
+  }, [branchId]);
 
   const buildQueryParams = useCallback(() => {
-    const cleanDate = selectedDate ? selectedDate.trim().slice(0, 10) : currentDate.toISOString().split('T')[0];
+    const cleanDate = selectedDate
+      ? selectedDate.trim().slice(0, 10)
+      : currentDate.toISOString().split('T')[0];
+
+    const normalizedPeriod =
+      periodType === 'weekly' ? 'week' : periodType === 'total' ? 'all' : periodType;
+
     const params = {
-      branch_id: activeBranch,
-      branch: activeBranch,
-      period_type: periodType,
+      period_type: normalizedPeriod,
     };
+
+    if (periodType === 'total') {
+      params.period = 'all';
+    }
+
+    if (activeBranch) {
+      params.branch_id = activeBranch;
+      params.branch = activeBranch;
+    }
 
     if (periodType === 'custom') {
       params.start_date = startDate ? startDate.trim().slice(0, 10) : cleanDate;
       params.end_date = endDate ? endDate.trim().slice(0, 10) : cleanDate;
     } else if (periodType === 'day' || periodType === 'weekly') {
-      // ONLY pass date and selectedDate for single day mode
       params.date = cleanDate;
       params.selectedDate = cleanDate;
     } else if (periodType === 'month') {
@@ -275,6 +332,15 @@ export default function FinancialView({ branchId }) {
       if (resCF.status === 'fulfilled') setCashflowData(resCF.value.data);
       if (resBS.status === 'fulfilled') setBalanceSheetData(resBS.value.data);
       if (resCB.status === 'fulfilled') setCashbookData(resCB.value.data);
+
+      if (
+        resPL.status === 'rejected' &&
+        resCF.status === 'rejected' &&
+        resBS.status === 'rejected' &&
+        resCB.status === 'rejected'
+      ) {
+        setError('Unable to connect to live financial report service.');
+      }
     } catch (err) {
       console.error('Failed to fetch financial statements:', err);
       setError('Unable to connect to live financial report service.');
@@ -311,7 +377,7 @@ export default function FinancialView({ branchId }) {
     try {
       setExporting(true);
       const params = buildQueryParams();
-      
+
       const response = await API.get(endpoint, {
         params,
         responseType: 'blob',
@@ -340,6 +406,7 @@ export default function FinancialView({ branchId }) {
     if (periodType === 'custom') return `RANGE: ${startDate} TO ${endDate}`;
     if (periodType === 'month') return `MONTH: ${monthNames[month - 1]} ${year}`;
     if (periodType === 'year') return `YEAR: ${year}`;
+    if (periodType === 'total') return 'ALL-TIME CUMULATIVE';
     return '';
   };
 
@@ -358,12 +425,16 @@ export default function FinancialView({ branchId }) {
 
           <div className="space-y-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm divide-y divide-slate-100">
             <div className="flex justify-between items-center py-2 text-sm font-bold text-slate-800">
-              <span>Gross Sales Revenue</span>
-              <span className="text-emerald-700 font-mono text-base">{fmtCurr(data.revenue ?? data.gross_sales_revenue)}</span>
+              <span>Net Sales Revenue</span>
+              <span className="text-emerald-700 font-mono text-base">
+                {fmtCurr(data.revenue ?? data.net_sales_revenue ?? data.gross_sales_revenue)}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2 text-sm text-slate-600">
               <span>Less: Cost of Goods Sold (COGS)</span>
-              <span className="text-rose-600 font-mono">{fmtCurr(data.cogs ?? data.cost_of_goods_sold)}</span>
+              <span className="text-rose-600 font-mono">
+                {fmtCurr(data.cogs ?? data.cost_of_goods_sold)}
+              </span>
             </div>
             <div className="flex justify-between items-center py-3 text-base font-black text-slate-900 bg-slate-50 px-3 rounded-lg border border-slate-200/80">
               <span>Gross Profit</span>
@@ -372,7 +443,9 @@ export default function FinancialView({ branchId }) {
 
             <div className="flex justify-between items-center py-2 text-sm text-slate-600">
               <span>Less: Operating Expenses</span>
-              <span className="text-rose-600 font-mono">{fmtCurr(data.operating_expenses ?? data.expenses)}</span>
+              <span className="text-rose-600 font-mono">
+                {fmtCurr(data.operating_expenses ?? data.expenses)}
+              </span>
             </div>
             <div className="flex justify-between items-center py-3 text-base font-black text-slate-900 bg-slate-50 px-3 rounded-lg border border-slate-200/80">
               <span>Operating Profit</span>
@@ -381,7 +454,9 @@ export default function FinancialView({ branchId }) {
 
             <div className="flex justify-between items-center py-2 text-sm text-slate-600">
               <span>Finance Costs & Tax</span>
-              <span className="text-rose-600 font-mono">{fmtCurr(data.finance_costs_and_tax ?? 0)}</span>
+              <span className="text-rose-600 font-mono">
+                {fmtCurr(data.finance_costs_and_tax ?? 0)}
+              </span>
             </div>
             <div className="flex justify-between items-center py-4 text-lg font-black text-slate-900 bg-teal-50 px-4 rounded-xl border border-teal-200">
               <span className="text-teal-900">Net Profit / (Loss)</span>
@@ -397,27 +472,42 @@ export default function FinancialView({ branchId }) {
       const op = data?.operating_activities || {};
       const inv = data?.investing_activities || {};
       const fin = data?.financing_activities || {};
+      const otherReceiptsVal = Number(op.other_receipts ?? op.other_income ?? 0);
 
       return (
         <div className="max-w-2xl mx-auto space-y-6 text-xs font-sans">
           <div className="bg-teal-900 text-white p-4 rounded-xl text-center space-y-1 shadow-md">
             <h2 className="text-base font-black tracking-wider uppercase">STATEMENT OF CASH FLOWS</h2>
-            <p className="text-xs text-teal-200 font-semibold font-mono uppercase">Period: {data?.period || getPeriodLabel()} · KSh</p>
+            <p className="text-xs text-teal-200 font-semibold font-mono uppercase">
+              Period: {data?.period || getPeriodLabel()} · KSh
+            </p>
           </div>
 
           <div className="space-y-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
             {/* 1. OPERATING ACTIVITIES */}
             <div className="space-y-2">
               <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
-                <span className="text-[11px] font-bold text-teal-900 uppercase">1. Operating Activities</span>
+                <span className="text-[11px] font-bold text-teal-900 uppercase">
+                  1. Operating Activities
+                </span>
               </div>
               <div className="px-2 space-y-1.5 font-medium text-slate-800">
                 <div className="flex justify-between">
-                  <span>Customer receipts</span>
-                  <span className="font-bold text-slate-900">{fmtValOutflow(op.customer_receipts)}</span>
+                  <span>Customer receipts (Sales & Debt Collections)</span>
+                  <span className="font-bold text-slate-900">
+                    {fmtValOutflow(op.customer_receipts)}
+                  </span>
                 </div>
+                {otherReceiptsVal !== 0 && (
+                  <div className="flex justify-between">
+                    <span>Other income / non-sales receipts</span>
+                    <span className="font-bold text-emerald-700">
+                      {fmtValOutflow(otherReceiptsVal)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-rose-600">
-                  <span>Supplier payments</span>
+                  <span>Supplier payments & stock purchases</span>
                   <span className="font-bold">{fmtValOutflow(op.supplier_payments, true)}</span>
                 </div>
                 <div className="flex justify-between text-rose-600">
@@ -438,7 +528,9 @@ export default function FinancialView({ branchId }) {
             {/* 2. INVESTING ACTIVITIES */}
             <div className="space-y-2">
               <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
-                <span className="text-[11px] font-bold text-teal-900 uppercase">2. Investing Activities</span>
+                <span className="text-[11px] font-bold text-teal-900 uppercase">
+                  2. Investing Activities
+                </span>
               </div>
               <div className="px-2 space-y-1.5 font-medium text-slate-800">
                 <div className="flex justify-between text-rose-600">
@@ -447,7 +539,9 @@ export default function FinancialView({ branchId }) {
                 </div>
                 <div className="flex justify-between pt-2 border-t border-slate-200 font-black text-teal-900 text-xs">
                   <span>Net Investing Cash Flow</span>
-                  <span className={inv.net_investing_cash < 0 ? 'text-rose-600' : ''}>{fmtValOutflow(inv.net_investing_cash)}</span>
+                  <span className={inv.net_investing_cash < 0 ? 'text-rose-600' : ''}>
+                    {fmtValOutflow(inv.net_investing_cash)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -455,12 +549,16 @@ export default function FinancialView({ branchId }) {
             {/* 3. FINANCING ACTIVITIES */}
             <div className="space-y-2">
               <div className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
-                <span className="text-[11px] font-bold text-teal-900 uppercase">3. Financing Activities</span>
+                <span className="text-[11px] font-bold text-teal-900 uppercase">
+                  3. Financing Activities
+                </span>
               </div>
               <div className="px-2 space-y-1.5 font-medium text-slate-800">
                 <div className="flex justify-between">
                   <span>Capital + Loan received</span>
-                  <span className="font-bold text-slate-900">{fmtValOutflow(fin.capital_plus_loan_received || fin.capital_loan_received)}</span>
+                  <span className="font-bold text-slate-900">
+                    {fmtValOutflow(fin.capital_plus_loan_received || fin.capital_loan_received)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-rose-600">
                   <span>Loan repayment</span>
@@ -484,11 +582,11 @@ export default function FinancialView({ branchId }) {
                 <span>{fmtValOutflow(data?.net_increase_in_cash)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Opening Cash Balance</span>
+                <span>Opening Cash Balance (Carry-Forward)</span>
                 <span>{fmtValOutflow(data?.opening_cash)}</span>
               </div>
               <div className="bg-teal-100/80 p-3 rounded-xl flex justify-between text-teal-950 font-black text-sm">
-                <span>CLOSING CASH BALANCE</span>
+                <span>CLOSING CASH BALANCE (AVAILABLE FUNDS)</span>
                 <span>KSh {fmtValOutflow(data?.closing_cash)}</span>
               </div>
             </div>
@@ -504,26 +602,38 @@ export default function FinancialView({ branchId }) {
       return (
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="bg-teal-800 text-white p-4 rounded-xl text-center shadow-md">
-            <h2 className="text-xl font-black tracking-tight uppercase">STATEMENT OF FINANCIAL POSITION (BALANCE SHEET)</h2>
-            <p className="text-xs text-teal-100 mt-1 uppercase font-mono font-bold">As at {data.as_at_date || 'Current Financial Date'}</p>
+            <h2 className="text-xl font-black tracking-tight uppercase">
+              STATEMENT OF FINANCIAL POSITION (BALANCE SHEET)
+            </h2>
+            <p className="text-xs text-teal-100 mt-1 uppercase font-mono font-bold">
+              As at {data.as_at_date || 'Current Financial Date'}
+            </p>
           </div>
 
           <div className="space-y-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             {/* ASSETS */}
             <div className="space-y-2">
-              <h3 className="text-sm font-black text-teal-900 uppercase tracking-wider border-b border-teal-100 pb-1">1. ASSETS</h3>
+              <h3 className="text-sm font-black text-teal-900 uppercase tracking-wider border-b border-teal-100 pb-1">
+                1. ASSETS
+              </h3>
               <div className="divide-y divide-slate-100 text-xs">
                 <div className="flex justify-between py-2">
                   <span>Cash, Bank & M-Pesa Tills</span>
-                  <span className="font-mono font-semibold">{fmtCurr(data.assets?.cash_bank_mpesa)}</span>
+                  <span className="font-mono font-semibold">
+                    {fmtCurr(data.assets?.cash_bank_mpesa)}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span>Customer Debts (Accounts Receivable)</span>
-                  <span className="font-mono font-semibold">{fmtCurr(data.assets?.customer_debts)}</span>
+                  <span className="font-mono font-semibold">
+                    {fmtCurr(data.assets?.customer_debts)}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span>Inventory / Stock Asset Value</span>
-                  <span className="font-mono font-semibold">{fmtCurr(data.assets?.inventory_stock)}</span>
+                  <span className="font-mono font-semibold">
+                    {fmtCurr(data.assets?.inventory_stock)}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span>Equipment & Fixed Assets</span>
@@ -538,7 +648,9 @@ export default function FinancialView({ branchId }) {
 
             {/* LIABILITIES */}
             <div className="space-y-2">
-              <h3 className="text-sm font-black text-rose-900 uppercase tracking-wider border-b border-rose-100 pb-1">2. LIABILITIES</h3>
+              <h3 className="text-sm font-black text-rose-900 uppercase tracking-wider border-b border-rose-100 pb-1">
+                2. LIABILITIES
+              </h3>
               <div className="divide-y divide-slate-100 text-xs">
                 <div className="flex justify-between py-2 text-rose-600">
                   <span>Supplier Debts (Accounts Payable)</span>
@@ -563,11 +675,15 @@ export default function FinancialView({ branchId }) {
 
             {/* EQUITY */}
             <div className="space-y-2">
-              <h3 className="text-sm font-black text-teal-900 uppercase tracking-wider border-b border-teal-100 pb-1">3. EQUITY</h3>
+              <h3 className="text-sm font-black text-teal-900 uppercase tracking-wider border-b border-teal-100 pb-1">
+                3. EQUITY
+              </h3>
               <div className="divide-y divide-slate-100 text-xs">
                 <div className="flex justify-between py-2">
                   <span>Capital & Retained Earnings</span>
-                  <span className="font-mono font-semibold">{fmtCurr(data.equity?.capital_and_retained_profits)}</span>
+                  <span className="font-mono font-semibold">
+                    {fmtCurr(data.equity?.capital_and_retained_profits)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -584,30 +700,77 @@ export default function FinancialView({ branchId }) {
     if (activeTab === 'cashbook') {
       const data = cashbookData || {};
       const summary = data.summary || {};
-      const entries = Array.isArray(data.entries) ? data.entries : Array.isArray(data.results) ? data.results : [];
+      const entries = Array.isArray(data.entries)
+        ? data.entries
+        : Array.isArray(data.results)
+        ? data.results
+        : [];
+      const netPeriod = Number(summary.net_position ?? summary.net_cash_flow ?? 0);
+      const openingCash =
+        summary.opening_cash ?? cashflowData?.opening_cash ?? null;
+      const closingCash =
+        summary.closing_cash ??
+        summary.total_available_funds ??
+        cashflowData?.closing_cash ??
+        null;
 
       return (
         <div className="max-w-5xl mx-auto space-y-6 text-xs font-sans">
           <div className="bg-teal-950 text-white p-4 rounded-xl text-center space-y-1 shadow-md">
-            <h2 className="text-base font-black tracking-wider uppercase">CASHBOOK AGGREGATION & LIQUIDITY SUMMARY</h2>
-            <p className="text-xs text-teal-300 font-semibold font-mono uppercase">Period: {getPeriodLabel()} · KSh</p>
+            <h2 className="text-base font-black tracking-wider uppercase">
+              CASHBOOK AGGREGATION & LIQUIDITY SUMMARY
+            </h2>
+            <p className="text-xs text-teal-300 font-semibold font-mono uppercase">
+              Period: {data.period || getPeriodLabel()} · KSh
+            </p>
           </div>
 
           {/* SUMMARY KPI BANNER */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
-              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Inflows (Collections)</span>
-              <span className="text-xl font-black font-mono text-emerald-700 mt-2">{fmtCurr(summary.total_inflows ?? summary.total_inflow)}</span>
+              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                Period Inflows (Sales, Debts & Other)
+              </span>
+              <span className="text-xl font-black font-mono text-emerald-700 mt-2">
+                {fmtCurr(summary.total_inflows ?? summary.total_inflow)}
+              </span>
             </div>
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
-              <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Total Outflows (Expenses & Purchases)</span>
-              <span className="text-xl font-black font-mono text-rose-700 mt-2">{fmtCurr(summary.total_outflows ?? summary.total_outflow)}</span>
+              <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">
+                Period Outflows (Expenses & Purchases)
+              </span>
+              <span className="text-xl font-black font-mono text-rose-700 mt-2">
+                {fmtCurr(summary.total_outflows ?? summary.total_outflow)}
+              </span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                Period Net Cash Movement
+              </span>
+              <span
+                className={`text-xl font-black font-mono mt-2 ${
+                  netPeriod < 0 ? 'text-rose-700' : 'text-teal-800'
+                }`}
+              >
+                {fmtCurr(netPeriod)}
+              </span>
             </div>
             <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex flex-col justify-between shadow-2xs">
-              <span className="text-[10px] font-bold text-teal-900 uppercase tracking-wider">Net Cash Position</span>
-              <span className={`text-xl font-black font-mono mt-2 ${(summary.net_position ?? summary.net_cash_flow ?? 0) < 0 ? 'text-rose-700' : 'text-teal-800'}`}>
-                {fmtCurr(summary.net_position ?? summary.net_cash_flow)}
+              <span className="text-[10px] font-bold text-teal-900 uppercase tracking-wider">
+                Cumulative Available Funds
               </span>
+              <span
+                className={`text-xl font-black font-mono mt-2 ${
+                  Number(closingCash ?? netPeriod) < 0 ? 'text-rose-700' : 'text-teal-900'
+                }`}
+              >
+                {fmtCurr(closingCash !== null ? closingCash : netPeriod)}
+              </span>
+              {openingCash !== null && (
+                <span className="text-[10px] font-mono text-teal-700 mt-1">
+                  Opening Carry-Forward: {fmtCurr(openingCash)}
+                </span>
+              )}
             </div>
           </div>
 
@@ -627,7 +790,10 @@ export default function FinancialView({ branchId }) {
                 <tbody className="divide-y divide-slate-100 font-mono text-slate-800">
                   {entries.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="py-8 text-center text-slate-400 font-sans italic text-xs">
+                      <td
+                        colSpan="5"
+                        className="py-8 text-center text-slate-400 font-sans italic text-xs"
+                      >
                         No financial or channel transactions aggregated for this selected date range.
                       </td>
                     </tr>
@@ -641,11 +807,13 @@ export default function FinancialView({ branchId }) {
                           {entry.description}
                         </td>
                         <td className="py-3 px-4 font-sans text-[10px]">
-                          <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${
-                            entry.type === 'INFLOW' 
-                              ? 'bg-emerald-100 text-emerald-800' 
-                              : 'bg-rose-100 text-rose-800'
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full font-bold uppercase ${
+                              entry.type === 'INFLOW'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-rose-100 text-rose-800'
+                            }`}
+                          >
                             {entry.type}
                           </span>
                         </td>
@@ -684,8 +852,12 @@ export default function FinancialView({ branchId }) {
       <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-4 no-print">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Executive Financial Statements</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Audited Profit & Loss, Cash Flow, Balance Sheet, and Cashbook ledgers.</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">
+              Executive Financial Statements
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Audited Profit & Loss, Cash Flow, Balance Sheet, and Cashbook ledgers.
+            </p>
           </div>
 
           {/* SUB-TAB TOGGLES */}
@@ -693,7 +865,9 @@ export default function FinancialView({ branchId }) {
             <button
               onClick={() => setActiveTab('profit')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'profit' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'profit'
+                  ? 'bg-teal-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Profit & Loss
@@ -701,7 +875,9 @@ export default function FinancialView({ branchId }) {
             <button
               onClick={() => setActiveTab('cashflow')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'cashflow' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'cashflow'
+                  ? 'bg-teal-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Cash Flow
@@ -709,7 +885,9 @@ export default function FinancialView({ branchId }) {
             <button
               onClick={() => setActiveTab('balancesheet')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'balancesheet' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'balancesheet'
+                  ? 'bg-teal-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Balance Sheet
@@ -717,7 +895,9 @@ export default function FinancialView({ branchId }) {
             <button
               onClick={() => setActiveTab('cashbook')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'cashbook' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'cashbook'
+                  ? 'bg-teal-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Cashbook
@@ -765,6 +945,7 @@ export default function FinancialView({ branchId }) {
               <option value="month">Monthly</option>
               <option value="year">Yearly</option>
               <option value="custom">Custom Range</option>
+              <option value="total">Total (All-Time)</option>
             </select>
 
             {(periodType === 'day' || periodType === 'weekly') && (
@@ -802,7 +983,9 @@ export default function FinancialView({ branchId }) {
                   className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2 py-1 outline-none cursor-pointer"
                 >
                   {monthNames.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1}>{name.slice(0, 3)}</option>
+                    <option key={idx + 1} value={idx + 1}>
+                      {name.slice(0, 3)}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -811,7 +994,9 @@ export default function FinancialView({ branchId }) {
                   className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2 py-1 outline-none cursor-pointer"
                 >
                   {availableYears.map((y) => (
-                    <option key={y} value={y}>{y}</option>
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -824,7 +1009,9 @@ export default function FinancialView({ branchId }) {
                 className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-2.5 py-1 outline-none cursor-pointer"
               >
                 {availableYears.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
                 ))}
               </select>
             )}
@@ -840,20 +1027,27 @@ export default function FinancialView({ branchId }) {
       {loading ? (
         <div className="bg-white rounded-3xl p-16 border border-slate-200/90 shadow-xs flex flex-col items-center justify-center space-y-3">
           <div className="w-10 h-10 border-4 border-teal-700 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-bold text-slate-500 font-mono">Generating financial statements...</span>
+          <span className="text-xs font-bold text-slate-500 font-mono">
+            Generating financial statements...
+          </span>
         </div>
       ) : error ? (
         <div className="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-3xl text-xs font-bold text-center">
           {error}
         </div>
       ) : (
-        <div id="executive-financial-report-area" className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xs space-y-8">
+        <div
+          id="executive-financial-report-area"
+          className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xs space-y-8"
+        >
           {renderStatementContent()}
 
           {/* SIGNATURE BLOCK FOR EXECUTIVE USE */}
           <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs font-bold text-slate-600">
             <div className="text-right flex flex-col items-end">
-              <span className="text-[10px] uppercase text-slate-400 block font-mono">Approved By:</span>
+              <span className="text-[10px] uppercase text-slate-400 block font-mono">
+                Approved By:
+              </span>
               <div className="mt-6 border-b border-slate-400 w-48"></div>
               <span className="mt-1 block text-slate-800">Management</span>
             </div>
